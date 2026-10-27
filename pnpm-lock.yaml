@@ -200,6 +200,10 @@ importers:
       saxes:
         specifier: ^6.0.0
         version: 6.0.0
+    devDependencies:
+      '@inkscape-web/wasm':
+        specifier: workspace:*
+        version: link:../wasm
 
   packages/editor:
     dependencies:

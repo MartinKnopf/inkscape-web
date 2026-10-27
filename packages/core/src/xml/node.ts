@@ -138,6 +138,11 @@ export class Node {
     }
     if (old !== value) this.#notify((o) => o.notifyAttributeChanged?.(this, name, old, value));
   }
+  /** Set the attribute, or remove it if value is null or empty. */
+  setAttributeOrRemoveIfEmpty(name: string, value: string | null): void {
+    this.setAttribute(name, value ? value : null);
+  }
+
   removeAttribute(name: string): void {
     this.setAttribute(name, null);
   }
@@ -193,6 +198,11 @@ export class Node {
   }
   appendChild(child: Node): void {
     this.addChild(child, this.#lastChild);
+  }
+
+  /** Insert child so that it becomes the child at index pos. */
+  addChildAtPos(child: Node, pos: number): void {
+    this.addChild(child, pos > 0 ? this.nthChild(pos - 1) : null);
   }
 
   removeChild(child: Node): void {
