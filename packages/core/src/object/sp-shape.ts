@@ -11,7 +11,7 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * Copyright (C) 1999-2012 Authors
  */
-import { Affine, type OptRect, PathVector } from '@inkscape-web/geom';
+import { Affine, type OptRect, type Path, PathVector } from '@inkscape-web/geom';
 import type { Drawing, DrawingItem, DrawingShape } from '../display/drawing.ts';
 import { SPShapeRendering } from '../style-enums.ts';
 import { BBoxType, SPItem } from './sp-item.ts';
@@ -56,6 +56,14 @@ export class SPShape extends SPItem {
   /** Same as setCurve() but without updating the display. */
   setCurveInsync(newCurve: PathVector | null): void {
     this._curve = newCurve;
+  }
+
+  /**
+   * Set the computed curve of a shape (upstream prepareShapeForLPE). Without update, so that
+   * set_shape() can be called from update(). TODO: LPE (curveBeforeLPE, the effects).
+   */
+  protected prepareShapeForLPE(c: Path | PathVector): void {
+    this.setCurveInsync(Array.isArray(c) ? c : [c]);
   }
 
   /** Compute the curve from the attributes (rect, ellipse, …). Subclasses override it. */

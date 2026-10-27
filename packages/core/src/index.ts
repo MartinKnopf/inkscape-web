@@ -15,6 +15,7 @@ export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';
 export * from './object/sp-object.ts';
 export * from './object/sp-path.ts';
+export * from './object/sp-rect.ts';
 export * from './object/sp-root.ts';
 export * from './object/sp-shape.ts';
 export * from './object/viewbox.ts';

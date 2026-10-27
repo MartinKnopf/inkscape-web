@@ -8,6 +8,9 @@
  *
  * Copyright 2003-2008 Authors
  */
+
+import { svgNumber } from '../svg/stringstream.ts';
+import type { SVGLength } from '../svg/svg-length.ts';
 import type { XmlDocument } from './document.ts';
 import type { NodeObserver } from './node-observer.ts';
 
@@ -139,6 +142,26 @@ export class Node {
     this.setAttribute(name, null);
   }
 
+  setAttributeBoolean(name: string, val: boolean): void {
+    this.setAttribute(name, val ? 'true' : 'false');
+  }
+  setAttributeInt(name: string, val: number): void {
+    this.setAttribute(name, String(Math.trunc(val)));
+  }
+  /** For attributes where an exponent is allowed; not for CSS properties. NaN is ignored. */
+  setAttributeSvgDouble(name: string, val: number): void {
+    if (Number.isNaN(val)) return;
+    this.setAttribute(name, svgNumber(val));
+  }
+  /** Remove the attribute if val is the default, otherwise set it like setAttributeSvgDouble. */
+  setAttributeSvgNonDefaultDouble(name: string, val: number, defaultValue: number): void {
+    if (val === defaultValue) this.removeAttribute(name);
+    else this.setAttributeSvgDouble(name, val);
+  }
+  setAttributeSvgLength(name: string, val: SVGLength): void {
+    this.setAttribute(name, val.write());
+  }
+
   setContent(content: string | null): void {
     const old = this.#content;
     this.#content = content;
@@ -220,6 +243,28 @@ export class Node {
     copy.#attributes = this.#attributes.map(([k, v]) => [k, v]);
     for (const c of this.children()) copy.appendChild(c.duplicate(doc));
     return copy;
+  }
+
+  /**
+   * Merge the content, children and attributes of src into this node. A child of src with an
+   * attribute `key` is merged into the child of this node with the same value of `key`.
+   * TODO: the `extension` and `clean` options, the position of this node.
+   */
+  mergeFrom(src: Node, key: string): void {
+    if (src === this) throw new Error('mergeFrom: src is this');
+    this.setContent(src.content());
+    for (const child of src.children()) {
+      const id = child.attribute(key);
+      if (id) {
+        const existing = [...this.children()].find((c) => c.attribute(key) === id);
+        if (existing) {
+          existing.mergeFrom(child, key);
+          continue;
+        }
+      }
+      this.appendChild(child.duplicate(this.#document));
+    }
+    for (const [k, v] of src.attributeList()) this.setAttribute(k, v);
   }
 
   addObserver(observer: NodeObserver): void {

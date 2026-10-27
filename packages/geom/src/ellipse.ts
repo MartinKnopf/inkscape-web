@@ -10,6 +10,7 @@
 import { Affine } from './affine.ts';
 import { Angle } from './angle.ts';
 import { are_near, type Coord, type Dim2, hypot, X, Y } from './coord.ts';
+import { EllipticalArc } from './elliptical-arc.ts';
 import { Interval } from './interval.ts';
 import { atan2, Point } from './point.ts';
 import { Rect } from './rect.ts';
@@ -195,6 +196,27 @@ export class Ellipse {
     if (v.x === 0 && v.y === 0) return 0;
     // Use the coordinate that gives better precision.
     return Math.abs(v.x) > Math.abs(v.y) ? (p.x - a.x) / v.x : (p.y - a.y) / v.y;
+  }
+
+  /**
+   * The arc of this ellipse from ip through inner to fp, which must lie on the ellipse
+   * (upstream Ellipse::arc). The flags are chosen so that the arc passes inner.
+   */
+  arc(ip: Point, inner: Point, fp: Point): EllipticalArc {
+    let largeArc = false;
+    let sweep = false;
+    const fv = fp.sub(this.#center);
+    const iv = ip.sub(this.#center);
+    const innerv = inner.sub(this.#center);
+    const ifcp = fv.cross(iv);
+    if (
+      ifcp !== 0 &&
+      (Math.sign(fv.cross(innerv)) !== Math.sign(ifcp) || Math.sign(iv.cross(innerv)) !== Math.sign(-ifcp))
+    ) {
+      largeArc = true;
+    }
+    if (ifcp < 0 !== largeArc) sweep = true;
+    return new EllipticalArc(ip, this.ray(X), this.ray(Y), this.rotationAngle(), largeArc, sweep, fp);
   }
 
   /** The ellipse after the transform. */

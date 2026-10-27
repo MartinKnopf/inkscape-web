@@ -541,6 +541,11 @@ export class SPObject implements NodeObserver {
     const key = attributeLookup(name);
     if (key !== SPAttr.INVALID) this.readAttr(key);
   }
+  notifyElementNameChanged(_node: Node, oldName: string, newName: string): void {
+    this.tagNameChanged(oldName, newName);
+  }
+  /** Called when the element name of the repr changes. Rects and ellipses follow it. */
+  protected tagNameChanged(_oldName: string, _newName: string): void {}
   notifyChildAdded(_node: Node, child: Node, prev: Node | null): void {
     this.childAdded(child, prev);
   }

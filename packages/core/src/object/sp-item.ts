@@ -12,7 +12,7 @@
  * Copyright (C) 2001 Ximian, Inc.
  * Copyright (C) 2004 Monash University
  */
-import { Affine, are_near, type OptRect, type Rect } from '@inkscape-web/geom';
+import { Affine, are_near, type OptRect, Rect } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { Drawing, DrawingItem } from '../display/drawing.ts';
@@ -100,6 +100,8 @@ export class SPItem extends SPObject {
   freeze_stroke_width = false;
   transform: Affine = Affine.identity();
   doc_bbox: OptRect = null;
+  /** The viewport of the last update, to resolve percentages. */
+  viewport = new Rect(0, 0, 0, 0);
   views: SPItemView[] = [];
   #highlightColor: Color | null = null;
 
@@ -229,10 +231,12 @@ export class SPItem extends SPObject {
     }
   }
 
-  protected override update(_ctx: SPCtx, flags: number): void {
+  protected override update(ctx: SPCtx, flags: number): void {
     // Any of the modifications defined in sp-object.h might change bbox,
     // so we invalidate it unconditionally
     this.bbox_valid = false;
+
+    this.viewport = (ctx as SPItemCtx).viewport; // Cache viewport
 
     if (flags & (SP_OBJECT_CHILD_MODIFIED_FLAG | SP_OBJECT_MODIFIED_FLAG | SP_OBJECT_STYLE_MODIFIED_FLAG)) {
       if (flags & SP_OBJECT_MODIFIED_FLAG) {
