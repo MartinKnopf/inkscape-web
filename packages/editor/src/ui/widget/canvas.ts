@@ -47,6 +47,9 @@ export class Canvas {
     this.svg.style.display = 'block';
     this.svg.style.width = '100%';
     this.svg.style.height = '100%';
+    this.svg.style.outline = 'none';
+    // Takes the keyboard focus when clicked (upstream set_focusable).
+    this.svg.setAttribute('tabindex', '0');
     this.#world = doc.createElementNS(SVG_NS, 'g') as SVGGElement;
     this.desktopLayer = doc.createElementNS(SVG_NS, 'g') as SVGGElement;
     this.controlsLayer = doc.createElementNS(SVG_NS, 'g') as SVGGElement;
