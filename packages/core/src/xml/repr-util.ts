@@ -10,6 +10,7 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * g++ port Copyright (C) 2003 Nathan Hurst
  */
+import type { Node } from './node.ts';
 
 export const SODIPODI_NS_URI = 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd';
 export const BROKEN_SODIPODI_NS_URI = 'http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd';
@@ -73,4 +74,62 @@ export function qnamePrefix(qname: string): string | null {
 /** Local part of a qualified name ("svg:rect" → "rect"). */
 export function qnameLocalName(qname: string): string {
   return qname.slice(qname.indexOf(':') + 1);
+}
+
+/** The lowest common ancestor of a and b (one of them if it contains the other), or null. */
+function lowest_common_ancestor(a: Node, b: Node): Node | null {
+  const ancestors = new Set<Node>();
+  for (let n: Node | null = a; n; n = n.parent()) ancestors.add(n);
+  for (let n: Node | null = b; n; n = n.parent()) if (ancestors.has(n)) return n;
+  return null;
+}
+
+/** The child of ancestor that contains descendant (or is it). */
+function find_containing_child(descendant: Node, ancestor: Node): Node | null {
+  for (let n: Node | null = descendant; n; n = n.parent()) if (n.parent() === ancestor) return n;
+  return null;
+}
+
+/**
+ * Compare the document order of two nodes: -1 if first comes before second
+ * (also if first is an ancestor of second), 1 if after, 0 if equal.
+ */
+export function sp_repr_compare_position(first: Node, second: Node): number {
+  let p1: number;
+  let p2: number;
+  if (first.parent() === second.parent()) {
+    /* Basic case - first and second have same parent */
+    p1 = first.position();
+    p2 = second.position();
+  } else {
+    /* Special case - the two objects have different parents.  They
+       could be in different groups or on different layers for
+       instance. */
+
+    // Find the lowest common ancestor(LCA)
+    const ancestor = lowest_common_ancestor(first, second);
+    if (!ancestor) throw new Error('sp_repr_compare_position: nodes are in different trees');
+    if (ancestor === first) return -1;
+    if (ancestor === second) return 1;
+    p1 = find_containing_child(first, ancestor)?.position() ?? 0;
+    p2 = find_containing_child(second, ancestor)?.position() ?? 0;
+  }
+  return p1 > p2 ? 1 : p1 < p2 ? -1 : 0;
+}
+
+/** Whether node is a child of svg:defs. */
+export function sp_repr_is_def(node: Node): boolean {
+  return node.parent()?.name() === 'svg:defs';
+}
+
+/** Whether node is svg:title, svg:desc or svg:metadata. */
+export function sp_repr_is_meta_element(node: Node | null): boolean {
+  if (node?.type() !== 'element') return false;
+  const name = node.name();
+  return name === 'svg:title' || name === 'svg:desc' || name === 'svg:metadata';
+}
+
+/** Whether node is a layer (inkscape:groupmode="layer"). */
+export function sp_repr_is_layer(node: Node): boolean {
+  return node.attribute('inkscape:groupmode') === 'layer';
 }

@@ -18,6 +18,7 @@
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
 import { DocumentUndo } from './document-undo.ts';
+import { C_ } from './i18n.ts';
 import { ObjectSet } from './object/object-set.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { Signal } from './util/signal.ts';
@@ -26,7 +27,7 @@ import { Signal } from './util/signal.ts';
  * The selection of a desktop (upstream Inkscape::Selection): an ObjectSet
  * with signals. `changed` is emitted when the set changes; `modified` is
  * emitted once after the selected objects were modified (collected flags).
- * TODO: anchors (setAnchor, scaleAnchored, rotateAnchored), snap points,
+ * TODO: anchors (setAnchor, scaleAnchored), snap points,
  * the page manager, getState/setState, selectionDistinctLayerAndParentCounts.
  */
 export class Selection extends ObjectSet {
@@ -54,6 +55,58 @@ export class Selection extends ObjectSet {
 
   emitModified(): void {
     this.#emitModified(this.#flags);
+  }
+
+  /**
+   * Rotate by angle_degrees around the rotation center, with an undo step
+   * that merges with the previous rotation in the same direction. With
+   * zoom ≠ 1, the angle is the distance in screen pixels that the farthest
+   * corner moves.
+   * TODO: the anchor (setAnchor) and the previous rotation anchor.
+   */
+  rotateAnchored(angle_degrees: number, zoom = 1): void {
+    const bbox = this.visualBounds();
+    const document = this.document();
+    if (!bbox || !document) return;
+    const center = this.center() ?? bbox.midpoint();
+
+    if (zoom !== 1.0) {
+      const m = bbox.midpoint();
+      let i = 0;
+      if (center.x < m.x) i = 1;
+      if (center.y < m.y) i = 3 - i;
+      const r = bbox.corner(i).sub(center).length();
+      angle_degrees = (180 * Math.atan2(angle_degrees / zoom, r)) / Math.PI;
+    }
+
+    this.rotateRelative(center, angle_degrees);
+
+    // Visual angle might be different from actual angle,
+    // when y axis points up.
+    const visual_angle = angle_degrees * document.yaxisdir();
+
+    if (visual_angle === 90.0) {
+      DocumentUndo.maybeDone(
+        document,
+        'selector:rotate:cw',
+        C_('Undo', 'Rotate 90° CW'),
+        'object-rotate-right',
+      );
+    } else if (visual_angle === -90.0) {
+      DocumentUndo.maybeDone(
+        document,
+        'selector:rotate:ccw',
+        C_('Undo', 'Rotate 90° CCW'),
+        'object-rotate-left',
+      );
+    } else {
+      DocumentUndo.maybeDone(
+        document,
+        visual_angle > 0 ? 'selector:rotate:ccw' : 'selector:rotate:cw',
+        C_('Undo', 'Rotate'),
+        'tool-pointer',
+      );
+    }
   }
 
   /** Whether selecting a single item makes its layer the current layer (default true). */
