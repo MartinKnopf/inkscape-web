@@ -7,7 +7,6 @@ import {
   Canvas,
   SPDesktop,
   shortcutLabel,
-  ToolBase,
 } from '@inkscape-web/editor';
 import * as Menubar from '@radix-ui/react-menubar';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react';
@@ -70,12 +69,10 @@ function DrawingPanel() {
     if (!host) return;
     const canvas = new Canvas(host);
     let desktop: SPDesktop | null = null;
-    let tool: ToolBase | null = null;
     let disposed = false;
     sp_file_new_default().then((doc) => {
       if (disposed) return;
       desktop = new SPDesktop(canvas, doc);
-      tool = new ToolBase(desktop);
       desktop.schedule_zoom_from_document();
       setActiveDesktop(desktop);
     });
@@ -83,7 +80,6 @@ function DrawingPanel() {
     return () => {
       disposed = true;
       detachKeys();
-      tool?.destroy();
       desktop?.destroy();
       canvas.destroy();
       if (getActiveDesktop() === desktop) setActiveDesktop(null);
