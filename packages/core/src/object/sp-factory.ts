@@ -9,8 +9,11 @@
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
 import { SPGroup } from './sp-item-group.ts';
+import { SPLine } from './sp-line.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
+import { SPPolygon } from './sp-polygon.ts';
+import { SPPolyLine } from './sp-polyline.ts';
 import { SPRect } from './sp-rect.ts';
 import { SPRoot } from './sp-root.ts';
 
@@ -27,7 +30,10 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:circle', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_CIRCLE)],
   ['arc', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ARC)],
   ['svg:g', () => new SPGroup()],
+  ['svg:line', () => new SPLine()],
   ['svg:path', () => new SPPath()],
+  ['svg:polygon', () => new SPPolygon()],
+  ['svg:polyline', () => new SPPolyLine()],
   ['svg:rect', () => new SPRect()],
   ['rect', () => new SPRect()], // LPE rect
   ['svg:svg', () => new SPRoot()],
