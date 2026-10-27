@@ -10,6 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@inkscape-web/core": "workspace:*"
+    "@inkscape-web/core": "workspace:*",
+    "@inkscape-web/geom": "workspace:*"
+  },
+  "devDependencies": {
+    "happy-dom": "^21.0.4"
   }
 }
