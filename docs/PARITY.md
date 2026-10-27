@@ -5,16 +5,16 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 0 | 26 | 0 |
-| Dialogs | 0 | 29 | 0 |
-| Actions | 0 | 409 | 0 |
-| Live path effects | 0 | 56 | 0 |
-| Internal import/export modules | 0 | 35 | 0 |
+| Tools | 5 | 26 | 19 |
+| Dialogs | 1 | 29 | 3 |
+| Actions | 6 | 409 | 1 |
+| Live path effects | 2 | 56 | 4 |
+| Internal import/export modules | 1 | 35 | 3 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (0/26)</summary>
+<details><summary>Tools (5/26)</summary>
 
-- [ ] `arc-tool.cpp`
+- [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
 - [ ] `box3d-tool.cpp`
 - [ ] `calligraphic-tool.cpp`
@@ -32,18 +32,18 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `pages-tool.cpp`
 - [ ] `pen-tool.cpp`
 - [ ] `pencil-tool.cpp`
-- [ ] `rect-tool.cpp`
-- [ ] `select-tool.cpp`
-- [ ] `spiral-tool.cpp`
+- [x] `rect-tool.cpp`
+- [x] `select-tool.cpp`
+- [x] `spiral-tool.cpp`
 - [ ] `spray-tool.cpp`
-- [ ] `star-tool.cpp`
+- [x] `star-tool.cpp`
 - [ ] `text-tool.cpp`
 - [ ] `tweak-tool.cpp`
 - [ ] `zoom-tool.cpp`
 
 </details>
 
-<details><summary>Dialogs (0/29)</summary>
+<details><summary>Dialogs (1/29)</summary>
 
 - [ ] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -62,7 +62,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `LivePathEffect`
 - [ ] `ObjectProperties`
 - [ ] `Objects`
-- [ ] `Preferences`
+- [x] `Preferences`
 - [ ] `Prototype`
 - [ ] `SVGFonts`
 - [ ] `Selectors`
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (0/409)</summary>
+<details><summary>Actions (6/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -97,8 +97,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.delete`
 - [ ] `app.delete-selection`
 - [ ] `app.document-dialog-templates`
-- [ ] `app.document-new`
-- [ ] `app.document-open`
+- [x] `app.document-new`
+- [x] `app.document-open`
 - [ ] `app.duplicate`
 - [ ] `app.duplicate-transform`
 - [ ] `app.edit-remove-filter`
@@ -304,7 +304,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `doc.page-new`
 - [ ] `doc.prune-inkscape-namespaces`
 - [ ] `doc.prune-proprietary-namespaces`
-- [ ] `doc.redo`
+- [x] `doc.redo`
 - [ ] `doc.remove-all-transforms`
 - [ ] `doc.remove-marker-context-paint`
 - [ ] `doc.reverse-auto-start-markers`
@@ -313,7 +313,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `doc.set-svg-version-2`
 - [ ] `doc.show-all-guides`
 - [ ] `doc.show-grids`
-- [ ] `doc.undo`
+- [x] `doc.undo`
 - [ ] `doc.vacuum-defs`
 - [ ] `win.canvas-color-manage`
 - [ ] `win.canvas-color-mode`
@@ -365,8 +365,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.document-import`
 - [ ] `win.document-print`
 - [ ] `win.document-revert`
-- [ ] `win.document-save`
-- [ ] `win.document-save-as`
+- [x] `win.document-save`
+- [x] `win.document-save-as`
 - [ ] `win.document-save-copy`
 - [ ] `win.document-save-template`
 - [ ] `win.help-url-ask-question`
@@ -491,7 +491,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (0/56)</summary>
+<details><summary>Live path effects (2/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
@@ -525,7 +525,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `line_segment`
 - [ ] `measure_segments`
 - [ ] `mirror_symmetry`
-- [ ] `offset`
+- [x] `offset`
 - [ ] `parallel`
 - [ ] `path_length`
 - [ ] `perp_bisector`
@@ -541,7 +541,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `simplify`
 - [ ] `skeletal`
 - [ ] `sketch`
-- [ ] `slice`
+- [x] `slice`
 - [ ] `spiro`
 - [ ] `tangent_to_curve`
 - [ ] `taper_stroke`
@@ -552,7 +552,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Internal import/export modules (0/35)</summary>
+<details><summary>Internal import/export modules (1/35)</summary>
 
 - [ ] `bluredge.cpp`
 - [ ] `cairo-ps-out.cpp`
@@ -576,7 +576,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `png-output.cpp`
 - [ ] `pov-out.cpp`
 - [ ] `rvng-import-dialog.cpp`
-- [ ] `svg.cpp`
+- [x] `svg.cpp`
 - [ ] `svgz.cpp`
 - [ ] `template-base.cpp`
 - [ ] `template-from-file.cpp`
