@@ -9,5 +9,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "@inkscape-web/wasm": "workspace:*"
+  }
 }

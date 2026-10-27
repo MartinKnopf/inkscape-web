@@ -2,6 +2,10 @@
 // Embind API of geom-module.wasm. Keep it small: one function per upstream
 // operation, geometry in and out as SVG path data. src/index.ts wraps it with types.
 #include <emscripten/bind.h>
+#include <emscripten/val.h>
+#include <2geom/affine.h>
+#include <2geom/path-sink.h>
+#include <2geom/pathvector.h>
 #include <2geom/svg-path-parser.h>
 #include <2geom/svg-path-writer.h>
 #include "path/path-boolop.h"
@@ -21,8 +25,73 @@ std::string normalize_path(std::string const &d, int precision)
     return Geom::write_svg_path(Geom::parse_svg_path(d.c_str()), precision, false, false);
 }
 
+// The functions below are reference implementations for the TypeScript port in packages/geom
+// (see packages/geom/src/*.parity.test.ts).
+
+static Geom::Affine affine_from(double a, double b, double c, double d, double e, double f)
+{
+    return Geom::Affine(a, b, c, d, e, f);
+}
+
+/// Bounds of the transformed path as [left, top, right, bottom], or [] for an empty path.
+emscripten::val path_bounds(std::string const &d, bool exact, double a, double b, double c, double dd,
+                            double e, double f)
+{
+    auto pv = Geom::parse_svg_path(d.c_str()) * affine_from(a, b, c, dd, e, f);
+    Geom::OptRect r = exact ? pv.boundsExact() : pv.boundsFast();
+    auto out = emscripten::val::array();
+    if (r) {
+        out.call<void>("push", r->left());
+        out.call<void>("push", r->top());
+        out.call<void>("push", r->right());
+        out.call<void>("push", r->bottom());
+    }
+    return out;
+}
+
+std::string transform_path(std::string const &d, double a, double b, double c, double dd, double e, double f)
+{
+    return Geom::write_svg_path(Geom::parse_svg_path(d.c_str()) * affine_from(a, b, c, dd, e, f));
+}
+
+std::string reverse_path(std::string const &d)
+{
+    return Geom::write_svg_path(Geom::parse_svg_path(d.c_str()).reversed());
+}
+
+std::string write_path(std::string const &d, int precision, bool optimize, bool shorthands)
+{
+    return Geom::write_svg_path(Geom::parse_svg_path(d.c_str()), precision, optimize, shorthands);
+}
+
+/// Same as Inkscape's sp_svg_read_pathv() (src/svg/svg-path.cpp): on a parse error, keeps the
+/// paths read so far. Returns { ok, d }.
+emscripten::val read_path(std::string const &d, double z_snap_threshold)
+{
+    Geom::PathVector pv;
+    Geom::PathBuilder builder(pv);
+    Geom::SVGPathParser parser(builder);
+    parser.setZSnapThreshold(z_snap_threshold);
+    bool ok = true;
+    try {
+        parser.parse(d.c_str());
+    } catch (Geom::SVGPathParseError &) {
+        builder.flush();
+        ok = false;
+    }
+    auto out = emscripten::val::object();
+    out.set("ok", ok);
+    out.set("d", Geom::write_svg_path(pv));
+    return out;
+}
+
 EMSCRIPTEN_BINDINGS(geom)
 {
     emscripten::function("boolop", &boolop);
     emscripten::function("normalizePath", &normalize_path);
+    emscripten::function("pathBounds", &path_bounds);
+    emscripten::function("transformPath", &transform_path);
+    emscripten::function("reversePath", &reverse_path);
+    emscripten::function("writePath", &write_path);
+    emscripten::function("readPath", &read_path);
 }
