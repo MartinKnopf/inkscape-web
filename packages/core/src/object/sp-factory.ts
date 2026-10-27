@@ -9,12 +9,14 @@
 import { SPDefs } from './sp-defs.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
+import { SPPath } from './sp-path.ts';
 import { SPRoot } from './sp-root.ts';
 
 /** Constructors by type string (element name or sodipodi:type). null: known, but no object. */
 const map = new Map<string, (() => SPObject) | null>([
   ['svg:defs', () => new SPDefs()],
   ['svg:g', () => new SPGroup()],
+  ['svg:path', () => new SPPath()],
   ['svg:svg', () => new SPRoot()],
 
   // ignore

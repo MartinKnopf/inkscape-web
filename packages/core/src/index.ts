@@ -5,6 +5,7 @@
 export * from './attributes.ts';
 // Upstream namespace Inkscape::Colors.
 export * as Colors from './colors/index.ts';
+export type * from './display/drawing.ts';
 export * from './document.ts';
 export * from './document-undo.ts';
 export * from './i18n.ts';
@@ -13,7 +14,10 @@ export * from './object/sp-factory.ts';
 export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';
 export * from './object/sp-object.ts';
+export * from './object/sp-path.ts';
 export * from './object/sp-root.ts';
+export * from './object/sp-shape.ts';
+export * from './path/path-curve.ts';
 export * from './style.ts';
 export * from './style-enums.ts';
 export * from './style-internal.ts';
