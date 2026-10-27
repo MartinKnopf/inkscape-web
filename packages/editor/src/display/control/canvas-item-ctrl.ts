@@ -56,7 +56,7 @@ export enum HandleSize {
 const MIN_INDEX = 1;
 const MAX_INDEX = 15;
 
-type Shape = 'square' | 'diamond' | 'circle' | 'darrow';
+type Shape = 'square' | 'diamond' | 'circle' | 'darrow' | 'sarrow' | 'carrow' | 'pivot' | 'plus' | 'cross';
 
 interface CtrlStyle {
   shape: Shape;
@@ -92,6 +92,29 @@ const STYLES: Partial<Record<CanvasItemCtrlType, Partial<CtrlStyle>>> = {
     hover: '#6da7ff',
     selected: '#4992fe',
   },
+  [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_ADJ_SKEW]: {
+    shape: 'sarrow',
+    size_extra: 7,
+    fill: 'black',
+    hover: '#6da7ff',
+    selected: '#4992fe',
+  },
+  [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_ADJ_ROTATE]: {
+    shape: 'carrow',
+    size_extra: 7,
+    fill: 'black',
+    hover: '#6da7ff',
+    selected: '#4992fe',
+  },
+  [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_ADJ_CENTER]: {
+    shape: 'pivot',
+    size_extra: 7,
+    fill: 'black',
+    hover: '#6da7ff',
+    selected: '#4992fe',
+  },
+  [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_CENTER]: { shape: 'plus', size_extra: 2 },
+  [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_MARKER]: { shape: 'cross', size_extra: -1 },
   [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_NODE_CUSP]: { shape: 'diamond', scale: 2.828427, size_extra: 2 },
   [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_SHAPER]: { shape: 'diamond', scale: 2.828427, size_extra: 2 },
   [CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_NODE_SMOOTH]: { shape: 'square', size_extra: 2 },
@@ -233,11 +256,15 @@ export class CanvasItemCtrl extends CanvasItem {
     const p = this.#position.transformed(affine);
     this.element.setAttribute('opacity', String(style.opacity ?? 1));
     const fill = this.#hover ? style.hover : this.#selected || this.#click ? style.selected : style.fill;
-    this.#path.setAttribute('fill', fill);
+    // plus and cross are lines only.
+    const lines = style.shape === 'plus' || style.shape === 'cross';
+    this.#path.setAttribute('fill', lines ? 'none' : fill);
+    this.#path.setAttribute('fill-rule', 'evenodd');
 
     let d: string;
     let transform: string;
-    if (style.shape === 'darrow' && this.#anchor !== SPAnchorType.SP_ANCHOR_CENTER) {
+    const is_arrow = style.shape === 'darrow' || style.shape === 'sarrow' || style.shape === 'carrow';
+    if (is_arrow && this.#anchor !== SPAnchorType.SP_ANCHOR_CENTER) {
       // Point away from the anchor; the arrow sits next to the position.
       let angle = this.#anchor * (Math.PI / 4);
       // Affine flips if view orientation has been altered (horizontal or vertical flip).
@@ -245,7 +272,9 @@ export class CanvasItemCtrl extends CanvasItem {
       if (affine.flips()) angle = -angle;
       const dx = -(half + 2) * Math.cos(angle); // Add a bit to prevent tip from overlapping due to rounding errors.
       const dy = -(half + 2) * Math.sin(angle);
-      d = darrowPath(size);
+      if (style.shape === 'carrow') angle += 5 * (Math.PI / 4);
+      else if (style.shape === 'sarrow') angle += Math.PI / 2;
+      d = style.shape === 'carrow' ? carrowPath(size) : darrowPath(size);
       transform = `translate(${Math.round(p.x + dx)},${Math.round(p.y + dy)}) rotate(${(angle * 180) / Math.PI}) translate(${-half},${-half})`;
     } else {
       d = shapePath(style.shape, size);
@@ -268,6 +297,12 @@ function shapePath(shape: Shape, size: number): string {
       const r = h - 0.5;
       return `M ${h - r},${h} A ${r},${r} 0 1 0 ${h + r},${h} A ${r},${r} 0 1 0 ${h - r},${h} Z`;
     }
+    case 'plus':
+      return `M ${h},0 V ${size} M 0,${h} H ${size}`;
+    case 'cross':
+      return `M 0,0 L ${size},${size} M 0,${size} L ${size},0`;
+    case 'pivot':
+      return pivotPath(size);
     default:
       return `M 0.5,0.5 H ${size - 0.5} V ${size - 0.5} H 0.5 Z`;
   }
@@ -298,4 +333,79 @@ function darrowPath(size: number): string {
     [out_x, size - out_y],
   ];
   return `M ${pts.map(([x, y]) => `${x},${y}`).join(' L ')} Z`;
+}
+
+/** A curved double-headed corner arrow in a size × size box (upstream draw_carrow). */
+function carrowPath(size: number): string {
+  // Length of arrowhead (not including stroke).
+  let delta = (size - 3) / 4.0;
+  // Tip of arrow
+  const tip_x = 1.5; // Edge, allow room for stroke when rotated.
+  delta = Math.round(tip_x + delta) - tip_x; // pixel align edge between outer corners
+  const tip_y = delta + 1.5;
+  // Outer corner (1) and inner corner (2)
+  const out_x = tip_x + delta;
+  const out_y = tip_y - delta;
+  const in_x = out_x;
+  const in_y = out_y + delta / 2.0;
+  const x0 = tip_x;
+  const y0 = tip_y;
+  const x1 = out_x;
+  const y1 = out_y;
+  const x2 = in_x;
+  const y2 = in_y;
+  const x3 = size - in_y;
+  const x4 = size - out_y;
+  const y4 = size - out_x;
+  const x5 = size - tip_y;
+  const y5 = size - tip_x;
+  const x6 = x5 - delta;
+  const y6 = y4;
+  const x7 = x5 - delta / 2.0;
+  const y7 = y4;
+  const x8 = x1;
+  const x9 = x1;
+  const y9 = y0 + delta;
+  // Arcs around (x1, y4): outer radius x3 - x2 from the top (3π/2) to the right (0), inner radius x7 - x8 back.
+  const r_out = x3 - x2;
+  const r_in = x7 - x8;
+  return [
+    `M ${x0},${y0} L ${x1},${y1} L ${x2},${y2}`,
+    `L ${x1},${y4 - r_out} A ${r_out},${r_out} 0 0 1 ${x1 + r_out},${y4}`,
+    `L ${x4},${y4} L ${x5},${y5} L ${x6},${y6} L ${x7},${y7}`,
+    `A ${r_in},${r_in} 0 0 0 ${x1},${y4 - r_in} L ${x9},${y9} Z`,
+  ].join(' ');
+}
+
+/** A rotation center mark: four small arrowheads around a ring (upstream draw_pivot). */
+function pivotPath(size: number): string {
+  const delta4 = (size - 5) / 4.0; // Keep away from edge or will clip when rotating.
+  const delta8 = delta4 / 2;
+  const c = size / 2.0;
+  const x0 = Math.round(c - delta8) - c;
+  const y0 = Math.round(c - 2 * delta4 - delta8) - c;
+  const x2 = -x0;
+  const y2 = y0 + delta4;
+  const pts: [number, number][] = [
+    [x0, y0],
+    [-x0, y0],
+    [x2, y2],
+    [-y2, x0],
+    [-y0, x0],
+    [-y0, -x0],
+    [-y2, -x0],
+    [-x0, -y2],
+    [-x0, -y0],
+    [x0, -y0],
+    [x0, -y2],
+    [y2, -x0],
+    [y0, -x0],
+    [y0, x0],
+    [y2, x0],
+    [-x2, y2],
+  ];
+  const outline = `M ${pts.map(([x, y]) => `${c + x},${c + y}`).join(' L ')} Z`;
+  const r = delta4;
+  const ring = `M ${c + r},${c} A ${r},${r} 0 1 0 ${c - r},${c} A ${r},${r} 0 1 0 ${c + r},${c} Z`;
+  return `${outline} ${ring}`;
 }
