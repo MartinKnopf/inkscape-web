@@ -19,6 +19,7 @@ export * from './object/sp-root.ts';
 export * from './object/sp-shape.ts';
 export * from './object/viewbox.ts';
 export * from './path/path-curve.ts';
+export * from './preferences.ts';
 export * from './style.ts';
 export * from './style-enums.ts';
 export * from './style-internal.ts';
