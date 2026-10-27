@@ -7,15 +7,25 @@
  * Copyright (C) 2013 Authors
  */
 import { SPDefs } from './sp-defs.ts';
+import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
 import { SPRect } from './sp-rect.ts';
 import { SPRoot } from './sp-root.ts';
 
+function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
+  const e = new SPGenericEllipse();
+  e.type = type;
+  return e;
+}
+
 /** Constructors by type string (element name or sodipodi:type). null: known, but no object. */
 const map = new Map<string, (() => SPObject) | null>([
   ['svg:defs', () => new SPDefs()],
+  ['svg:ellipse', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE)],
+  ['svg:circle', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_CIRCLE)],
+  ['arc', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ARC)],
   ['svg:g', () => new SPGroup()],
   ['svg:path', () => new SPPath()],
   ['svg:rect', () => new SPRect()],

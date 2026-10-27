@@ -10,6 +10,7 @@ export * from './document.ts';
 export * from './document-undo.ts';
 export * from './i18n.ts';
 export * from './object/sp-defs.ts';
+export * from './object/sp-ellipse.ts';
 export * from './object/sp-factory.ts';
 export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';
