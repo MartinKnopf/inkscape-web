@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: testfiles/src/colors/color-set-test.cpp
 import { describe, expect, it } from 'vitest';
-import { Color } from './color.ts';
 import type { Signal } from '../util/signal.ts';
+import { Color } from './color.ts';
 import { ColorSet } from './color-set.ts';
 import { Manager } from './manager.ts';
 import { SpaceType as T } from './spaces/enum.ts';
