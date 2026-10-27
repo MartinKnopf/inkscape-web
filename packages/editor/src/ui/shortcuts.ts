@@ -44,3 +44,61 @@ export function attachCanvasShortcuts(element: HTMLElement, getDesktop: () => SP
   element.addEventListener('keydown', onKeyDown);
   return () => element.removeEventListener('keydown', onKeyDown);
 }
+
+/** A key combination. The primary modifier (Ctrl, or Cmd on macOS) is always held. */
+export interface Accelerator {
+  /** Lower case KeyboardEvent.key. */
+  key: string;
+  shift?: boolean;
+  alt?: boolean;
+}
+
+/**
+ * Default keys of the file and undo actions, from share/keys/inkscape.xml
+ * (<primary> is Ctrl). TODO: replace with the shortcut system.
+ */
+export const ACTION_KEYS: Record<string, Accelerator[]> = {
+  'app.document-new': [{ key: 'n' }],
+  'app.document-open': [{ key: 'o' }],
+  'win.document-save': [{ key: 's' }],
+  'win.document-save-as': [{ key: 's', shift: true }],
+  'doc.undo': [{ key: 'z' }],
+  'doc.redo': [{ key: 'z', shift: true }, { key: 'y' }],
+};
+
+/** The first key of an action as shown in menus ("Ctrl+Shift+Z"), or null. */
+export function shortcutLabel(actionId: string): string | null {
+  const acc = ACTION_KEYS[actionId]?.[0];
+  if (!acc) return null;
+  const key = acc.key.length === 1 ? acc.key.toUpperCase() : acc.key;
+  return ['Ctrl', acc.shift && 'Shift', acc.alt && 'Alt', key].filter(Boolean).join('+');
+}
+
+/** The action id for a key press, or null. */
+export function actionForKeyEvent(event: KeyboardEvent): string | null {
+  if (!(event.ctrlKey || event.metaKey)) return null;
+  const key = event.key.toLowerCase();
+  for (const [id, accs] of Object.entries(ACTION_KEYS)) {
+    if (accs.some((a) => a.key === key && !!a.shift === event.shiftKey && !!a.alt === event.altKey))
+      return id;
+  }
+  return null;
+}
+
+/**
+ * Run the actions of key presses in the window with run. This replaces the
+ * browser keys (save page, open file), except in text fields. Returns a
+ * function that removes the handler.
+ */
+export function attachActionShortcuts(run: (actionId: string) => void): () => void {
+  const onKeyDown = (event: KeyboardEvent) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]')) return;
+    const id = actionForKeyEvent(event);
+    if (!id) return;
+    event.preventDefault();
+    run(id);
+  };
+  window.addEventListener('keydown', onKeyDown);
+  return () => window.removeEventListener('keydown', onKeyDown);
+}
