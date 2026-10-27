@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "cd ../.. && export INKSCAPE_SRC=/tmp/inkscape && upstream/scripts/checkout.sh && pnpm build:assets && pnpm --filter @inkscape-web/web build",
+  "outputDirectory": "dist"
+}

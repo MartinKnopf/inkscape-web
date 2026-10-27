@@ -23,6 +23,12 @@ pnpm dev
 
 Use `INKSCAPE_SRC` for another upstream location.
 
+## Deployment
+
+Vercel builds `apps/web` (see `apps/web/vercel.json`). The build makes a
+shallow upstream checkout with `upstream/scripts/checkout.sh` and builds the
+assets. Add the WASM build when the app starts to use it.
+
 ## Commands
 
 | Command | Purpose |
