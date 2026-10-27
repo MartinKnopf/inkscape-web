@@ -16,6 +16,8 @@ import { SPPolygon } from './sp-polygon.ts';
 import { SPPolyLine } from './sp-polyline.ts';
 import { SPRect } from './sp-rect.ts';
 import { SPRoot } from './sp-root.ts';
+import { SPSpiral } from './sp-spiral.ts';
+import { SPStar } from './sp-star.ts';
 
 function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
   const e = new SPGenericEllipse();
@@ -36,6 +38,8 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:polyline', () => new SPPolyLine()],
   ['svg:rect', () => new SPRect()],
   ['rect', () => new SPRect()], // LPE rect
+  ['spiral', () => new SPSpiral()],
+  ['star', () => new SPStar()],
   ['svg:svg', () => new SPRoot()],
 
   // ignore

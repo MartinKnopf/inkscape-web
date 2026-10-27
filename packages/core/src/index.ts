@@ -22,6 +22,8 @@ export * from './object/sp-polyline.ts';
 export * from './object/sp-rect.ts';
 export * from './object/sp-root.ts';
 export * from './object/sp-shape.ts';
+export * from './object/sp-spiral.ts';
+export * from './object/sp-star.ts';
 export * from './object/viewbox.ts';
 export * from './path/path-curve.ts';
 export * from './preferences.ts';
