@@ -22,7 +22,7 @@ body,
   border-bottom: 1px solid #ccc;
 }
 
-.menubar button {
+.menubar .menu-trigger {
   border: 0;
   background: none;
   padding: 4px 8px;
@@ -48,30 +48,36 @@ body,
   background: #e8e8e8;
 }
 
-.menu {
-  position: relative;
-}
-
 .menu-popup {
-  position: absolute;
   z-index: 10;
-  top: 100%;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
+  min-width: 200px;
   padding: 4px 0;
   background: #fff;
   border: 1px solid #ccc;
   box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
 }
 
-.menubar .menu-popup button {
-  text-align: left;
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
   padding: 4px 12px;
+  outline: none;
 }
 
-.menu-popup button:hover {
+.menu-item[data-highlighted] {
+  background: #e8e8e8;
+}
+
+.menu-item[data-disabled] {
+  color: #999;
+}
+
+.menu-shortcut {
+  color: #666;
+}
+
+.menubar [data-state="open"] {
   background: #e8e8e8;
 }
 
