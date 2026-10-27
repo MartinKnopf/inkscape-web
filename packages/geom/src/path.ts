@@ -147,6 +147,32 @@ export class Path {
     this.#curves.push(c);
   }
 
+  /** Append the curves of other; it must start at the end of this path (see appendCurve()). */
+  append(other: Path): void {
+    for (const c of other.curves()) this.appendCurve(c);
+  }
+
+  /** Remove the last curve (not the closing segment). */
+  erase_last(): void {
+    const last = this.#curves.pop();
+    if (last && this.#curves.length === 0) this.#start = last.initialPoint();
+  }
+
+  /** Move the initial point; the first curve changes with it. */
+  setInitial(p: Point): void {
+    const first = this.#curves[0];
+    if (first) this.#curves[0] = first.reverse().withFinal(p).reverse();
+    else this.#start = p;
+  }
+
+  /** Move the final point of the open path; the last curve changes with it. */
+  setFinal(p: Point): void {
+    const n = this.#curves.length;
+    const last = this.#curves[n - 1];
+    if (last) this.#curves[n - 1] = last.withFinal(p);
+    else this.#start = p;
+  }
+
   /** Bounding box from the fast bounds of the curves; null for an empty path. */
   boundsFast(): OptRect {
     return this.#bounds((c) => c.boundsFast());
