@@ -12,6 +12,7 @@ import * as Menubar from '@radix-ui/react-menubar';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react';
 import { useEffect, useRef } from 'react';
 import 'dockview-react/dist/styles/dockview.css';
+import { dialogComponents, setDialogDock } from '../ui/dialog/dialog-manager.ts';
 import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
 import { Toolbars } from '../ui/toolbar/toolbars.tsx';
 import { runAction } from './actions.ts';
@@ -46,6 +47,9 @@ interface MenuItem {
   action: string;
 }
 
+const DIALOG_XML = "win.dialog-open('XMLEditor')";
+const DIALOG_OBJECTS = "win.dialog-open('Objects')";
+
 /** Menu items by menu. TODO: all items, sections, submenus. */
 const MENU_ITEMS: Record<string, MenuItem[]> = {
   _File: [
@@ -57,7 +61,10 @@ const MENU_ITEMS: Record<string, MenuItem[]> = {
   _Edit: [
     { label: '_Undo', action: 'doc.undo' },
     { label: '_Redo', action: 'doc.redo' },
+    { label: '_XML Editor...', action: DIALOG_XML },
   ],
+  _Layer: [{ label: 'Layers and Objects...', action: DIALOG_OBJECTS }],
+  _Object: [{ label: 'Layers and Objects...', action: DIALOG_OBJECTS }],
 };
 
 /** Remove the GTK mnemonic marker ("_File" → "File"). */
@@ -90,12 +97,13 @@ function DrawingPanel() {
   return <div className="drawing" ref={ref} />;
 }
 
-const components = { drawing: DrawingPanel } satisfies Record<
+const components = { drawing: DrawingPanel, ...dialogComponents } satisfies Record<
   string,
   React.FunctionComponent<IDockviewPanelProps>
 >;
 
 function onReady(e: DockviewReadyEvent) {
+  setDialogDock(e.api);
   e.api.addPanel({ id: 'drawing', component: 'drawing', title: _('Drawing') });
 }
 
