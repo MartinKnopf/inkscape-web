@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Upstream: src/selection.cpp, src/selection.h
+/*
+ * Per-desktop selection container
+ *
+ * Authors:
+ *   Lauris Kaplinski <lauris@kaplinski.com>
+ *   MenTaLguY <mental@rydia.net>
+ *   bulia byak <buliabyak@users.sf.net>
+ *   Andrius R. <knutux@gmail.com>
+ *   Abhishek Sharma
+ *   Adrian Boguszewski
+ *
+ * Copyright (C) 2016 Adrian Boguszewski
+ * Copyright (C) 2006 Andrius R.
+ * Copyright (C) 2004-2005 MenTaLguY
+ * Copyright (C) 1999-2002 Lauris Kaplinski
+ * Copyright (C) 2001-2002 Ximian, Inc.
+ */
+import { DocumentUndo } from './document-undo.ts';
+import { ObjectSet } from './object/object-set.ts';
+import type { SPObject } from './object/sp-object.ts';
+import { Signal } from './util/signal.ts';
+
+/**
+ * The selection of a desktop (upstream Inkscape::Selection): an ObjectSet
+ * with signals. `changed` is emitted when the set changes; `modified` is
+ * emitted once after the selected objects were modified (collected flags).
+ * TODO: anchors (setAnchor, scaleAnchored, rotateAnchored), snap points,
+ * the page manager, getState/setState, selectionDistinctLayerAndParentCounts.
+ */
+export class Selection extends ObjectSet {
+  readonly #changedSignal = new Signal<[Selection]>();
+  readonly #modifiedSignal = new Signal<[Selection, number]>();
+  #modifiedConnections = new Map<SPObject, () => void>();
+  #selectionContext: SPObject | null = null;
+  #contextReleaseConnection: (() => void) | null = null;
+  #flags = 0;
+  #idle = false;
+  #changeLayer = true;
+
+  /** The current layer, or the layer kept by set(object, true). */
+  activeContext(): SPObject | null {
+    return this.#selectionContext ?? this._desktop?.layerManager().currentLayer() ?? null;
+  }
+
+  connectChanged(slot: (selection: Selection) => void): () => void {
+    return this.#changedSignal.connect(slot);
+  }
+
+  connectModified(slot: (selection: Selection, flags: number) => void): () => void {
+    return this.#modifiedSignal.connect(slot);
+  }
+
+  emitModified(): void {
+    this.#emitModified(this.#flags);
+  }
+
+  /** Whether selecting a single item makes its layer the current layer (default true). */
+  getChangeLayer(): boolean {
+    return this.#changeLayer;
+  }
+  setChangeLayer(option: boolean): void {
+    this.#changeLayer = option;
+  }
+
+  protected override _connectSignals(object: SPObject): void {
+    this.#modifiedConnections.set(
+      object,
+      object.modifiedSignal.connect((_obj, flags) => this.#scheduleModified(flags)),
+    );
+  }
+
+  protected override _releaseSignals(object: SPObject): void {
+    this.#modifiedConnections.get(object)?.();
+    this.#modifiedConnections.delete(object);
+  }
+
+  protected override _emitChanged(persist_selection_context = false): void {
+    super._emitChanged();
+    const layers = this._desktop?.layerManager();
+    if (persist_selection_context) {
+      if (!this.#selectionContext && layers) {
+        const context = layers.currentLayer();
+        this.#selectionContext = context;
+        this.#contextReleaseConnection =
+          context?.releaseSignal.connect((obj) => this.#releaseContext(obj)) ?? null;
+      }
+    } else {
+      this.#releaseContext(this.#selectionContext);
+    }
+
+    // Change the layer selection to the item selection. Only change if there's a single object.
+    if (this._document && layers) {
+      const item = this.singleItem();
+      if (item && this.#changeLayer) {
+        const layer = layers.layerForObject(item);
+        if (layer && layer !== this.#selectionContext) layers.setCurrentLayer(layer);
+      }
+      // TODO: select the best page (page manager).
+      DocumentUndo.resetKey(this._document);
+    }
+
+    this.#changedSignal.emit(this);
+  }
+
+  /** Collect the flags and emit `modified` once, after the current update (upstream: idle handler). */
+  #scheduleModified(flags: number): void {
+    if (!this.#idle) {
+      this.#idle = true;
+      queueMicrotask(() => {
+        // force new handler to be created if requested before we return
+        this.#idle = false;
+        const collected = this.#flags;
+        this.#flags = 0;
+        this.#emitModified(collected);
+      });
+    }
+    this.#flags |= flags;
+  }
+
+  #emitModified(flags: number): void {
+    this.#modifiedSignal.emit(this, flags);
+    // TODO: select the best page for the moved items (page manager).
+  }
+
+  #releaseContext(obj: SPObject | null): void {
+    if (!this.#selectionContext || this.#selectionContext !== obj) return;
+    this.#contextReleaseConnection?.();
+    this.#contextReleaseConnection = null;
+    this.#selectionContext = null;
+  }
+}
