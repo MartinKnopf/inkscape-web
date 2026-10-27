@@ -3,6 +3,8 @@
 // No DOM, no React.
 
 export * from './attributes.ts';
+// Upstream namespace Inkscape::Colors.
+export * as Colors from './colors/index.ts';
 export * from './document.ts';
 export * from './document-undo.ts';
 export * from './i18n.ts';
