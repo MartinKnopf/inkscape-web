@@ -10,6 +10,7 @@
  */
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
+import { NodeTool } from './tools/node-tool.ts';
 import { RectTool } from './tools/rect-tool.ts';
 import { SelectTool } from './tools/select-tool.ts';
 import { SpiralTool } from './tools/spiral-tool.ts';
@@ -19,6 +20,8 @@ import type { ToolBase } from './tools/tool-base.ts';
 /** Create the tool with the preferences path id. TODO: the other tools. */
 export function createTool(desktop: SPDesktop, id: string): ToolBase {
   switch (id) {
+    case '/tools/nodes':
+      return new NodeTool(desktop);
     case '/tools/shapes/arc':
       return new ArcTool(desktop);
     case '/tools/shapes/rect':

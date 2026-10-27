@@ -2,11 +2,13 @@
 // Desktop, canvas, display tree, tools, snapping and actions.
 // Uses the DOM, but not React.
 export * from './actions/actions-canvas-transform.ts';
+export * from './actions/actions-node-tool.ts';
 export * from './actions/actions-tools.ts';
 export * from './context-fns.ts';
 export * from './desktop.ts';
 export * from './display/control/canvas-item.ts';
 export * from './display/control/canvas-item-ctrl.ts';
+export * from './display/control/canvas-item-curve.ts';
 export * from './display/control/canvas-item-rect.ts';
 export * from './display/control/canvas-page.ts';
 export * from './display/drawing.ts';
@@ -24,8 +26,20 @@ export * from './ui/dialog/objects.ts';
 export * from './ui/dialog/xml-tree.ts';
 export * from './ui/knot/knot.ts';
 export * from './ui/shortcuts.ts';
+export * from './ui/tool/commit-events.ts';
+export * from './ui/tool/control-point.ts';
+export * from './ui/tool/control-point-selection.ts';
+export * from './ui/tool/curve-drag-point.ts';
+export * from './ui/tool/manipulator.ts';
+export * from './ui/tool/multi-path-manipulator.ts';
+export * from './ui/tool/node.ts';
+export * from './ui/tool/node-types.ts';
+export * from './ui/tool/path-manipulator.ts';
+export * from './ui/tool/selectable-control-point.ts';
+export * from './ui/tool/shape-record.ts';
 export * from './ui/tool-factory.ts';
 export * from './ui/tools/arc-tool.ts';
+export * from './ui/tools/node-tool.ts';
 export * from './ui/tools/rect-tool.ts';
 export * from './ui/tools/select-tool.ts';
 export * from './ui/tools/spiral-tool.ts';
