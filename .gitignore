@@ -11,3 +11,4 @@ spikes/render-fidelity/cases-*.json
 spikes/wasm-geom/vendor/
 spikes/wasm-geom/prefix/
 spikes/ui-shell/*.png
+.vitest/

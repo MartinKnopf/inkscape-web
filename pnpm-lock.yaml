@@ -201,7 +201,11 @@ importers:
         specifier: workspace:*
         version: link:../core
 
-  packages/geom: {}
+  packages/geom:
+    devDependencies:
+      '@inkscape-web/wasm':
+        specifier: workspace:*
+        version: link:../wasm
 
   packages/wasm: {}
 
