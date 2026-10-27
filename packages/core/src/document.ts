@@ -15,12 +15,13 @@
  * Copyright (C) 2012 Tavmjong Bah
  */
 
-import { Affine } from '@inkscape-web/geom';
+import { Affine, Point, Rect } from '@inkscape-web/geom';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { createObject } from './object/sp-factory.ts';
 import type { SPItemCtx } from './object/sp-item.ts';
 import { getTypeString, type SPObject } from './object/sp-object.ts';
 import { SPRoot } from './object/sp-root.ts';
+import { convertUnit, type SVGLength, SVGLengthUnit } from './svg/svg-length.ts';
 import { Signal } from './util/signal.ts';
 import type { XmlDocument } from './xml/document.ts';
 import type { Node } from './xml/node.ts';
@@ -210,9 +211,34 @@ export class SPDocument {
     return this.doc2dt().c3;
   }
 
-  /** Root update context. TODO: viewport from the root size. */
+  /** Root update context. */
   setupViewport(): SPItemCtx {
-    return { flags: 0, i2doc: Affine.identity(), i2vp: Affine.identity() };
+    // Set up viewport in case svg has it defined as percentages
+    const viewport = this.root.viewBox_set
+      ? this.root.viewBox // if set, take from viewBox
+      : Rect.fromXywh(0, 0, convertUnit(210, 'mm', 'px'), convertUnit(297, 'mm', 'px')); // as a last resort, set size to A4
+    return { flags: 0, i2doc: Affine.identity(), viewport, i2vp: Affine.identity() };
+  }
+
+  // Document size. Upstream getWidth()/getHeight() return a Quantity; here
+  // getDimensions() converts to px directly.
+
+  /** Document width and height in px. */
+  getDimensions(): Point {
+    return new Point(this.#lengthPx(this.root.width, 'width'), this.#lengthPx(this.root.height, 'height'));
+  }
+
+  #lengthPx(length: SVGLength, dim: 'width' | 'height'): number {
+    if (length.unit === SVGLengthUnit.PERCENT && this.root.viewBox_set) {
+      return this.root.viewBox[dim]();
+    }
+    // computed is the value in px (no unit is px).
+    return length.computed;
+  }
+
+  /** The page area in document coordinates: (0,0) to getDimensions(). */
+  preferredBounds(): Rect {
+    return new Rect(new Point(0, 0), this.getDimensions());
   }
 
   #emitModified(objectModifiedTag: number): void {
