@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!spikes", "!**/*.md"]
+    "includes": ["**", "!spikes", "!**/*.md", "!pnpm-lock.yaml"]
   },
   "formatter": {
     "enabled": true,
@@ -36,5 +36,17 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/*/src/**", "!**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "error"
+          }
+        }
+      }
+    }
+  ]
 }
