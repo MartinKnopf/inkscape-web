@@ -12,8 +12,9 @@
  * Copyright (C) 1999-2016 authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { attributeLookup, attributeName, SPAttr } from '../attributes.ts';
+import { attributeIsCss, attributeLookup, attributeName, SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
+import { SP_STYLE_FLAG_IFSET, SP_STYLE_FLAG_IFSRC, SPStyle, SPStyleSrc } from '../style.ts';
 import { Signal } from '../util/signal.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
@@ -117,6 +118,12 @@ export class SPObject implements NodeObserver {
   readonly modifiedSignal = new Signal<[SPObject, number]>();
   readonly releaseSignal = new Signal<[SPObject]>();
   readonly deleteSignal = new Signal<[SPObject]>();
+
+  /**
+   * The style of the object, with the cascade of the parent.
+   * FIXME: upstream creates a style for all objects, but per SVG only some elements can have a style attribute.
+   */
+  readonly style: SPStyle = new SPStyle(null, this);
 
   getId(): string | null {
     return this.#id;
@@ -295,6 +302,9 @@ export class SPObject implements NodeObserver {
   // Virtual methods for subclasses
 
   protected build(document: SPDocument, repr: Node): void {
+    // Upstream reads the style in the build() of the subclasses (SPItem, SPDefs, ...). It is read
+    // here too, so that write() does not remove the style attribute of an object that never read it.
+    this.readAttr(SPAttr.STYLE);
     this.readAttr(SPAttr.XML_SPACE);
     this.readAttr(SPAttr.LANG);
     this.readAttr(SPAttr.XML_LANG); // "xml:lang" overrides "lang" per spec, read it last.
@@ -311,6 +321,12 @@ export class SPObject implements NodeObserver {
   }
 
   protected release(): void {
+    this.style.filter.clear();
+    this.style.fill.href = null;
+    this.style.stroke.href = null;
+    this.style.shape_inside.clear();
+    this.style.shape_subtract.clear();
+
     for (const child of [...this.children]) this.detach(child);
   }
 
@@ -379,10 +395,16 @@ export class SPObject implements NodeObserver {
         break;
       }
       case SPAttr.STYLE:
-        // TODO: SPStyle (src/style.cpp) is not ported yet.
+        this.style.readFromObject(this);
         this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG | SP_OBJECT_STYLE_MODIFIED_FLAG);
         break;
       default:
+        // Upstream routes the presentation attributes in the set() of SPItem and some other
+        // classes. They are handled here until these classes do it.
+        if (attributeIsCss(key)) {
+          this.style.readFromObject(this);
+          this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG | SP_OBJECT_STYLE_MODIFIED_FLAG);
+        }
         break;
     }
   }
@@ -417,7 +439,32 @@ export class SPObject implements NodeObserver {
       } else {
         repr.removeAttribute('inkscape:collect');
       }
-      // TODO: write the style (SPStyle is not ported yet); the style attribute stays as it is.
+
+      // Write if property set by style attribute in this object
+      const styleProp = this.style.writeSrc(SPStyleSrc.STYLE_PROP);
+
+      // Write style attributes (SPStyleSrc::ATTRIBUTE) back to xml object
+      let anyWritten = false;
+      for (const prop of this.style.properties()) {
+        if (prop.shallWrite(SP_STYLE_FLAG_IFSET | SP_STYLE_FLAG_IFSRC, SPStyleSrc.ATTRIBUTE)) {
+          // WARNING: We don't know for sure if the css names are the same as the attribute names
+          const val = repr.attribute(prop.name());
+          const newVal = prop.getValue();
+          if ((newVal === '' && val === null) || newVal !== val) {
+            repr.setAttribute(prop.name(), newVal || null);
+            anyWritten = true;
+          }
+        }
+      }
+      if (anyWritten) {
+        // We need to ask the object to update the style and keep things in sync
+        // see `case SPAttr::STYLE` above for how the style attr itself does this.
+        this.style.readFromObject(this);
+        this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG | SP_OBJECT_STYLE_MODIFIED_FLAG);
+      }
+
+      // TODO: the check_on_editing preference (sp_attribute_clean_style) is not ported.
+      repr.setAttribute('style', styleProp || null);
     }
     return repr;
   }
@@ -447,7 +494,22 @@ export class SPObject implements NodeObserver {
     flags |= this.uflags;
     this.mflags |= this.uflags;
     this.uflags = 0;
-    // TODO: style cascade (SPStyle is not ported yet).
+
+    // Merge style if we have good reasons to think that parent style is changed
+    // TODO: I am not sure whether we should check only propagated flag. We are currently
+    // assuming that style parsing is done immediately. I think this is correct (Lauris).
+    this.style.block_filter_bbox_updates = true;
+    if (flags & SP_OBJECT_STYLESHEET_MODIFIED_FLAG) {
+      this.style.readFromObject(this);
+    } else if (
+      this.parent &&
+      flags & SP_OBJECT_STYLE_MODIFIED_FLAG &&
+      flags & SP_OBJECT_PARENT_MODIFIED_FLAG
+    ) {
+      this.style.cascade(this.parent.style);
+    }
+    this.style.block_filter_bbox_updates = false;
+
     this.update(ctx, flags);
   }
 
