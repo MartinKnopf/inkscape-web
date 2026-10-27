@@ -18,7 +18,8 @@
 import { Affine, Point, Rect } from '@inkscape-web/geom';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { createObject } from './object/sp-factory.ts';
-import type { SPItemCtx } from './object/sp-item.ts';
+import { SPItem, type SPItemCtx } from './object/sp-item.ts';
+import { LayerMode, SPGroup } from './object/sp-item-group.ts';
 import { getTypeString, type SPObject } from './object/sp-object.ts';
 import { SPRoot } from './object/sp-root.ts';
 import { convertUnit, type SVGLength, SVGLengthUnit } from './svg/svg-length.ts';
@@ -241,6 +242,50 @@ export class SPDocument {
     return new Rect(new Point(0, 0), this.getDimensions());
   }
 
+  // Items in an area
+
+  /**
+   * Items whose visual bounds lie inside box (document coordinates). Enters
+   * the groups that are layers for display key dkey; with enter_groups also
+   * the other groups.
+   */
+  getItemsInBox(
+    dkey: number,
+    box: Rect,
+    take_hidden = false,
+    take_insensitive = false,
+    take_groups = true,
+    enter_groups = false,
+    enter_layers = true,
+  ): SPItem[] {
+    return find_items_in_area([], this.root, dkey, box, (area, b) => area.contains(b), {
+      take_hidden,
+      take_insensitive,
+      take_groups,
+      enter_groups,
+      enter_layers,
+    });
+  }
+
+  /** Items whose visual bounds overlap box (document coordinates), see getItemsInBox(). */
+  getItemsPartiallyInBox(
+    dkey: number,
+    box: Rect,
+    take_hidden = false,
+    take_insensitive = false,
+    take_groups = true,
+    enter_groups = false,
+    enter_layers = true,
+  ): SPItem[] {
+    return find_items_in_area([], this.root, dkey, box, (area, b) => area.intersects(b), {
+      take_hidden,
+      take_insensitive,
+      take_groups,
+      enter_groups,
+      enter_layers,
+    });
+  }
+
   #emitModified(objectModifiedTag: number): void {
     this.root.emitModified(objectModifiedTag);
     this.modifiedSignal.emit(0b111);
@@ -250,4 +295,36 @@ export class SPDocument {
     this.modifiedSinceSave = modified;
     this.modifiedSinceSaveSignal.emit(modified);
   }
+}
+
+interface FindOptions {
+  take_hidden: boolean;
+  take_insensitive: boolean;
+  take_groups: boolean;
+  enter_groups: boolean;
+  enter_layers: boolean;
+}
+
+/** Collect into s the items of group (recursively, see getItemsInBox) whose visual bounds pass test. */
+function find_items_in_area(
+  s: SPItem[],
+  group: SPGroup,
+  dkey: number,
+  area: Rect,
+  test: (area: Rect, box: Rect) => boolean,
+  o: FindOptions,
+): SPItem[] {
+  for (const item of group.children) {
+    if (!(item instanceof SPItem)) continue;
+    if (!o.take_insensitive && item.isLocked()) continue;
+    if (!o.take_hidden && item.isHidden()) continue;
+    if (item instanceof SPGroup) {
+      const is_layer = item.effectiveLayerMode(dkey) === LayerMode.LAYER;
+      if ((o.enter_layers && is_layer) || o.enter_groups) find_items_in_area(s, item, dkey, area, test, o);
+      if (!o.take_groups || (o.enter_layers && is_layer)) continue;
+    }
+    const box = item.documentVisualBounds();
+    if (box && test(area, box)) s.push(item);
+  }
+  return s;
 }

@@ -19,10 +19,24 @@
  * Copyright (C) 1999-2002 Lauris Kaplinski
  * Copyright (C) 2000-2001 Ximian, Inc.
  */
-import { Preferences, Signal, SP_ITEM_SHOW_DISPLAY, SPDocument, SPItem } from '@inkscape-web/core';
+import {
+  LayerMode,
+  Preferences,
+  Selection,
+  Signal,
+  SP_ITEM_SHOW_DISPLAY,
+  SPDocument,
+  SPGroup,
+  SPItem,
+} from '@inkscape-web/core';
 import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
+import { CanvasItemGroup } from './display/control/canvas-item.ts';
 import { CanvasPage } from './display/control/canvas-page.ts';
 import { SvgDrawing } from './display/drawing.ts';
+import { SvgDrawingItem } from './display/drawing-item.ts';
+import { LayerManager } from './layer-manager.ts';
+import { SelectTool } from './ui/tools/select-tool.ts';
+import type { ToolBase } from './ui/tools/tool-base.ts';
 import type { Canvas } from './ui/widget/canvas.ts';
 
 export const SP_DESKTOP_ZOOM_MAX = 256.0;
@@ -73,9 +87,10 @@ class DesktopAffine {
 
 /**
  * An editable view of a document on a canvas (upstream SPDesktop): shows the
- * document root in a Drawing, draws the page, and owns zoom and scroll.
- * TODO: selection, tools, layers, namedview (zoom/center from the document,
- * colors), transform history, rotation, flip, guides, grids.
+ * document root in a Drawing, draws the page, owns zoom and scroll, the
+ * selection, the current layer and the active tool (the select tool).
+ * TODO: the other tools, namedview (zoom/center from the document, colors),
+ * transform history, rotation, flip, guides, grids, message stack.
  */
 export class SPDesktop {
   readonly canvas: Canvas;
@@ -93,6 +108,10 @@ export class SPDesktop {
 
   readonly #drawing: SvgDrawing;
   readonly #page = new CanvasPage();
+  readonly #controls: CanvasItemGroup;
+  readonly #layerManager: LayerManager;
+  readonly #selection: Selection;
+  #tool: ToolBase | null = null;
   readonly _current_affine = new DesktopAffine();
   #disconnectModified: (() => void) | null = null;
   #disconnectZoomFromDocument: (() => void) | null = null;
@@ -113,7 +132,10 @@ export class SPDesktop {
     this._canvas_group_drawing = group(canvas.desktopLayer, 'CanvasItemGroup:Drawing');
     this._canvas_group_pages_fg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesFg');
     this._canvas_group_controls = group(canvas.controlsLayer, 'CanvasItemGroup:Controls');
+    this.#controls = new CanvasItemGroup(this._canvas_group_controls, canvas);
     canvas.set_desk(DEFAULT_DESK_COLOR);
+    this.#layerManager = new LayerManager(this);
+    this.#selection = new Selection(this);
 
     this.#drawing = new SvgDrawing(dom);
     this._canvas_group_drawing.append(this.#drawing.root.element);
@@ -121,10 +143,15 @@ export class SPDesktop {
 
     this.setDocument(document);
     this.set_display_area(false);
+    this.setTool('/tools/select');
   }
 
   /** Release the document view and the canvas content. */
   destroy(): void {
+    this.#tool?.destroy();
+    this.#tool = null;
+    this.#selection.clear();
+    this.#controls.destroy();
     this.#detachDocument();
     this.#disconnectZoomFromDocument?.();
     this.#page.remove();
@@ -147,12 +174,35 @@ export class SPDesktop {
   getDrawing(): SvgDrawing {
     return this.#drawing;
   }
+  getSelection(): Selection {
+    return this.#selection;
+  }
+  layerManager(): LayerManager {
+    return this.#layerManager;
+  }
+  /** The group for control items (handles, rubberband) above the drawing. */
+  getCanvasControls(): CanvasItemGroup {
+    return this.#controls;
+  }
+
+  getTool(): ToolBase | null {
+    return this.#tool;
+  }
+
+  /** Activate the tool with the preferences path toolName. TODO: the other tools. */
+  setTool(toolName: string): void {
+    this.#tool?.destroy();
+    this.#tool = null;
+    if (toolName === '/tools/select') this.#tool = new SelectTool(this);
+  }
 
   /** Show doc instead of the current document. */
   setDocument(doc: SPDocument): void {
     if (this.doc === doc) return;
+    this.#selection.clear();
     this.#detachDocument();
     this.doc = doc;
+    this.#selection.setDocument(doc);
     this.#attachDocument();
   }
 
@@ -162,8 +212,27 @@ export class SPDesktop {
     const ai = doc.getRoot().invokeShow(this.#drawing, this.dkey, SP_ITEM_SHOW_DISPLAY);
     if (ai) this.#drawing.root.appendChild(ai);
     this.#drawing.root.setTransform(this.doc2dt());
+    this.#layerManager._setDocument(doc);
+    this.#updateLayersFromDocument();
     this.#updatePage();
     this.#disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
+  }
+
+  /**
+   * Make the layer in the namedview's inkscape:current-layer, or else the
+   * topmost layer, the current layer (upstream sp_namedview_update_layers_from_document).
+   */
+  #updateLayersFromDocument(): void {
+    const root = this.doc.getRoot();
+    const namedview = root.children.find((c) => c.getRepr().name() === 'sodipodi:namedview');
+    let layer = this.doc.getObjectById(namedview?.getAttribute('inkscape:current-layer') ?? null);
+    // don't use that object if it's not at least group
+    if (!(layer instanceof SPGroup)) layer = null;
+    // if that didn't work out, look for the topmost layer
+    if (!layer) {
+      for (const child of root.children) if (this.#layerManager.isLayer(child)) layer = child;
+    }
+    if (layer) this.#layerManager.setCurrentLayer(layer);
   }
 
   #detachDocument(): void {
@@ -175,6 +244,65 @@ export class SPDesktop {
 
   #updatePage(): void {
     this.#page.update(this.doc.preferredBounds().transformed(this.doc2dt()));
+  }
+
+  // Picking
+
+  /**
+   * The topmost item at window point p (upstream getItemAtPoint). Without
+   * into_groups, an item inside a group gives the group, but layers and the
+   * groups entered as layers are entered. Items after upto (in z-order from
+   * the top) are skipped. Hidden and locked items are ignored.
+   * The browser does the hit testing (document.elementsFromPoint).
+   * TODO: the cursor tolerance (/options/cursortolerance/value), outline mode.
+   */
+  getItemAtPoint(p: Point, into_groups: boolean, upto: SPItem | null = null): SPItem | null {
+    let seen_upto = !upto;
+    for (const item of this.#pickCandidates(p, into_groups)) {
+      if (!seen_upto) {
+        if (item === upto) seen_upto = true;
+        continue;
+      }
+      return item;
+    }
+    return null;
+  }
+
+  /** The topmost non-layer group at window point p (upstream getGroupAtPoint). */
+  getGroupAtPoint(p: Point): SPItem | null {
+    for (const item of this.#pickCandidates(p, false)) if (item instanceof SPGroup) return item;
+    return null;
+  }
+
+  /** The pickable items at window point p, topmost first (upstream: the flat item list, picked in z-order). */
+  #pickCandidates(p: Point, into_groups: boolean): SPItem[] {
+    const svg = this.canvas.svg;
+    const r = svg.getBoundingClientRect();
+    const result: SPItem[] = [];
+    for (const el of svg.ownerDocument.elementsFromPoint(r.left + p.x, r.top + p.y)) {
+      if (!this._canvas_group_drawing.contains(el)) continue;
+      const hit = SvgDrawingItem.itemFromElement(el)?.item();
+      const item = hit ? this.#flatListItem(hit, into_groups) : null;
+      if (item && !result.includes(item) && item.isVisibleAndUnlocked()) result.push(item);
+    }
+    return result;
+  }
+
+  /**
+   * The entry of the flat item list (upstream _build_flat_item_list) that
+   * contains item: the list enters layers (and with into_groups all groups)
+   * from the root; its entries are the items that are not entered.
+   */
+  #flatListItem(item: SPItem, into_groups: boolean): SPItem | null {
+    const chain = [item, ...item.ancestorList(false)].reverse();
+    if (chain[0] !== this.doc.getRoot()) return null;
+    for (const o of chain.slice(1)) {
+      if (!(o instanceof SPItem)) return null;
+      const entered =
+        o instanceof SPGroup && (o.effectiveLayerMode(this.dkey) === LayerMode.LAYER || into_groups);
+      if (!entered) return o;
+    }
+    return null; // a layer or group itself
   }
 
   // Coordinate systems
