@@ -8,6 +8,7 @@
 #include <2geom/pathvector.h>
 #include <2geom/svg-path-parser.h>
 #include <2geom/svg-path-writer.h>
+#include "helper/geom-pathstroke.h"
 #include "path/path-boolop.h"
 
 // Upstream: src/path/path-boolop.cpp sp_pathvector_boolop()
@@ -17,6 +18,29 @@ std::string boolop(std::string const &a, std::string const &b, int op, int fill_
                                        static_cast<BooleanOp>(op), static_cast<FillRule>(fill_a),
                                        static_cast<FillRule>(fill_b));
     return Geom::write_svg_path(result);
+}
+
+static emscripten::val write_paths(std::vector<Geom::PathVector> const &list)
+{
+    auto out = emscripten::val::array();
+    for (auto const &pv : list) {
+        out.call<void>("push", Geom::write_svg_path(pv));
+    }
+    return out;
+}
+
+// Upstream: src/path/path-boolop.cpp pathvector_cut(). The pieces of `pathv` cut by `lines`,
+// each with its holes (Path > Division).
+emscripten::val cut_path(std::string const &pathv, std::string const &lines)
+{
+    return write_paths(pathvector_cut(Geom::parse_svg_path(pathv.c_str()), Geom::parse_svg_path(lines.c_str())));
+}
+
+// Upstream: src/helper/geom-pathstroke.cpp split_non_intersecting_paths() (Path > Break Apart).
+emscripten::val split_non_intersecting(std::string const &d, int fill_rule)
+{
+    return write_paths(Inkscape::split_non_intersecting_paths(Geom::parse_svg_path(d.c_str()),
+                                                              static_cast<FillRule>(fill_rule)));
 }
 
 // Parse and write path data with fixed precision, absolute commands and no shorthands.
@@ -88,6 +112,8 @@ emscripten::val read_path(std::string const &d, double z_snap_threshold)
 EMSCRIPTEN_BINDINGS(geom)
 {
     emscripten::function("boolop", &boolop);
+    emscripten::function("cutPath", &cut_path);
+    emscripten::function("splitNonIntersectingPaths", &split_non_intersecting);
     emscripten::function("normalizePath", &normalize_path);
     emscripten::function("pathBounds", &path_bounds);
     emscripten::function("transformPath", &transform_path);

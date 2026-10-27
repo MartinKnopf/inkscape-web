@@ -28,6 +28,16 @@ export interface Geom {
    * "bottom minus top" (Path > Difference) pass (top, bottom), as upstream does.
    */
   boolop(a: string, b: string, op: BooleanOp, fillA: FillRule, fillB: FillRule): string;
+  /**
+   * Upstream pathvector_cut(): the pieces of `pathv` cut by `lines`, each
+   * piece with its holes (Path > Division).
+   */
+  cutPath(pathv: string, lines: string): string[];
+  /**
+   * Upstream split_non_intersecting_paths(): the parts of the path that do
+   * not touch each other when filled with the fill rule (Path > Break Apart).
+   */
+  splitNonIntersectingPaths(d: string, fillRule: FillRule): string[];
   /** Rewrite path data with absolute commands, no shorthands and the given precision. */
   normalizePath(d: string, precision: number): string;
   /** Bounds [left, top, right, bottom] of the path transformed by (a b c d e f); [] if the path is empty. */
@@ -55,6 +65,8 @@ export async function loadGeom(): Promise<Geom> {
   const m = await module;
   return {
     boolop: (a, b, op, fillA, fillB) => m.boolop(a, b, op, fillA, fillB),
+    cutPath: (pathv, lines) => m.cutPath(pathv, lines) as string[],
+    splitNonIntersectingPaths: (d, fillRule) => m.splitNonIntersectingPaths(d, fillRule) as string[],
     normalizePath: (d, precision) => m.normalizePath(d, precision),
     pathBounds: (d, exact, [a, b, c, dd, e, f]) => m.pathBounds(d, exact, a, b, c, dd, e, f),
     transformPath: (d, [a, b, c, dd, e, f]) => m.transformPath(d, a, b, c, dd, e, f),
