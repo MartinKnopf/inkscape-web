@@ -12,7 +12,7 @@
  * Copyright (C) 2001 Ximian, Inc.
  * Copyright (C) 2004 Monash University
  */
-import { Affine, are_near, type OptRect } from '@inkscape-web/geom';
+import { Affine, are_near, type OptRect, type Rect } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { Drawing, DrawingItem } from '../display/drawing.ts';
@@ -62,10 +62,12 @@ export const SP_ITEM_SHOW_DISPLAY = 1 << 0;
 /** Flag for referenced views (markers, clip paths, masks, patterns); does the same as DISPLAY. */
 export const SP_ITEM_REFERENCE_FLAGS = 1 << 1;
 
-/** Update context of items (upstream SPItemCtx). TODO: viewport. */
+/** Update context of items (upstream SPItemCtx). */
 export interface SPItemCtx extends SPCtx {
   /** Item to document transformation. */
   i2doc: Affine;
+  /** Viewport size. */
+  viewport: Rect;
   /** Item to viewport transformation. */
   i2vp: Affine;
 }

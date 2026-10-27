@@ -1,0 +1,329 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Upstream: src/desktop.cpp, src/desktop.h, src/page-manager.cpp
+/*
+ * Authors:
+ *   Lauris Kaplinski <lauris@kaplinski.com>
+ *   Frank Felfe <innerspace@iname.com>
+ *   MenTaLguY <mental@rydia.net>
+ *   bulia byak <buliabyak@users.sf.net>
+ *   Ralf Stephan <ralf@ark.in-berlin.de>
+ *   John Bintz <jcoswell@coswellproductions.org>
+ *   Johan Engelen <j.b.c.engelen@ewi.utwente.nl>
+ *   Jon A. Cruz <jon@joncruz.org>
+ *   Abhishek Sharma
+ *
+ * Copyright (C) 2007 Jon A. Cruz
+ * Copyright (C) 2006-2008 Johan Engelen
+ * Copyright (C) 2006 John Bintz
+ * Copyright (C) 2004 MenTaLguY
+ * Copyright (C) 1999-2002 Lauris Kaplinski
+ * Copyright (C) 2000-2001 Ximian, Inc.
+ */
+import { Preferences, Signal, SP_ITEM_SHOW_DISPLAY, SPDocument, SPItem } from '@inkscape-web/core';
+import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
+import { CanvasPage } from './display/control/canvas-page.ts';
+import { SvgDrawing } from './display/drawing.ts';
+import type { Canvas } from './ui/widget/canvas.ts';
+
+export const SP_DESKTOP_ZOOM_MAX = 256.0;
+export const SP_DESKTOP_ZOOM_MIN = 0.01;
+
+/** Upstream default of the desk color (sp-namedview.cpp default_desk_color). */
+const DEFAULT_DESK_COLOR = 0xd1d1d1ff;
+
+/**
+ * How the drawing maps to the window (upstream SPDesktop::DesktopAffine).
+ * d2w is the scale (with the y-axis direction); the offset is the world
+ * point at the top left corner of the window.
+ * TODO: rotation and flip.
+ */
+class DesktopAffine {
+  #scale = Scale(1, 1);
+  #d2w = Affine.identity();
+  #w2d = Affine.identity();
+  #offset = new Point(0, 0);
+
+  w2d(): Affine {
+    return this.#w2d;
+  }
+  d2w(): Affine {
+    return this.#d2w;
+  }
+  setScale(scale: Affine): void {
+    this.#scale = scale;
+    this.#update();
+  }
+  getZoom(): number {
+    return this.#d2w.descrim();
+  }
+  setOffset(offset: Point): void {
+    this.#offset = offset;
+  }
+  addOffset(offset: Point): void {
+    this.#offset = this.#offset.add(offset);
+  }
+  getOffset(): Point {
+    return this.#offset;
+  }
+  #update(): void {
+    this.#d2w = this.#scale;
+    this.#w2d = this.#d2w.inverse();
+  }
+}
+
+/**
+ * An editable view of a document on a canvas (upstream SPDesktop): shows the
+ * document root in a Drawing, draws the page, and owns zoom and scroll.
+ * TODO: selection, tools, layers, namedview (zoom/center from the document,
+ * colors), transform history, rotation, flip, guides, grids.
+ */
+export class SPDesktop {
+  readonly canvas: Canvas;
+  doc!: SPDocument;
+  /** The display key of the document root in this desktop. */
+  readonly dkey = SPItem.displayKeyNew(1);
+  /** Emitted when the zoom factor changes (not when scrolling). The parameter is the new zoom factor. */
+  readonly signal_zoom_changed = new Signal<[number]>();
+
+  // Canvas item groups, bottom to top (upstream CanvasItemGroups).
+  readonly _canvas_group_pages_bg: SVGGElement;
+  readonly _canvas_group_drawing: SVGGElement;
+  readonly _canvas_group_pages_fg: SVGGElement;
+  readonly _canvas_group_controls: SVGGElement;
+
+  readonly #drawing: SvgDrawing;
+  readonly #page = new CanvasPage();
+  readonly _current_affine = new DesktopAffine();
+  #disconnectModified: (() => void) | null = null;
+  #disconnectZoomFromDocument: (() => void) | null = null;
+
+  constructor(canvas: Canvas, document: SPDocument) {
+    // Run document updates (SPDocument.ensureUpToDate) before the next frame,
+    // so that views show changes in the same frame.
+    SPDocument.scheduleIdle = (callback) => requestAnimationFrame(callback);
+    this.canvas = canvas;
+    const dom = canvas.svg.ownerDocument;
+    const group = (parent: SVGGElement, name: string) => {
+      const g = dom.createElementNS('http://www.w3.org/2000/svg', 'g') as SVGGElement;
+      g.setAttribute('class', name);
+      parent.append(g);
+      return g;
+    };
+    this._canvas_group_pages_bg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesBg');
+    this._canvas_group_drawing = group(canvas.desktopLayer, 'CanvasItemGroup:Drawing');
+    this._canvas_group_pages_fg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesFg');
+    this._canvas_group_controls = group(canvas.controlsLayer, 'CanvasItemGroup:Controls');
+    canvas.set_desk(DEFAULT_DESK_COLOR);
+
+    this.#drawing = new SvgDrawing(dom);
+    this._canvas_group_drawing.append(this.#drawing.root.element);
+    this.#page.add(Rect.fromXywh(0, 0, 0, 0), this._canvas_group_pages_bg, this._canvas_group_pages_fg);
+
+    this.setDocument(document);
+    this.set_display_area(false);
+  }
+
+  /** Release the document view and the canvas content. */
+  destroy(): void {
+    this.#detachDocument();
+    this.#disconnectZoomFromDocument?.();
+    this.#page.remove();
+    for (const g of [
+      this._canvas_group_pages_bg,
+      this._canvas_group_drawing,
+      this._canvas_group_pages_fg,
+      this._canvas_group_controls,
+    ]) {
+      g.remove();
+    }
+  }
+
+  getDocument(): SPDocument {
+    return this.doc;
+  }
+  getCanvas(): Canvas {
+    return this.canvas;
+  }
+  getDrawing(): SvgDrawing {
+    return this.#drawing;
+  }
+
+  /** Show doc instead of the current document. */
+  setDocument(doc: SPDocument): void {
+    if (this.doc === doc) return;
+    this.#detachDocument();
+    this.doc = doc;
+    this.#attachDocument();
+  }
+
+  #attachDocument(): void {
+    const doc = this.doc;
+    doc.ensureUpToDate();
+    const ai = doc.getRoot().invokeShow(this.#drawing, this.dkey, SP_ITEM_SHOW_DISPLAY);
+    if (ai) this.#drawing.root.appendChild(ai);
+    this.#drawing.root.setTransform(this.doc2dt());
+    this.#updatePage();
+    this.#disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
+  }
+
+  #detachDocument(): void {
+    if (!this.doc) return;
+    this.#disconnectModified?.();
+    this.#disconnectModified = null;
+    this.doc.getRoot().invokeHide(this.dkey);
+  }
+
+  #updatePage(): void {
+    this.#page.update(this.doc.preferredBounds().transformed(this.doc2dt()));
+  }
+
+  // Coordinate systems
+
+  /** Transformation from window to desktop coordinates (zoom/rotate). */
+  w2d(): Affine;
+  w2d(p: Point): Point;
+  w2d(p?: Point): Affine | Point {
+    return p ? p.transformed(this._current_affine.w2d()) : this._current_affine.w2d();
+  }
+  /** Transformation from desktop to window coordinates. */
+  d2w(): Affine;
+  d2w(p: Point): Point;
+  d2w(p?: Point): Affine | Point {
+    return p ? p.transformed(this._current_affine.d2w()) : this._current_affine.d2w();
+  }
+  doc2dt(): Affine {
+    return this.doc.doc2dt();
+  }
+  dt2doc(): Affine {
+    return this.doc.dt2doc();
+  }
+  yaxisdir(): number {
+    return this.doc2dt().c3;
+  }
+
+  // Zoom and scroll
+
+  current_zoom(): number {
+    return this._current_affine.getZoom();
+  }
+
+  /** The desktop point at the center of the window. */
+  current_center(): Point {
+    return this.canvas.get_area_world().midpoint().transformed(this._current_affine.w2d());
+  }
+
+  /**
+   * Apply _current_affine to the canvas (log: TODO transform history).
+   * With (c, w): map the drawing so that desktop point c lies at world point w.
+   * With (r, border): fit desktop rect r into the window, border screen px inside.
+   */
+  set_display_area(log?: boolean): void;
+  set_display_area(c: Point, w: Point, log?: boolean): void;
+  set_display_area(r: Rect, border: number, log?: boolean): void;
+  set_display_area(a?: boolean | Point | Rect, b?: Point | number, _log = true): void {
+    if (a instanceof Point && b instanceof Point) {
+      // The relative offset needed to keep c at w.
+      this._current_affine.addOffset(this.d2w(a).sub(b));
+    } else if (a instanceof Rect && typeof b === 'number') {
+      this.#setDisplayAreaRect(a, b);
+      return;
+    }
+    this.canvas.set_pos(this._current_affine.getOffset());
+    this.canvas.set_affine(this._current_affine.d2w());
+    this.signal_zoom_changed.emit(this._current_affine.getZoom());
+  }
+
+  #setDisplayAreaRect(r: Rect, border: number): void {
+    // A rectangle the size of the window aligned with origin, shrunk by the border.
+    const w = new Rect(new Point(0, 0), this.canvas.get_dimensions()).expandBy(-border);
+    // Determine which direction limits scale.
+    let zoom =
+      r.width() * w.height() > r.height() * w.width() ? w.width() / r.width() : w.height() / r.height();
+    zoom = clamp(zoom, SP_DESKTOP_ZOOM_MIN, SP_DESKTOP_ZOOM_MAX);
+    this._current_affine.setScale(Scale(zoom, this.yaxisdir() * zoom));
+    // Zero offset, actual offset calculated later.
+    this._current_affine.setOffset(new Point(0, 0));
+    this.set_display_area(r.midpoint(), w.midpoint());
+  }
+
+  /**
+   * Zoom to the given absolute zoom level (1 is 100%) around desktop point
+   * center. keep_point keeps center fixed in the window; otherwise center
+   * moves to the middle of the window.
+   */
+  zoom_absolute(center: Point, zoom: number, keep_point = true): void {
+    const w = keep_point ? this.d2w(center) : this.canvas.get_area_world().midpoint(); // Must be before zoom changed.
+    zoom = clamp(zoom, SP_DESKTOP_ZOOM_MIN, SP_DESKTOP_ZOOM_MAX);
+    this._current_affine.setScale(Scale(zoom, this.yaxisdir() * zoom));
+    this.set_display_area(center, w);
+  }
+
+  /** Zoom relative to the current zoom (at 50%, 0.5 gives 25%). */
+  zoom_relative(center: Point, zoom: number, keep_point = true): void {
+    this.zoom_absolute(center, this._current_affine.getZoom() * zoom, keep_point);
+  }
+
+  /** Zoom to an absolute real-world ratio, e.g. 1:1 physical screen units. */
+  zoom_realworld(center: Point, ratio: number): void {
+    const correction = Preferences.get().getDouble('/options/zoomcorrection/value', 1.0);
+    this.zoom_absolute(center, ratio * correction, false);
+  }
+
+  /** Zoom to the whole drawing. */
+  zoom_drawing(): void {
+    const docitem = this.doc.getRoot();
+    docitem.bbox_valid = false;
+    const d = docitem.desktopVisualBounds();
+    // The second condition means that there are no items in the drawing.
+    if (!d || d.minExtent() < 0.1) return;
+    this.set_display_area(d, 10);
+  }
+
+  /**
+   * Zoom to fit the page in the window (upstream PageManager::zoomToPage
+   * with the document bounds; there are no multiple pages yet).
+   */
+  zoom_page(): void {
+    const rect = this.doc.preferredBounds().transformed(this.doc2dt());
+    if (rect.minExtent() < 1.0) return;
+    this.set_display_area(rect, 10);
+  }
+
+  /**
+   * Apply the zoom of the document once the canvas has a size.
+   * TODO: inkscape:zoom, cx, cy from the namedview (sp_namedview_zoom_and_view_from_document);
+   * for now always zoom to the page.
+   */
+  schedule_zoom_from_document(): void {
+    this.#disconnectZoomFromDocument?.();
+    const apply = () => {
+      this.#disconnectZoomFromDocument?.();
+      this.#disconnectZoomFromDocument = null;
+      this.zoom_page();
+    };
+    const dims = this.canvas.get_dimensions();
+    if (dims.x > 0 && dims.y > 0) apply();
+    else this.#disconnectZoomFromDocument = this.canvas.connectResize(apply);
+  }
+
+  /** Scroll so that world point is at the top left corner of the window. */
+  scroll_absolute(point: Point): void {
+    this.canvas.set_pos(point);
+    this._current_affine.setOffset(point);
+  }
+
+  /** Scroll by delta in window coordinates. */
+  scroll_relative(delta: Point): void {
+    this.scroll_absolute(this.canvas.get_area_world().min().sub(delta));
+  }
+
+  /** Scroll by (dx, dy) in svg (desktop) units. */
+  scroll_relative_in_svg_coords(dx: number, dy: number): void {
+    const scale = this._current_affine.getZoom();
+    this.scroll_relative(new Point(dx * scale, dy * scale));
+  }
+}
+
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(Math.max(v, min), max);
+}
