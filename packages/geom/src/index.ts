@@ -5,6 +5,7 @@ export * from './affine.ts';
 export * from './angle.ts';
 export * from './bezier.ts';
 export * from './bezier-curve.ts';
+export * from './bezier-utils.ts';
 export * from './coord.ts';
 export * from './curve.ts';
 export * from './ellipse.ts';
