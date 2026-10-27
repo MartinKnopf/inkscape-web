@@ -49,6 +49,7 @@ interface MenuItem {
 
 const DIALOG_XML = "win.dialog-open('XMLEditor')";
 const DIALOG_OBJECTS = "win.dialog-open('Objects')";
+const DIALOG_FILL_STROKE = "win.dialog-open('FillStroke')";
 
 /** Menu items by menu. TODO: all items, sections, submenus. */
 const MENU_ITEMS: Record<string, MenuItem[]> = {
@@ -64,7 +65,10 @@ const MENU_ITEMS: Record<string, MenuItem[]> = {
     { label: '_XML Editor...', action: DIALOG_XML },
   ],
   _Layer: [{ label: 'Layers and Objects...', action: DIALOG_OBJECTS }],
-  _Object: [{ label: 'Layers and Objects...', action: DIALOG_OBJECTS }],
+  _Object: [
+    { label: '_Fill and Stroke...', action: DIALOG_FILL_STROKE },
+    { label: 'Layers and Objects...', action: DIALOG_OBJECTS },
+  ],
   _Path: [{ label: '_Object to Path', action: 'app.object-to-path' }],
 };
 

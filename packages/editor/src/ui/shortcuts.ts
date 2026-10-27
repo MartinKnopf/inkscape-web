@@ -80,6 +80,7 @@ export const ACTION_KEYS: Record<string, Accelerator[]> = {
   'app.object-to-path': [{ key: 'c', primary: true, shift: true }],
   "win.tool-switch('Pencil')": [{ key: 'p' }, { key: 'F6' }],
   "win.tool-switch('Pen')": [{ key: 'b' }, { key: 'F6', shift: true }],
+  "win.dialog-open('FillStroke')": [{ key: 'f', primary: true, shift: true }],
   "win.dialog-open('Objects')": [{ key: 'l', primary: true, shift: true }],
   "win.dialog-open('XMLEditor')": [{ key: 'x', primary: true, shift: true }],
 };
