@@ -28,6 +28,7 @@ export * from './object/sp-star.ts';
 export * from './object/viewbox.ts';
 export * from './path/path-curve.ts';
 export * from './preferences.ts';
+export * from './preferences-skeleton.ts';
 export * from './selection.ts';
 export * from './style.ts';
 export * from './style-enums.ts';
