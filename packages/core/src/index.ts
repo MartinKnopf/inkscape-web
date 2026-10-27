@@ -3,7 +3,15 @@
 // No DOM, no React.
 
 export * from './attributes.ts';
+export * from './document.ts';
+export * from './document-undo.ts';
 export * from './i18n.ts';
+export * from './object/sp-defs.ts';
+export * from './object/sp-factory.ts';
+export * from './object/sp-item.ts';
+export * from './object/sp-item-group.ts';
+export * from './object/sp-object.ts';
+export * from './object/sp-root.ts';
 export * from './svg/css-ostringstream.ts';
 export * from './svg/stringstream.ts';
 export * from './svg/strip-trailing-zeros.ts';
@@ -11,6 +19,7 @@ export * from './svg/svg-angle.ts';
 export * from './svg/svg-bool.ts';
 export * from './svg/svg-box.ts';
 export * from './svg/svg-length.ts';
+export * from './util/signal.ts';
 export * from './xml/document.ts';
 export * from './xml/event.ts';
 export * from './xml/node.ts';
