@@ -10,6 +10,7 @@
  * Copyright (C) 1999-2002 authors
  * Copyright (C) 2000-2001 Ximian, Inc.
  */
+import { Affine } from '@inkscape-web/geom';
 import type { SPDocument } from '../document.ts';
 import type { Node } from '../xml/node.ts';
 import { SPDefs } from './sp-defs.ts';
@@ -22,6 +23,8 @@ const SVG_VERSION = '1.1';
  * TODO: x/y/width/height, viewBox, preserveAspectRatio, versions, viewport update.
  */
 export class SPRoot extends SPGroup {
+  /** Child to parent transform (viewBox and x/y). TODO: compute it from the viewBox. */
+  c2p: Affine = Affine.identity();
   /** Primary svg:defs, where new defs (gradients, patterns, …) go: the first defs child. */
   defs: SPDefs | null = null;
 

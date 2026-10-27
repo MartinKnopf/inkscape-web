@@ -194,6 +194,22 @@ export class SPDocument {
     return !(root.uflags || root.mflags);
   }
 
+  /**
+   * Document to desktop transform. Upstream flips the y axis when the preference
+   * /options/yaxisdown is false; the default (y down) gives the identity.
+   * TODO: the y-axis flip, when there is a desktop with that preference.
+   */
+  doc2dt(): Affine {
+    return Affine.identity();
+  }
+  dt2doc(): Affine {
+    return this.doc2dt().inverse();
+  }
+  /** 1 if the desktop y axis points down, -1 if it points up. */
+  yaxisdir(): number {
+    return this.doc2dt().c3;
+  }
+
   /** Root update context. TODO: viewport from the root size. */
   setupViewport(): SPItemCtx {
     return { flags: 0, i2doc: Affine.identity(), i2vp: Affine.identity() };

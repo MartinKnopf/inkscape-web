@@ -124,6 +124,8 @@ export class SPObject implements NodeObserver {
    * FIXME: upstream creates a style for all objects, but per SVG only some elements can have a style attribute.
    */
   readonly style: SPStyle = new SPStyle(null, this);
+  /** Style that resolves context-fill and context-stroke (markers, clones). */
+  context_style: SPStyle | null = null;
 
   getId(): string | null {
     return this.#id;
