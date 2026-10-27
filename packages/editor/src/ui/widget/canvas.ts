@@ -31,12 +31,13 @@ export class Canvas {
   readonly svg: SVGSVGElement;
   /** Content in desktop coordinates (pages, drawing). */
   readonly desktopLayer: SVGGElement;
-  /** Content in world coordinates (handles, rubberband; empty for now). */
+  /** Content in world coordinates (handles, rubberband). Canvas items redraw when the affine changes. */
   readonly controlsLayer: SVGGElement;
   readonly #world: SVGGElement;
   #pos = new Point(0, 0);
   #affine = Affine.identity();
   readonly #signalResize = new Signal<[]>();
+  readonly #signalAffine = new Signal<[Affine]>();
   readonly #resizeObserver: ResizeObserver | null = null;
 
   constructor(host: HTMLElement) {
@@ -85,6 +86,7 @@ export class Canvas {
     if (affine.equals(this.#affine)) return;
     this.#affine = affine;
     this.#update();
+    this.#signalAffine.emit(affine);
   }
   get_affine(): Affine {
     return this.#affine;
@@ -113,6 +115,17 @@ export class Canvas {
   /** Called when the window size changes. Returns the disconnect function. */
   connectResize(slot: () => void): () => void {
     return this.#signalResize.connect(slot);
+  }
+
+  /** Called with the new desktop to world transform when it changes. Returns the disconnect function. */
+  connectAffine(slot: (affine: Affine) => void): () => void {
+    return this.#signalAffine.connect(slot);
+  }
+
+  /** The window point of a pointer event (upstream: event positions are in widget coordinates). */
+  windowPoint(event: MouseEvent): Point {
+    const r = this.svg.getBoundingClientRect();
+    return new Point(event.clientX - r.left, event.clientY - r.top);
   }
 
   #update(): void {
