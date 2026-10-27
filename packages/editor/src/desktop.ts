@@ -109,6 +109,8 @@ export class SPDesktop {
   readonly signal_zoom_changed = new Signal<[number]>();
   /** Emitted after the active tool changed (upstream _event_context_changed_signal). */
   readonly #event_context_changed_signal = new Signal<[SPDesktop, ToolBase | null]>();
+  /** The slots of connectSetStyle(); the first that returns true intercepts the style. */
+  readonly #setStyleSlots = new Set<(css: SPCSSAttr, switchStyle: boolean) => boolean>();
   /** The last used style (upstream SPDesktop::current), from "/desktop/style". */
   current: SPCSSAttr = Preferences.get().getStyle('/desktop/style');
 
@@ -215,6 +217,21 @@ export class SPDesktop {
 
   connectEventContextChanged(slot: (desktop: SPDesktop, tool: ToolBase | null) => void): () => void {
     return this.#event_context_changed_signal.connect(slot);
+  }
+
+  /**
+   * Let slot see the style that sp_desktop_set_style() applies. If it returns true, the style
+   * is not applied to the selection (upstream _set_style_signal, used by tools with own sub-selections).
+   */
+  connectSetStyle(slot: (css: SPCSSAttr, switchStyle: boolean) => boolean): () => void {
+    this.#setStyleSlots.add(slot);
+    return () => this.#setStyleSlots.delete(slot);
+  }
+
+  /** Emit the set-style signal; true if a slot intercepted the style. */
+  emitSetStyle(css: SPCSSAttr, switchStyle: boolean): boolean {
+    for (const slot of [...this.#setStyleSlots]) if (slot(css, switchStyle)) return true;
+    return false;
   }
 
   /** Set the style attribute of repr to the style for new objects of a tool, see getCurrentOrToolStyle(). */

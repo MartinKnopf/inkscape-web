@@ -8,7 +8,13 @@
  */
 import { preferences_skeleton } from './preferences-skeleton.ts';
 import { Signal } from './util/signal.ts';
-import { type SPCSSAttr, spReprCssAttrAddFromString, spReprCssAttrNew } from './xml/repr-css.ts';
+import {
+  type SPCSSAttr,
+  spReprCssAttrAddFromString,
+  spReprCssAttrNew,
+  spReprCssMerge,
+  spReprCssWriteString,
+} from './xml/repr-css.ts';
 
 /**
  * Preferences by path ("/options/transform/stroke"), as upstream.
@@ -70,6 +76,13 @@ export class Preferences {
       spReprCssAttrAddFromString(style, this.#raw(`${node.slice(0, i).join('/')}/${attr}`) ?? null);
     }
     return style;
+  }
+
+  /** Merge the properties of css into the style string at path. */
+  mergeStyle(path: string, css: SPCSSAttr): void {
+    const style = this.getStyle(path);
+    spReprCssMerge(style, css);
+    this.setString(path, spReprCssWriteString(style));
   }
 
   setString(path: string, value: string): void {

@@ -6,6 +6,7 @@ export * from './actions/actions-node-tool.ts';
 export * from './actions/actions-tools.ts';
 export * from './context-fns.ts';
 export * from './desktop.ts';
+export * from './desktop-style.ts';
 export * from './display/control/canvas-item.ts';
 export * from './display/control/canvas-item-ctrl.ts';
 export * from './display/control/canvas-item-curve.ts';
