@@ -12,10 +12,12 @@
  *
  * Copyright (C) 1999-2012 authors
  */
-import { Preferences } from '@inkscape-web/core';
+import { Preferences, type SPGroup, type SPItem } from '@inkscape-web/core';
 import { Point } from '@inkscape-web/geom';
 import { getDoubleLimited } from '../../actions/actions-canvas-transform.ts';
+import { get_active_tool, set_active_tool } from '../../actions/actions-tools.ts';
 import type { SPDesktop } from '../../desktop.ts';
+import { SelCue } from '../../selcue.ts';
 
 /** Browser wheel deltas per wheel click: Chromium reports 100 px, Firefox 3 lines. */
 const PIXELS_PER_WHEEL_CLICK = 100;
@@ -31,6 +33,20 @@ export const mod_alt = (s: ModifierState): boolean => s.altKey;
 export const mod_shift_only = (s: ModifierState): boolean => s.shiftKey && !mod_ctrl(s) && !s.altKey;
 export const mod_ctrl_only = (s: ModifierState): boolean => mod_ctrl(s) && !s.shiftKey && !s.altKey;
 export const mod_alt_only = (s: ModifierState): boolean => s.altKey && !s.shiftKey && !mod_ctrl(s);
+
+// Modifiers from share/keys/inkscape.xml (upstream Modifiers::Modifier).
+/** select-add-to: Shift */
+export const mod_select_add_to = (s: ModifierState): boolean => mod_shift(s);
+/** select-force-drag: Alt */
+export const mod_select_force_drag = (s: ModifierState): boolean => mod_alt(s);
+/** trans-confine: Ctrl */
+export const mod_trans_confine = (s: ModifierState): boolean => mod_ctrl(s);
+/** trans-increment: Alt */
+export const mod_trans_increment = (s: ModifierState): boolean => mod_alt(s);
+/** trans-off-center: Shift */
+export const mod_trans_off_center = (s: ModifierState): boolean => mod_shift(s);
+/** freehand-angle-snapping: Ctrl */
+export const mod_freehand_angle_snapping = (s: ModifierState): boolean => mod_ctrl(s);
 
 /** DOM events the tools handle (upstream CanvasEvent). */
 const EVENT_TYPES = [
@@ -50,6 +66,7 @@ const EVENT_TYPES = [
  * does what all tools share: the mouse wheel (scroll, Shift: scroll
  * horizontally, Ctrl: zoom at the pointer) and panning with the middle
  * button. Tools override root_handler() and call it for unhandled events.
+ * A Space key press without panning toggles between the tool and the selector.
  * TODO: item_handler, space panning, right-button panning, Ctrl+middle
  * zoom and rotate, middle-click zoom, canvas rotation with Ctrl+Shift+wheel,
  * modifiers from share/keys (Modifiers::Modifier), cursors, message context.
@@ -59,6 +76,13 @@ export class ToolBase {
   readonly #prefsPath: string;
   #panning: Point | null = null;
   protected readonly _element: SVGSVGElement;
+  readonly #disconnectPrefs: () => void;
+  #selcue: SelCue | null = null;
+  /** The tool that was active before this one (upstream _last_active_tool). */
+  #last_active_tool = '';
+
+  /** The item under the pointer at the button press, selected by a click without drag. */
+  item_to_select: SPItem | null = null;
 
   /** Drag origin in window coordinates, see saveDragOrigin(). */
   xyp: Point | null = null;
@@ -74,14 +98,69 @@ export class ToolBase {
     for (const type of EVENT_TYPES) {
       this._element.addEventListener(type, this.#onEvent, type === 'wheel' ? { passive: false } : undefined);
     }
+    // Pass changes of the tool's preferences to set() (upstream ToolPrefObserver).
+    const prefix = `${prefsPath}/`;
+    this.#disconnectPrefs = Preferences.get().changedSignal.connect((path) => {
+      if (prefsPath && path.startsWith(prefix)) this.set(path.slice(prefix.length));
+    });
   }
 
   destroy(): void {
     for (const type of EVENT_TYPES) this._element.removeEventListener(type, this.#onEvent);
+    this.#disconnectPrefs();
+    this.enableSelectionCue(false);
   }
 
   getPrefsPath(): string {
     return this.#prefsPath;
+  }
+
+  /** Called with the entry name ("rx") when a preference of the tool changes. */
+  set(_name: string): void {}
+
+  /** Read the tool preference name (upstream sp_event_context_read). */
+  sp_event_context_read(name: string): void {
+    this.set(name);
+  }
+
+  set_last_active_tool(name: string): void {
+    this.#last_active_tool = name;
+  }
+  get_last_active_tool(): string {
+    return this.#last_active_tool;
+  }
+
+  /** Show the dashed bounding boxes of the selected items. */
+  enableSelectionCue(enable = true): void {
+    if (enable) this.#selcue ??= new SelCue(this._desktop);
+    else {
+      this.#selcue?.destroy();
+      this.#selcue = null;
+    }
+  }
+
+  /** The layer new objects go into. */
+  currentLayer(): SPGroup | null {
+    return this._desktop.layerManager().currentLayer();
+  }
+
+  /** Save the drag origin and the item under the pointer (selected by a click without drag). */
+  setup_for_drag_start(event: PointerEvent): void {
+    const w = this._windowPoint(event);
+    this.saveDragOrigin(w);
+    // TODO: Alt selects under (sp_event_context_find_item with select_under).
+    this.item_to_select = this._desktop.getItemAtPoint(w, true);
+  }
+
+  /** Capture the pointer while dragging (upstream grabCanvasEvents). */
+  grabCanvasEvents(event: PointerEvent): void {
+    this._element.setPointerCapture?.(event.pointerId);
+  }
+
+  /** Release the pointer capture (upstream ungrabCanvasEvents). */
+  ungrabCanvasEvents(event?: PointerEvent): void {
+    if (event && this._element.hasPointerCapture?.(event.pointerId))
+      this._element.releasePointerCapture(event.pointerId);
   }
 
   readonly #onEvent = (event: Event): void => {
@@ -105,6 +184,13 @@ export class ToolBase {
       case 'pointerup':
       case 'pointercancel':
         return this.#onPointerUp(event as PointerEvent);
+      case 'keyup':
+        if ((event as KeyboardEvent).key === ' ') {
+          // Space was pressed, but not panned. TODO: space panning.
+          sp_toggle_selector(this._desktop);
+          return true;
+        }
+        return false;
       default:
         return false;
     }
@@ -195,5 +281,24 @@ export class ToolBase {
     if (this._element.hasPointerCapture(event.pointerId))
       this._element.releasePointerCapture(event.pointerId);
     return true;
+  }
+}
+
+/** The tool to switch back to after Space toggled to the selector. */
+let selector_toggled = false;
+let switch_selector_to = '';
+
+/** Toggle between the active tool and the selector tool. */
+function sp_toggle_selector(dt: SPDesktop): void {
+  if (!dt.getTool()) return;
+  if (get_active_tool(dt) === 'Select') {
+    if (selector_toggled) {
+      set_active_tool(dt, switch_selector_to);
+      selector_toggled = false;
+    }
+  } else {
+    selector_toggled = true;
+    switch_selector_to = get_active_tool(dt);
+    set_active_tool(dt, 'Select');
   }
 }

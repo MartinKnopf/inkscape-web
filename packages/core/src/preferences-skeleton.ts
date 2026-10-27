@@ -13,6 +13,9 @@
  * TODO: the other groups of the skeleton.
  */
 export const preferences_skeleton: Readonly<Record<string, string>> = {
+  '/options/rotationsnapsperpi/value': '12.0',
+  '/options/dragtolerance/value': '4.0',
+
   '/tools/bounding_box': '0',
 
   '/tools/shapes/style': 'fill-rule:evenodd;',
