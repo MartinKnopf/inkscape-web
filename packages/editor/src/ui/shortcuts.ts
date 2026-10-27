@@ -71,11 +71,13 @@ export const ACTION_KEYS: Record<string, Accelerator[]> = {
     { key: 'y', primary: true },
   ],
   "win.tool-switch('Select')": [{ key: 's' }, { key: 'F1' }],
+  "win.tool-switch('Node')": [{ key: 'n' }, { key: 'F2' }],
   "win.tool-switch('Rect')": [{ key: 'r' }, { key: 'F4' }],
   "win.tool-switch('Arc')": [{ key: 'e' }, { key: 'F5' }],
   // asterisk, <shift>F9, KP_Multiply
   "win.tool-switch('Star')": [{ key: '*' }, { key: 'F9', shift: true }],
   "win.tool-switch('Spiral')": [{ key: 'i' }, { key: 'F9' }],
+  'app.object-to-path': [{ key: 'c', primary: true, shift: true }],
   "win.dialog-open('Objects')": [{ key: 'l', primary: true, shift: true }],
   "win.dialog-open('XMLEditor')": [{ key: 'x', primary: true, shift: true }],
 };

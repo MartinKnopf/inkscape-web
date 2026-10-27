@@ -65,6 +65,7 @@ const MENU_ITEMS: Record<string, MenuItem[]> = {
   ],
   _Layer: [{ label: 'Layers and Objects...', action: DIALOG_OBJECTS }],
   _Object: [{ label: 'Layers and Objects...', action: DIALOG_OBJECTS }],
+  _Path: [{ label: '_Object to Path', action: 'app.object-to-path' }],
 };
 
 /** Remove the GTK mnemonic marker ("_File" → "File"). */

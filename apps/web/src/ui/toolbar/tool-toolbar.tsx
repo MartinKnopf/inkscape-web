@@ -25,7 +25,10 @@ import './toolbar.css';
  * context menu), hiding buttons (/toolbox/tools/buttons).
  */
 const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
-  [['Select', 'tool-pointer']],
+  [
+    ['Select', 'tool-pointer'],
+    ['Node', 'tool-node-editor'],
+  ],
   [
     ['Rect', 'draw-rectangle'],
     ['Arc', 'draw-ellipse'],

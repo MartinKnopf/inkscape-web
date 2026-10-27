@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/actions/actions-file-gui.cpp, src/actions/actions-undo-document.cpp, src/actions/actions-tools.cpp, src/actions/actions-dialogs.cpp
+// Upstream: src/actions/actions-file-gui.cpp, src/actions/actions-undo-document.cpp, src/actions/actions-tools.cpp, src/actions/actions-dialogs.cpp, src/actions/actions-object.cpp, src/actions/actions-node-tool.cpp
 // The file, undo, tool and dialog actions, by upstream action id.
-import { DocumentUndo } from '@inkscape-web/core';
-import { tool_switch, toolSwitchTarget } from '@inkscape-web/editor';
+import { DocumentUndo, toCurves } from '@inkscape-web/core';
+import { node_tool_actions, tool_switch, toolSwitchTarget } from '@inkscape-web/editor';
 import { openDialog } from '../ui/dialog/dialog-manager.ts';
 import { getActiveDesktop, replaceDocument } from './active-desktop.ts';
 import { sp_file_new_default, sp_file_open_dialog, sp_file_save, sp_file_save_as } from './file.ts';
@@ -21,6 +21,12 @@ export async function runAction(id: string): Promise<void> {
   const tool = toolSwitchTarget(id);
   if (tool) {
     tool_switch(tool, dt);
+    return;
+  }
+  // win.node-* (actions-node-tool.cpp)
+  const node_action = id.startsWith('win.') ? node_tool_actions[id.slice(4)] : undefined;
+  if (node_action) {
+    node_action(dt);
     return;
   }
   switch (id) {
@@ -47,6 +53,10 @@ export async function runAction(id: string): Promise<void> {
       break;
     case 'doc.redo':
       DocumentUndo.redo(dt.doc);
+      break;
+    case 'app.object-to-path':
+      // TODO: /options/clonestocurvesjustunlink/value (clones).
+      toCurves(dt.getSelection());
       break;
   }
 }
