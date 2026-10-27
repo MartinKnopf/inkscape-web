@@ -1,0 +1,13 @@
+{
+  "name": "@inkscape-web/wasm",
+  "private": true,
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "./build.sh",
+    "typecheck": "tsc --noEmit"
+  }
+}

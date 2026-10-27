@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch();
+const page = await b.newPage({ viewport: { width: 1000, height: 700 } });
+await page.goto('http://localhost:5179/');
+await page.click('text=tiger.svgz');
+await page.waitForFunction(() => window.__lastOpen);
+await page.evaluate(async () => { const d = window.desktop; d.zoom = 12; d.pan = { x: -3000, y: -4500 }; d.applyView(); });
+await page.waitForTimeout(500);
+await page.screenshot({ path: 'shot-zoom.png', clip: { x: 50, y: 70, width: 500, height: 350 } });
+await b.close();

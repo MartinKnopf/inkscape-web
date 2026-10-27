@@ -1,0 +1,30 @@
+Inkscape Web license
+====================
+
+Inkscape Web is a port of Inkscape (https://inkscape.org) to the web. Most of
+its code is derived from Inkscape source code, which is available under the
+GNU General Public License, version 2 or later. Inkscape Web source code is
+therefore also available under the GNU General Public License, version 2 or
+later (GPL-2.0-or-later), unless a file states otherwise.
+
+Ported code keeps the copyright of the original Inkscape authors. See the
+header of each file, the upstream file it names in its "Upstream:" line, and
+https://gitlab.com/inkscape/inkscape/-/blob/master/AUTHORS.
+
+Notable exceptions:
+- packages/wasm compiles upstream Inkscape C++ and third-party libraries with
+  their own licenses. See packages/wasm/THIRD-PARTY.md.
+- packages/assets copies runtime data (icons, palettes, translations, ...) from
+  upstream Inkscape. The built output contains the upstream COPYING, AUTHORS
+  and LICENSES files.
+
+The built application links the GNU Scientific Library (GPL-3.0-or-later). As
+such, the complete built application is covered by the terms of the GNU GPL
+version 3 or later, as are the binaries of upstream Inkscape.
+
+License of individual source files
+==================================
+
+The license of each source file is in its first lines after
+"SPDX-License-Identifier:". The text of each license is in LICENSES/.
+See https://spdx.org/licenses/ for the identifiers.

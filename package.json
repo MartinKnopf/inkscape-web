@@ -1,0 +1,28 @@
+{
+  "name": "inkscape-web",
+  "private": true,
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @inkscape-web/web dev",
+    "build": "pnpm build:wasm && pnpm build:assets && pnpm --filter @inkscape-web/web build",
+    "build:wasm": "pnpm --filter @inkscape-web/wasm build",
+    "build:assets": "pnpm --filter @inkscape-web/assets build",
+    "typecheck": "pnpm -r typecheck && tsc -p upstream",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "upstream:diff": "node upstream/scripts/diff.ts",
+    "upstream:inventory": "node upstream/scripts/inventory.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.3",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.DS_Store
+# Spike leftovers (code is kept, generated data is not)
+spikes/render-fidelity/out/
+spikes/render-fidelity/refs/
+spikes/render-fidelity/cases-*.json
+spikes/wasm-geom/vendor/
+spikes/wasm-geom/prefix/
+spikes/ui-shell/*.png

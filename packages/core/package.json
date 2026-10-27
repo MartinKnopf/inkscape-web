@@ -1,0 +1,15 @@
+{
+  "name": "@inkscape-web/core",
+  "private": true,
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@inkscape-web/geom": "workspace:*"
+  }
+}

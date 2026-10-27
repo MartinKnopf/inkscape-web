@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  font:
+    13px system-ui,
+    sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.menubar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+  border-bottom: 1px solid #ccc;
+}
+
+.menubar button {
+  border: 0;
+  background: none;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.toolbox {
+  width: 40px;
+  border-right: 1px solid #ccc;
+}
+
+.drawing {
+  position: relative;
+  height: 100%;
+  background: #e8e8e8;
+}

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      INKSCAPE_SRC: ${{ github.workspace }}/inkscape
+      BOOST_INCLUDE: /usr/include
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: inkscape-web
+
+      - name: Read upstream commit
+        id: upstream
+        run: echo "commit=$(jq -r .commit inkscape-web/upstream/sync.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache upstream checkout
+        id: upstream-cache
+        uses: actions/cache@v4
+        with:
+          path: inkscape
+          key: upstream-${{ steps.upstream.outputs.commit }}
+
+      - name: Check out upstream Inkscape (sync.json commit)
+        if: steps.upstream-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --filter=blob:none --no-checkout https://gitlab.com/inkscape/inkscape.git inkscape
+          git -C inkscape checkout ${{ steps.upstream.outputs.commit }}
+          git -C inkscape submodule update --init --depth 1 src/3rdparty/2geom share/extensions po
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: inkscape-web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: inkscape-web/.nvmrc
+          cache: pnpm
+          cache-dependency-path: inkscape-web/pnpm-lock.yaml
+
+      - name: Read Emscripten version
+        id: emsdk
+        run: echo "version=$(cat inkscape-web/packages/wasm/emscripten-version)" >> "$GITHUB_OUTPUT"
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ steps.emsdk.outputs.version }}
+          actions-cache-folder: emsdk-cache
+      - run: sudo apt-get install -y --no-install-recommends libboost-dev
+
+      - name: Cache WASM third-party builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            inkscape-web/packages/wasm/build/vendor
+            inkscape-web/packages/wasm/build/prefix
+          key: wasm-deps-${{ steps.emsdk.outputs.version }}-${{ hashFiles('inkscape-web/packages/wasm/build.sh') }}
+
+      - working-directory: inkscape-web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:wasm
+          pnpm build:assets
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm --filter @inkscape-web/web build
