@@ -5,27 +5,27 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 9 | 26 | 35 |
-| Dialogs | 9 | 29 | 31 |
-| Actions | 113 | 409 | 28 |
+| Tools | 13 | 26 | 50 |
+| Dialogs | 11 | 29 | 38 |
+| Actions | 122 | 409 | 30 |
 | Live path effects | 3 | 56 | 5 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (9/26)</summary>
+<details><summary>Tools (13/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
 - [ ] `box3d-tool.cpp`
 - [ ] `calligraphic-tool.cpp`
 - [ ] `connector-tool.cpp`
-- [ ] `dropper-tool.cpp`
+- [x] `dropper-tool.cpp`
 - [ ] `eraser-tool.cpp`
 - [ ] `flood-tool.cpp`
 - [x] `gradient-tool.cpp`
 - [ ] `lpe-tool.cpp`
 - [ ] `marker-tool.cpp`
-- [ ] `measure-tool.cpp`
+- [x] `measure-tool.cpp`
 - [ ] `mesh-tool.cpp`
 - [x] `node-tool.cpp`
 - [ ] `object-picker-tool.cpp`
@@ -37,13 +37,13 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `spiral-tool.cpp`
 - [ ] `spray-tool.cpp`
 - [x] `star-tool.cpp`
-- [ ] `text-tool.cpp`
+- [x] `text-tool.cpp`
 - [ ] `tweak-tool.cpp`
-- [ ] `zoom-tool.cpp`
+- [x] `zoom-tool.cpp`
 
 </details>
 
-<details><summary>Dialogs (9/29)</summary>
+<details><summary>Dialogs (11/29)</summary>
 
 - [x] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -66,10 +66,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `Prototype`
 - [ ] `SVGFonts`
 - [ ] `Selectors`
-- [ ] `Spellcheck`
+- [x] `Spellcheck`
 - [ ] `Swatches`
 - [ ] `Symbols`
-- [ ] `Text`
+- [x] `Text`
 - [ ] `Trace`
 - [x] `Transform`
 - [ ] `UndoHistory`
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (113/409)</summary>
+<details><summary>Actions (122/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -204,14 +204,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.path-split`
 - [x] `app.path-union`
 - [ ] `app.pattern-to-object`
-- [ ] `app.preferences`
+- [x] `app.preferences`
 - [ ] `app.query-all`
 - [ ] `app.query-height`
 - [ ] `app.query-pages`
 - [ ] `app.query-width`
 - [ ] `app.query-x`
 - [ ] `app.query-y`
-- [ ] `app.quit`
+- [x] `app.quit`
 - [ ] `app.quit-immediate`
 - [ ] `app.refresh-user-extensions`
 - [ ] `app.remove-path-effect`
@@ -253,7 +253,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.text-select-by-font`
 - [ ] `app.text-unflow`
 - [ ] `app.text-unflow-and-keep-shape`
-- [ ] `app.text-unkern`
+- [x] `app.text-unkern`
 - [ ] `app.transform-grow`
 - [ ] `app.transform-grow-screen`
 - [ ] `app.transform-grow-step`
@@ -345,23 +345,23 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.canvas-tool-control-bar`
 - [ ] `win.canvas-toolbox`
 - [x] `win.canvas-zoom-1-1`
-- [ ] `win.canvas-zoom-1-2`
-- [ ] `win.canvas-zoom-2-1`
+- [x] `win.canvas-zoom-1-2`
+- [x] `win.canvas-zoom-2-1`
 - [ ] `win.canvas-zoom-absolute`
-- [ ] `win.canvas-zoom-center-page`
+- [x] `win.canvas-zoom-center-page`
 - [x] `win.canvas-zoom-drawing`
 - [x] `win.canvas-zoom-in`
 - [ ] `win.canvas-zoom-next`
 - [x] `win.canvas-zoom-out`
 - [x] `win.canvas-zoom-page`
-- [ ] `win.canvas-zoom-page-width`
+- [x] `win.canvas-zoom-page-width`
 - [ ] `win.canvas-zoom-prev`
 - [ ] `win.canvas-zoom-relative`
-- [ ] `win.canvas-zoom-selection`
+- [x] `win.canvas-zoom-selection`
 - [ ] `win.dialog-open`
 - [ ] `win.dialog-toggle`
 - [ ] `win.document-cleanup`
-- [ ] `win.document-close`
+- [x] `win.document-close`
 - [x] `win.document-import`
 - [ ] `win.document-print`
 - [ ] `win.document-revert`
