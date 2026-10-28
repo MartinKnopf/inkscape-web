@@ -3,6 +3,7 @@
 import { _ } from '@inkscape-web/core';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react';
 import type { FunctionComponent } from 'react';
+import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { XmlTreeDialog } from './xml-tree.tsx';
 import './dialog.css';
@@ -19,6 +20,7 @@ interface DialogData {
  * TODO: the other dialogs.
  */
 const DIALOGS: Record<string, DialogData> = {
+  FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   XMLEditor: { label: _('_XML Editor'), component: XmlTreeDialog },
 };
