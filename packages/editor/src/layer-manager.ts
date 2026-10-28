@@ -22,6 +22,7 @@ import {
   LayerMode,
   type ObjectSetLayerManager,
   Preferences,
+  Signal,
   SPDefs,
   type SPDocument,
   SPGroup,
@@ -42,6 +43,8 @@ export class LayerManager implements ObjectSetLayerManager {
   /** From the root (top) to the current layer (bottom). */
   #hierarchy: SPGroup[] = [];
   #releaseConnections: (() => void)[] = [];
+  /** Emitted when the current layer changes (upstream layer_changed signal). */
+  readonly signal_layer_changed = new Signal<[]>();
 
   constructor(desktop: SPDesktop) {
     this.#desktop = desktop;
@@ -117,5 +120,6 @@ export class LayerManager implements ObjectSetLayerManager {
     this.#releaseConnections = chain.map((group, i) =>
       group.releaseSignal.connect(() => this.#setHierarchy(this.#hierarchy.slice(0, i))),
     );
+    this.signal_layer_changed.emit();
   }
 }

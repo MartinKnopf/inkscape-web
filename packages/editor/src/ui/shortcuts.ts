@@ -76,6 +76,8 @@ export const ACTION_KEYS: Record<string, Accelerator[]> = {
   // asterisk, <shift>F9, KP_Multiply
   "win.tool-switch('Star')": [{ key: '*' }, { key: 'F9', shift: true }],
   "win.tool-switch('Spiral')": [{ key: 'i' }, { key: 'F9' }],
+  "win.dialog-open('Objects')": [{ key: 'l', primary: true, shift: true }],
+  "win.dialog-open('XMLEditor')": [{ key: 'x', primary: true, shift: true }],
 };
 
 /** The first key of an action as shown in menus and tooltips ("Ctrl+Shift+Z", "R"), or null. */

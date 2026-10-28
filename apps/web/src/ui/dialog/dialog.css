@@ -1,0 +1,122 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+.xml-dialog,
+.objects-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+.dialog-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+  border-bottom: 1px solid #ddd;
+}
+
+.dialog-toolbar button {
+  min-width: 24px;
+}
+
+.tree {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+}
+
+.xml-dialog .tree {
+  flex: 1 1 50%;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  cursor: default;
+  outline: none;
+}
+
+.tree-row:hover {
+  background: #f0f0f0;
+}
+
+.tree-row.selected {
+  background: #cfe3ff;
+}
+
+.row-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-row.current-layer .row-label {
+  font-weight: bold;
+}
+
+.tree-row.dimmed .row-label {
+  opacity: 0.5;
+}
+
+.tree-toggle,
+.row-toggle {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  font: inherit;
+  width: 16px;
+}
+
+.xml-text,
+.xml-comment {
+  color: #666;
+}
+
+.attr-dialog {
+  flex: 1 1 50%;
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+  border-top: 1px solid #ccc;
+}
+
+.attr-scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+.attr-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.attr-table th {
+  text-align: left;
+  font-weight: normal;
+  color: #666;
+}
+
+.attr-table td:last-child {
+  width: 24px;
+}
+
+.attr-input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  font: inherit;
+}
+
+.attr-input:focus {
+  border-color: #6aa0e8;
+  background: #fff;
+}
+
+.attr-content {
+  flex: 1 1 50%;
+  resize: none;
+  font: inherit;
+}

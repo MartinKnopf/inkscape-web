@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/actions/actions-file-gui.cpp, src/actions/actions-undo-document.cpp, src/actions/actions-tools.cpp
-// The file and undo actions, by upstream action id.
+// Upstream: src/actions/actions-file-gui.cpp, src/actions/actions-undo-document.cpp, src/actions/actions-tools.cpp, src/actions/actions-dialogs.cpp
+// The file, undo, tool and dialog actions, by upstream action id.
 import { DocumentUndo } from '@inkscape-web/core';
 import { tool_switch, toolSwitchTarget } from '@inkscape-web/editor';
+import { openDialog } from '../ui/dialog/dialog-manager.ts';
 import { getActiveDesktop, replaceDocument } from './active-desktop.ts';
 import { sp_file_new_default, sp_file_open_dialog, sp_file_save, sp_file_save_as } from './file.ts';
 
@@ -12,6 +13,9 @@ import { sp_file_new_default, sp_file_open_dialog, sp_file_save, sp_file_save_as
  * TODO: the action system (Gio::Action replacement) with all actions.
  */
 export async function runAction(id: string): Promise<void> {
+  // Detailed action name, as in share/keys/inkscape.xml: win.dialog-open('XMLEditor')
+  const dialog = /^win\.dialog-open\('(\w+)'\)$/.exec(id);
+  if (dialog?.[1]) return openDialog(dialog[1]);
   const dt = getActiveDesktop();
   if (!dt) return;
   const tool = toolSwitchTarget(id);
