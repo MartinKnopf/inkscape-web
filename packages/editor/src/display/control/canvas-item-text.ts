@@ -68,8 +68,14 @@ export class CanvasItemText extends CanvasItem {
     this.#label.setAttribute('text-anchor', 'middle');
     this.#label.setAttribute('x', String(p.x));
     this.#label.setAttribute('y', String(p.y + this.#fontsize / 3));
-    // The browser measures the text; an estimate where it cannot (tests).
-    const width = this.#text.length * this.#fontsize * 0.6;
+    // The browser measures the text (when it is rendered); else an estimate.
+    let width = 0;
+    try {
+      width = this.#label.getComputedTextLength?.() ?? 0;
+    } catch {
+      width = 0;
+    }
+    if (!width) width = this.#text.length * this.#fontsize * 0.55;
     const pad = 3;
     this.#bg.setAttribute('x', String(p.x - width / 2 - pad));
     this.#bg.setAttribute('y', String(p.y - this.#fontsize / 2 - pad));

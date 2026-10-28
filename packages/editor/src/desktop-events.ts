@@ -122,8 +122,9 @@ export function sp_dt_guide_event(
 
   const onPointerDown = (event: PointerEvent) => {
     if (!active() || event.button !== 0) return;
-    // The guide takes the event, the tool does not see it.
+    // The guide takes the event, the tool does not see it; the canvas takes the keyboard focus (for Delete).
     event.stopPropagation();
+    canvas.svg.focus({ preventScroll: true });
     if (guide.getLocked()) return;
     drag_type = event.shiftKey
       ? SPGuideDragType.SP_DRAG_ROTATE // with shift we rotate the guide

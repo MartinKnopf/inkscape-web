@@ -14,7 +14,7 @@
  * Copyright (C) 2004 Monash University
  * Copyright (C) 2007 Johan Engelen
  */
-import { are_near, atan2, Point, rot90 } from '@inkscape-web/geom';
+import { are_near, Point, rot90 } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { SPDocument } from '../document.ts';
@@ -249,7 +249,7 @@ export class SPGuide extends SPObject {
   }
   /** The angle of the line (the direction perpendicular to the normal), in radians. */
   angle(): number {
-    return atan2(rot90(this.normal_to_line));
+    return Math.atan2(-this.normal_to_line.x, this.normal_to_line.y);
   }
   isHorizontal(): boolean {
     return this.normal_to_line.x === 0;
