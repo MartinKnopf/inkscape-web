@@ -1,12 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Application shell: menu bar, toolbox, docked panels and status bar.
 import { _ } from '@inkscape-web/core';
-import { attachCanvasShortcuts, Canvas, SPDesktop, ToolBase } from '@inkscape-web/editor';
+import {
+  attachActionShortcuts,
+  attachCanvasShortcuts,
+  Canvas,
+  SPDesktop,
+  shortcutLabel,
+} from '@inkscape-web/editor';
+import * as Menubar from '@radix-ui/react-menubar';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import 'dockview-react/dist/styles/dockview.css';
-import { getActiveDesktop, setActiveDesktop, useActiveDesktop, useZoom } from './active-desktop.ts';
-import { sp_file_new_default, sp_file_open_dialog } from './file.ts';
+import { runAction } from './actions.ts';
+import {
+  getActiveDesktop,
+  setActiveDesktop,
+  useActiveDesktop,
+  useActiveDocument,
+  useDocumentTitle,
+  useUndoState,
+  useZoom,
+} from './active-desktop.ts';
+import { sp_file_new_default } from './file.ts';
 
 /** Top-level menus, same labels as upstream share/ui/menus.ui. */
 const MENUS = [
@@ -22,22 +38,28 @@ const MENUS = [
   '_Help',
 ];
 
-/** Menu items by menu, with labels from share/ui/menus.ui. TODO: all items, the action system. */
-const MENU_ITEMS: Record<string, { label: string; run: () => void }[]> = {
-  _File: [{ label: '_Open...', run: () => void documentOpen() }],
+/** An item of a menu: label from share/ui/menus.ui and the action id. */
+interface MenuItem {
+  label: string;
+  action: string;
+}
+
+/** Menu items by menu. TODO: all items, sections, submenus. */
+const MENU_ITEMS: Record<string, MenuItem[]> = {
+  _File: [
+    { label: '_New', action: 'app.document-new' },
+    { label: '_Open...', action: 'app.document-open' },
+    { label: '_Save', action: 'win.document-save' },
+    { label: 'Save _As...', action: 'win.document-save-as' },
+  ],
+  _Edit: [
+    { label: '_Undo', action: 'doc.undo' },
+    { label: '_Redo', action: 'doc.redo' },
+  ],
 };
 
 /** Remove the GTK mnemonic marker ("_File" → "File"). */
 const label = (s: string) => s.replace('_', '');
-
-/** app.document-open: replace the document of the active desktop with a file. */
-async function documentOpen(): Promise<void> {
-  const doc = await sp_file_open_dialog();
-  const dt = getActiveDesktop();
-  if (!doc || !dt) return;
-  dt.setDocument(doc);
-  dt.zoom_page();
-}
 
 /** The canvas with a desktop for a new document from the default template. */
 function DrawingPanel() {
@@ -47,12 +69,10 @@ function DrawingPanel() {
     if (!host) return;
     const canvas = new Canvas(host);
     let desktop: SPDesktop | null = null;
-    let tool: ToolBase | null = null;
     let disposed = false;
     sp_file_new_default().then((doc) => {
       if (disposed) return;
       desktop = new SPDesktop(canvas, doc);
-      tool = new ToolBase(desktop);
       desktop.schedule_zoom_from_document();
       setActiveDesktop(desktop);
     });
@@ -60,7 +80,6 @@ function DrawingPanel() {
     return () => {
       disposed = true;
       detachKeys();
-      tool?.destroy();
       desktop?.destroy();
       canvas.destroy();
       if (getActiveDesktop() === desktop) setActiveDesktop(null);
@@ -79,44 +98,33 @@ function onReady(e: DockviewReadyEvent) {
 }
 
 function MenuBar() {
-  const [open, setOpen] = useState<string | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(null);
-    document.addEventListener('pointerdown', close);
-    return () => document.removeEventListener('pointerdown', close);
-  }, [open]);
+  const { canUndo, canRedo } = useUndoState(useActiveDocument());
+  const enabled: Record<string, boolean> = { 'doc.undo': canUndo, 'doc.redo': canRedo };
   return (
-    <nav className="menubar">
+    <Menubar.Root className="menubar">
       {MENUS.map((m) => (
-        <div key={m} className="menu">
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => setOpen(open === m ? null : m)}
-          >
-            {label(_(m))}
-          </button>
-          {open === m && MENU_ITEMS[m] && (
-            <div className="menu-popup" role="menu" onPointerDown={(e) => e.stopPropagation()}>
-              {MENU_ITEMS[m].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(null);
-                    item.run();
-                  }}
-                >
-                  {label(_(item.label))}
-                </button>
-              ))}
-            </div>
+        <Menubar.Menu key={m}>
+          <Menubar.Trigger className="menu-trigger">{label(_(m))}</Menubar.Trigger>
+          {MENU_ITEMS[m] && (
+            <Menubar.Portal>
+              <Menubar.Content className="menu-popup" align="start" loop>
+                {MENU_ITEMS[m].map((item) => (
+                  <Menubar.Item
+                    key={item.action}
+                    className="menu-item"
+                    disabled={enabled[item.action] === false}
+                    onSelect={() => void runAction(item.action)}
+                  >
+                    <span>{label(_(item.label))}</span>
+                    <span className="menu-shortcut">{shortcutLabel(item.action)}</span>
+                  </Menubar.Item>
+                ))}
+              </Menubar.Content>
+            </Menubar.Portal>
           )}
-        </div>
+        </Menubar.Menu>
       ))}
-    </nav>
+    </Menubar.Root>
   );
 }
 
@@ -131,6 +139,8 @@ function StatusBar() {
 }
 
 export function App() {
+  document.title = useDocumentTitle(useActiveDocument());
+  useEffect(() => attachActionShortcuts((id) => void runAction(id)), []);
   return (
     <div className="app">
       <MenuBar />

@@ -12,6 +12,7 @@
   "dependencies": {
     "@inkscape-web/core": "workspace:*",
     "@inkscape-web/editor": "workspace:*",
+    "@radix-ui/react-menubar": "^1.2.1",
     "dockview-react": "^8.6.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
