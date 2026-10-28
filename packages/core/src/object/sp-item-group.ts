@@ -17,6 +17,8 @@ import { SPAttr } from '../attributes.ts';
 import type { Drawing, DrawingGroup, DrawingItem } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
 import { _, C_, ngettext } from '../i18n.ts';
+import type { SnapCandidatePoint } from '../snap-candidate.ts';
+import type { SnapPreferences } from '../snap-preferences.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { sp_repr_is_meta_element } from '../xml/repr-util.ts';
@@ -267,6 +269,11 @@ export class SPGroup extends SPItem {
       const ac = child.invokeShow(drawing, key, flags);
       if (ac) ai.appendChild(ac);
     }
+  }
+
+  /** The snap points of the child items. */
+  override snappoints(p: SnapCandidatePoint[], snapprefs: SnapPreferences): void {
+    for (const o of this.children) if (o instanceof SPItem) o.getSnappoints(p, snapprefs);
   }
 }
 

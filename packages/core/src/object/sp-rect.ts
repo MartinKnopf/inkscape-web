@@ -25,6 +25,9 @@ import {
 import { SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
 import { _ } from '../i18n.ts';
+import { SnapCandidatePoint } from '../snap-candidate.ts';
+import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
+import type { SnapPreferences } from '../snap-preferences.ts';
 import { SVGLength } from '../svg/svg-length.ts';
 import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
@@ -428,5 +431,44 @@ export class SPRect extends SPShape {
     // Note that a radius may end up larger than half-side if the rect is scaled down;
     // that's ok because this preserves the intended radii in case the rect is enlarged again,
     // and set_shape will take care of trimming too large radii when generating d=
+  }
+
+  /**
+   * The real corners of the rect as snap points, not the eight points of the
+   * rounded rect path, plus the edge midpoints and the object midpoint.
+   */
+  override snappoints(p: SnapCandidatePoint[], snapprefs: SnapPreferences): void {
+    const i2dt = this.i2dtAffine();
+    const { x, y, width, height } = this;
+    const p0 = new Point(x.computed, y.computed).transformed(i2dt);
+    const p1 = new Point(x.computed, y.computed + height.computed).transformed(i2dt);
+    const p2 = new Point(x.computed + width.computed, y.computed + height.computed).transformed(i2dt);
+    const p3 = new Point(x.computed + width.computed, y.computed).transformed(i2dt);
+    const add = (pt: Point, s: SnapSourceType, t: SnapTargetType) => p.push(new SnapCandidatePoint(pt, s, t));
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_RECT_CORNER)) {
+      for (const c of [p0, p1, p2, p3])
+        add(c, SnapSourceType.SNAPSOURCE_RECT_CORNER, SnapTargetType.SNAPTARGET_RECT_CORNER);
+    }
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_LINE_MIDPOINT)) {
+      for (const [a, b] of [
+        [p0, p1],
+        [p1, p2],
+        [p2, p3],
+        [p3, p0],
+      ] as const) {
+        add(
+          a.add(b).div(2),
+          SnapSourceType.SNAPSOURCE_LINE_MIDPOINT,
+          SnapTargetType.SNAPTARGET_LINE_MIDPOINT,
+        );
+      }
+    }
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_OBJECT_MIDPOINT)) {
+      add(
+        p0.add(p2).div(2),
+        SnapSourceType.SNAPSOURCE_OBJECT_MIDPOINT,
+        SnapTargetType.SNAPTARGET_OBJECT_MIDPOINT,
+      );
+    }
   }
 }

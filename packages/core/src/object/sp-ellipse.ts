@@ -33,6 +33,9 @@ import { SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
 import { _ } from '../i18n.ts';
 import { Preferences } from '../preferences.ts';
+import { SnapCandidatePoint } from '../snap-candidate.ts';
+import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
+import type { SnapPreferences } from '../snap-preferences.ts';
 import { SVGLength, spSvgNumberReadD } from '../svg/svg-length.ts';
 import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
@@ -586,6 +589,56 @@ export class SPGenericEllipse extends SPShape {
   getVisibleRy(): number {
     if (!this.ry._set) return 0;
     return this.ry.computed * SPGenericEllipse.#vectorStretch(new Point(0, 1), this.i2docAffine());
+  }
+
+  /** The quadrant points within the arc, the center and the end points of slices as snap points. */
+  override snappoints(p: SnapCandidatePoint[], snapprefs: SnapPreferences): void {
+    this.normalize();
+    const i2dt = this.i2dtAffine();
+    const add = (pt: Point, s: SnapSourceType, t: SnapTargetType) =>
+      p.push(new SnapCandidatePoint(pt.transformed(i2dt), s, t));
+    // Snap to the 4 quadrant points of the ellipse, but only if the arc
+    // spans far enough to include them
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_ELLIPSE_QUADRANT_POINT)) {
+      for (let angle = 0; angle < SP_2PI; angle += Math.PI / 2) {
+        if (new AngleInterval(this.start, this.end, true).contains(new Angle(angle))) {
+          add(
+            this.getPointAtAngle(angle),
+            SnapSourceType.SNAPSOURCE_ELLIPSE_QUADRANT_POINT,
+            SnapTargetType.SNAPTARGET_ELLIPSE_QUADRANT_POINT,
+          );
+        }
+      }
+    }
+    const center = new Point(this.cx.computed, this.cy.computed);
+    const slice = this.#isSlice();
+    const cusp = snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_NODE_CUSP);
+    // Add the centre, if we have a closed slice or when explicitly asked for
+    if (cusp && slice && this.arc_type === GenericEllipseArcType.SP_GENERIC_ELLIPSE_ARC_TYPE_SLICE) {
+      add(center, SnapSourceType.SNAPSOURCE_NODE_CUSP, SnapTargetType.SNAPTARGET_NODE_CUSP);
+    }
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_OBJECT_MIDPOINT)) {
+      add(center, SnapSourceType.SNAPSOURCE_OBJECT_MIDPOINT, SnapTargetType.SNAPTARGET_OBJECT_MIDPOINT);
+    }
+    // And if we have a slice, also snap to the endpoints
+    if (cusp && slice) {
+      // Add the start point, if it's not coincident with a quadrant point
+      if (!are_near(this.start % (Math.PI / 2), 0)) {
+        add(
+          this.getPointAtAngle(this.start),
+          SnapSourceType.SNAPSOURCE_NODE_CUSP,
+          SnapTargetType.SNAPTARGET_NODE_CUSP,
+        );
+      }
+      // Add the end point, if it's not coincident with a quadrant point
+      if (!are_near(this.end % (Math.PI / 2), 0)) {
+        add(
+          this.getPointAtAngle(this.end),
+          SnapSourceType.SNAPSOURCE_NODE_CUSP,
+          SnapTargetType.SNAPTARGET_NODE_CUSP,
+        );
+      }
+    }
   }
 }
 
