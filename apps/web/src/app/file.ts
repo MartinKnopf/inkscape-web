@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/file.cpp, src/file.h, src/extension/system.cpp, src/extension/internal/svg.cpp
+// Upstream: src/file.cpp, src/file.h, src/extension/system.cpp, src/extension/internal/svg.cpp, src/actions/actions-file-gui.cpp
 /*
  * File operations.
  *
@@ -18,7 +18,8 @@
  * Copyright (C) 2004 David Turner
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { _, DocumentUndo, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
+import { _, DocumentUndo, gdkpixbuf_input_open, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
+import { file_import, type SPDesktop } from '@inkscape-web/editor';
 import { decodeSvgBytes, gzip } from './gzip.ts';
 
 /** The part of FileSystemFileHandle that we use. */
@@ -87,11 +88,25 @@ export async function sp_file_open_dialog(): Promise<SPDocument | null> {
   return doc;
 }
 
-async function pickFile(): Promise<{ file: File; handle: FileHandle | null } | null> {
+/** Input formats for import: SVG and the bitmaps that the browser shows (upstream GdkpixbufInput). */
+const IMPORT_TYPE = (): FilePickerType => ({
+  description: _('Images'),
+  accept: {
+    'image/svg+xml': ['.svg', '.svgz'],
+    'image/png': ['.png'],
+    'image/jpeg': ['.jpg', '.jpeg'],
+    'image/gif': ['.gif'],
+    'image/webp': ['.webp'],
+  },
+});
+
+async function pickFile(
+  types: FilePickerType[] = [SVG_TYPE(), SVGZ_TYPE()],
+): Promise<{ file: File; handle: FileHandle | null } | null> {
   const w = window as Window & Partial<FilePickers>;
   if (w.showOpenFilePicker) {
     try {
-      const [handle] = await w.showOpenFilePicker({ types: [SVG_TYPE(), SVGZ_TYPE()] });
+      const [handle] = await w.showOpenFilePicker({ types });
       return handle ? { file: await handle.getFile(), handle } : null;
     } catch (e) {
       if (isAbort(e)) return null;
@@ -101,7 +116,7 @@ async function pickFile(): Promise<{ file: File; handle: FileHandle | null } | n
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.svg,.svgz,image/svg+xml';
+    input.accept = types.flatMap((t) => Object.entries(t.accept).flat(2)).join(',');
     input.addEventListener('change', () => {
       const file = input.files?.[0];
       resolve(file ? { file, handle: null } : null);
@@ -109,6 +124,25 @@ async function pickFile(): Promise<{ file: File; handle: FileHandle | null } | n
     input.addEventListener('cancel', () => resolve(null));
     input.click();
   });
+}
+
+/**
+ * win.document-import (upstream document_import and file_import): ask for an
+ * SVG or bitmap file and import it at the pointer. An SVG file becomes a
+ * group; a bitmap an embedded image.
+ */
+export async function sp_file_import(desktop: SPDesktop): Promise<void> {
+  const picked = await pickFile([IMPORT_TYPE()]);
+  if (!picked) return;
+  const { file } = picked;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const image = gdkpixbuf_input_open(bytes);
+  const doc = image ?? SPDocument.createNewDocFromMem(await decodeSvgBytes(bytes), file.name);
+  if (!doc) {
+    alert(_('Failed to load the requested file %s').replace('%s', file.name));
+    return;
+  }
+  file_import(desktop.getDocument(), doc, !image, desktop);
 }
 
 function isAbort(e: unknown): boolean {
