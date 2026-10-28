@@ -8,6 +8,7 @@
  */
 import { type DrawingItem, enum_blend_mode, type SPItem, type SPStyle } from '@inkscape-web/core';
 import type { Affine, OptRect } from '@inkscape-web/geom';
+import type { DrawingPaintServers } from './drawing-paintserver.ts';
 
 /** CSS properties that setStyle() copies from the SPStyle to the element. */
 const STYLE_PROPERTIES = new Set([
@@ -45,6 +46,8 @@ export abstract class SvgDrawingItem implements DrawingItem {
   #item: SPItem | null = null;
   #itemBounds: OptRect = null;
   #appliedStyle: string[] = [];
+  /** The paint servers of the drawing, for url() paints; set by SvgDrawing when it creates the item. */
+  _paintServers: DrawingPaintServers | null = null;
 
   protected constructor(element: SVGElement) {
     this.element = element;
@@ -139,9 +142,9 @@ export abstract class SvgDrawingItem implements DrawingItem {
 
   /**
    * Copy the paint-related properties of the style to the element's style.
-   * The CSS text comes from SPStyle.write().
-   * TODO: url() paints (gradients, patterns) need the paint servers in the
-   * display tree; they are written as they are and do not resolve yet.
+   * The CSS text comes from SPStyle.write(). A url() paint is mapped to the
+   * mirror of its paint server in the drawing's <defs> (see DrawingPaintServers);
+   * without a server that can be drawn, the fallback color (or none) is used.
    * TODO: contextStyle for context-fill and context-stroke.
    */
   setStyle(style: SPStyle | null, _contextStyle?: SPStyle | null): void {
@@ -153,9 +156,21 @@ export abstract class SvgDrawingItem implements DrawingItem {
       if (colon < 0) continue;
       const name = declaration.slice(0, colon).trim();
       if (!STYLE_PROPERTIES.has(name)) continue;
-      this.element.style.setProperty(name, declaration.slice(colon + 1).trim());
+      let value = declaration.slice(colon + 1).trim();
+      if ((name === 'fill' || name === 'stroke') && value.startsWith('url('))
+        value = this.#paintUrl(style, name, value);
+      this.element.style.setProperty(name, value);
       this.#appliedStyle.push(name);
     }
+  }
+
+  /** The CSS value of a url() fill or stroke: the mirrored paint server, else the fallback. */
+  #paintUrl(style: SPStyle, name: 'fill' | 'stroke', value: string): string {
+    const server = name === 'fill' ? style.getFillPaintServer() : style.getStrokePaintServer();
+    const url = server && this._paintServers?.url(server);
+    if (url) return url;
+    const fallback = value.slice(value.indexOf(')') + 1).trim();
+    return fallback || 'none';
   }
 
   /** Remove from the parent and release. */

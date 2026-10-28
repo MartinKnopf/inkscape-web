@@ -154,7 +154,7 @@ export class SPDesktop {
     this.#selection = new Selection(this);
 
     this.#drawing = new SvgDrawing(dom);
-    this._canvas_group_drawing.append(this.#drawing.root.element);
+    this._canvas_group_drawing.append(this.#drawing.root.element, this.#drawing.defs);
     this.#page.add(Rect.fromXywh(0, 0, 0, 0), this._canvas_group_pages_bg, this._canvas_group_pages_fg);
 
     this.setDocument(document);
@@ -325,6 +325,7 @@ export class SPDesktop {
     this.#disconnectModified?.();
     this.#disconnectModified = null;
     this.doc.getRoot().invokeHide(this.dkey);
+    this.#drawing.paintServers.clear();
   }
 
   /** Show the page with the colors of the namedview and set the desk color (upstream set_desk_color). */

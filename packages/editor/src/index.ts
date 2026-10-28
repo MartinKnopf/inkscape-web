@@ -27,6 +27,7 @@ export * from './display/drawing.ts';
 export * from './display/drawing-group.ts';
 export * from './display/drawing-image.ts';
 export * from './display/drawing-item.ts';
+export * from './display/drawing-paintserver.ts';
 export * from './display/drawing-shape.ts';
 export * from './enums.ts';
 export * from './file.ts';
