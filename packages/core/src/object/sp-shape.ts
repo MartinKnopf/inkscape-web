@@ -14,6 +14,7 @@
 import {
   Affine,
   are_near,
+  BezierCurve,
   type Curve,
   L2,
   LineSegment,
@@ -22,19 +23,27 @@ import {
   type Path,
   PathVector,
   type Point,
+  Rotate,
+  Translate,
+  unify,
 } from '@inkscape-web/geom';
 import type { Drawing, DrawingItem, DrawingShape } from '../display/drawing.ts';
+import type { SPDocument } from '../document.ts';
 import { SnapCandidatePoint } from '../snap-candidate.ts';
 import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
 import type { SnapPreferences } from '../snap-preferences.ts';
+import { SPMarkerLoc } from '../style.ts';
 import { SPShapeRendering } from '../style-enums.ts';
-import { BBoxType, SPItem } from './sp-item.ts';
+import type { Node } from '../xml/node.ts';
+import { BBoxType, SPItem, SPItemKey } from './sp-item.ts';
+import { SPMarker, sp_marker_hide, sp_marker_show_dimension, sp_marker_show_instance } from './sp-marker.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_PARENT_MODIFIED_FLAG,
   SP_OBJECT_STYLE_MODIFIED_FLAG,
   type SPCtx,
 } from './sp-object.ts';
+import { sp_css_uri_reference_resolve } from './uri-references.ts';
 
 export const SP_SHAPE_WRITE_PATH = 1 << 2;
 
@@ -42,7 +51,7 @@ export const SP_SHAPE_WRITE_PATH = 1 << 2;
  * Base class of shapes, including svg:path (upstream SPShape). The geometry is
  * the curve, a PathVector that is never changed in place: setCurve() replaces it.
  *
- * TODO: markers, LPE (curveBeforeLPE, update_patheffect), relative stroke units
+ * TODO: the 'marker' shorthand, LPE (curveBeforeLPE, update_patheffect), relative stroke units
  * (em, ex, %) in update(), path intersections as snap points, print, documentExactBounds.
  */
 export class SPShape extends SPItem {
@@ -55,6 +64,10 @@ export class SPShape extends SPItem {
   bbox_vis_cache: OptRect = null;
 
   protected _curve: PathVector | null = null;
+  /** The markers by SPMarkerLoc (hrefed by this shape). */
+  _marker: (SPMarker | null)[] = [null, null, null, null];
+  #release_connect: ((() => void) | null)[] = [null, null, null, null];
+  #modified_connect: ((() => void) | null)[] = [null, null, null, null];
 
   /** The curve, or null if there is none. Do not change it in place. */
   curve(): PathVector | null {
@@ -83,7 +96,15 @@ export class SPShape extends SPItem {
   /** Compute the curve from the attributes (rect, ellipse, …). Subclasses override it. */
   set_shape(): void {}
 
+  protected override build(document: SPDocument, repr: Node): void {
+    super.build(document, repr);
+    for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) {
+      this.set_marker(i, this.style.marker_ptrs[i]?.value() ?? null);
+    }
+  }
+
   protected override release(): void {
+    for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) this.#detach_marker(i);
     this._curve = null;
     super.release();
   }
@@ -96,10 +117,40 @@ export class SPShape extends SPItem {
 
     super.update(ctx, flags);
 
+    /* This stanza checks that an object's marker style agrees with
+     * the marker objects it has allocated.  sp_shape_set_marker ensures
+     * that the appropriate marker objects are present (or absent) to
+     * match the style.
+     */
+    for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) {
+      this.set_marker(i, this.style.marker_ptrs[i]?.value() ?? null);
+    }
+
     if (flags & (SP_OBJECT_MODIFIED_FLAG | SP_OBJECT_PARENT_MODIFIED_FLAG)) {
       if (flags & SP_OBJECT_MODIFIED_FLAG) {
         for (const v of this.views) (v.drawingitem as DrawingShape).setPath(this._curve);
       }
+    }
+
+    if (this.hasMarkers()) {
+      /* Dimension marker views */
+      for (const v of this.views) {
+        SPItem.ensureKey(v.drawingitem);
+        for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) {
+          const marker = this._marker[i];
+          if (marker) {
+            sp_marker_show_dimension(
+              marker,
+              v.drawingitem.key() + SPItemKey.ITEM_KEY_MARKERS + i,
+              this.numberOfMarkers(i),
+            );
+          }
+        }
+      }
+      /* Update marker views */
+      for (const v of this.views) sp_shape_update_marker_view(this, v.drawingitem, v.drawing);
+      // Marker selector needs this here or marker previews are not rendered.
+      for (const v of this.views) v.drawingitem.setChildrenStyle(this.context_style); // Resolve 'context-xxx' in children.
     }
   }
 
@@ -107,7 +158,11 @@ export class SPShape extends SPItem {
     super.modified(flags);
     if (flags & SP_OBJECT_STYLE_MODIFIED_FLAG) {
       for (const v of this.views) {
-        if (this.parent) {
+        if (this.hasMarkers()) {
+          this.context_style = this.style;
+          v.drawingitem.setStyle(this.style, this.context_style);
+          v.drawingitem.setChildrenStyle(this.context_style); // Resolve 'context-xxx' in children.
+        } else if (this.parent) {
           this.context_style = this.parent.context_style;
           v.drawingitem.setStyle(this.style, this.context_style);
         }
@@ -178,7 +233,17 @@ export class SPShape extends SPItem {
         const scale = transform.descrim();
         bbox = bbox.expandBy(0.5 * this.style.stroke_width.computed * scale);
       }
-      // TODO: markers.
+      if (this.hasMarkers()) {
+        for (const [, marker, tr] of this.get_markers()) {
+          const marker_item = marker.item_list()[0];
+          if (marker_item) {
+            const box = marker_item.visualBounds(
+              marker_item.transform.multiply(marker.c2p).multiply(tr).multiply(transform),
+            );
+            bbox = unify(bbox, box);
+          }
+        }
+      }
     }
     return bbox;
   }
@@ -186,8 +251,31 @@ export class SPShape extends SPItem {
   protected override show(drawing: Drawing, _key: number, _flags: number): DrawingItem {
     const s = drawing.createShape();
     s.setPath(this._curve);
-    // TODO: markers (with them, context_style is the own style).
-    if (this.parent) {
+
+    /* This stanza checks that an object's marker style agrees with
+     * the marker objects it has allocated.  sp_shape_set_marker ensures
+     * that the appropriate marker objects are present (or absent) to
+     * match the style.
+     */
+    for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) {
+      this.set_marker(i, this.style.marker_ptrs[i]?.value() ?? null);
+    }
+
+    if (this.hasMarkers()) {
+      /* provide key and dimension the marker views */
+      SPItem.ensureKey(s);
+      for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) {
+        const marker = this._marker[i];
+        if (marker) {
+          sp_marker_show_dimension(marker, s.key() + SPItemKey.ITEM_KEY_MARKERS + i, this.numberOfMarkers(i));
+        }
+      }
+      /* Update marker views */
+      sp_shape_update_marker_view(this, s, drawing);
+      this.context_style = this.style;
+      s.setStyle(this.style, this.context_style);
+      s.setChildrenStyle(this.context_style); // Resolve 'context-xxx' in children.
+    } else if (this.parent) {
       this.context_style = this.parent.context_style;
       s.setStyle(this.style, this.context_style);
     }
@@ -198,7 +286,168 @@ export class SPShape extends SPItem {
     return s;
   }
 
-  // hide(): upstream hides the marker views. TODO: markers.
+  protected override hide(key: number): void {
+    for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; ++i) {
+      const marker = this._marker[i];
+      if (!marker) continue;
+      for (const v of this.views) {
+        if (key === v.key) sp_marker_hide(marker, v.drawingitem.key() + SPItemKey.ITEM_KEY_MARKERS + i);
+      }
+    }
+  }
+
+  /** True if the shape has any markers. */
+  hasMarkers(): boolean {
+    /* Note, we're ignoring 'marker' settings, which technically should apply for
+       all three settings.  This should be fixed later such that if 'marker' is
+       specified, then all three should appear. */
+
+    // Ignore markers for objects which are inside markers themselves.
+    for (let parent = this.parent; parent !== null; parent = parent.parent) {
+      if (parent instanceof SPMarker) return false;
+    }
+    return !!this._curve && this._marker.some((m) => m !== null);
+  }
+
+  /** Number of markers that the shape has of type (an SPMarkerLoc). */
+  numberOfMarkers(type: number): number {
+    const pathv = this._curve;
+    if (!pathv?.length) return 0;
+    switch (type) {
+      case SPMarkerLoc.SP_MARKER_LOC: {
+        if (!this._marker[SPMarkerLoc.SP_MARKER_LOC]) return 0;
+        let n = 0;
+        for (const path_it of pathv) n += path_it.size() + 1;
+        return n;
+      }
+      case SPMarkerLoc.SP_MARKER_LOC_START:
+        // there is only a start marker on the first path of a pathvector
+        return this._marker[SPMarkerLoc.SP_MARKER_LOC_START] ? 1 : 0;
+      case SPMarkerLoc.SP_MARKER_LOC_MID: {
+        if (!this._marker[SPMarkerLoc.SP_MARKER_LOC_MID]) return 0;
+        let n = 0;
+        for (const path_it of pathv) n += path_it.size() + 1;
+        // Minus the start and end marker, but never negative.
+        // A path or polyline may have only one point.
+        return n > 1 ? n - 2 : 0;
+      }
+      case SPMarkerLoc.SP_MARKER_LOC_END:
+        // there is only an end marker on the last path of a pathvector
+        return this._marker[SPMarkerLoc.SP_MARKER_LOC_END] ? 1 : 0;
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * Lists every marker on this shape along with its transform and marker type.
+   * The transform returned is not premultiplied by `marker.c2p`.
+   */
+  get_markers(): [SPMarkerLoc, SPMarker, Affine][] {
+    const markers: [SPMarkerLoc, SPMarker, Affine][] = [];
+    const pathv = this._curve;
+    if (!pathv?.length) return markers; // empty list
+
+    const width = this.style.stroke_width.computed;
+    const add_marker = (marker_type: SPMarkerLoc, m: Affine, start: boolean) => {
+      const marker = this._marker[marker_type];
+      if (marker) markers.push([marker_type, marker, marker.get_marker_transform(m, width, start)]);
+    };
+    const front = pathv[0] as Path;
+
+    // START marker
+    {
+      const m = sp_shape_marker_get_transform_at_start(front.at(0));
+      for (const marker_type of [SPMarkerLoc.SP_MARKER_LOC, SPMarkerLoc.SP_MARKER_LOC_START]) {
+        add_marker(marker_type, m, true);
+      }
+    }
+
+    // MID marker
+    pathv.forEach((path_it, index) => {
+      const last = index === pathv.length - 1;
+      const size = path_it.size();
+      // START position
+      // if this is the last path and it is a moveto-only, don't draw mid marker there
+      if (index !== 0 && !(last && size === 0)) {
+        const m = sp_shape_marker_get_transform_at_start(path_it.at(0));
+        for (const marker_type of [SPMarkerLoc.SP_MARKER_LOC, SPMarkerLoc.SP_MARKER_LOC_MID]) {
+          add_marker(marker_type, m, false);
+        }
+      }
+      // MID position
+      if (size > 1) {
+        /* Put marker between curve_it1 and curve_it2.
+         * Loop to end_default (so including closing segment), because when a path is closed,
+         * there should be a midpoint marker between last segment and closing straight line segment
+         */
+        for (let i = 1; i < size; i++) {
+          const m = sp_shape_marker_get_transform(path_it.at(i - 1), path_it.at(i));
+          for (const marker_type of [SPMarkerLoc.SP_MARKER_LOC, SPMarkerLoc.SP_MARKER_LOC_MID]) {
+            add_marker(marker_type, m, false);
+          }
+        }
+      }
+      // END position
+      if (!last && !path_it.empty()) {
+        const m = sp_shape_marker_get_transform_at_end(path_it.at(Math.max(size - 1, 0)));
+        for (const marker_type of [SPMarkerLoc.SP_MARKER_LOC, SPMarkerLoc.SP_MARKER_LOC_MID]) {
+          add_marker(marker_type, m, false);
+        }
+      }
+    });
+
+    // END marker
+    {
+      /* Get reference to last curve in the path.
+       * For moveto-only path, this returns the "closing line segment". */
+      const path_last = pathv[pathv.length - 1] as Path;
+      const index = path_last.size();
+      const m = sp_shape_marker_get_transform_at_end(path_last.at(index > 0 ? index - 1 : index));
+      for (const marker_type of [SPMarkerLoc.SP_MARKER_LOC, SPMarkerLoc.SP_MARKER_LOC_END]) {
+        add_marker(marker_type, m, false);
+      }
+    }
+    return markers;
+  }
+
+  /**
+   * Adds a new marker to shape object at the location indicated by key.  value
+   * must be a valid URI reference resolvable from the shape object (i.e., present
+   * in the document <defs>).  If the shape object already has a marker
+   * registered at the given position, it is removed first.  Then the
+   * new marker is hrefed and its signals connected.
+   */
+  set_marker(key: number, value: string | null): void {
+    if (key > SPMarkerLoc.SP_MARKER_LOC_END) return;
+    const mrk = sp_css_uri_reference_resolve(this.document, value);
+    const marker = mrk instanceof SPMarker ? mrk : null;
+    if (marker === this._marker[key]) return;
+    this.#detach_marker(key);
+    if (marker) {
+      this._marker[key] = marker;
+      marker.hrefObject(this);
+      this.#release_connect[key] = marker.releaseSignal.connect(() => this.#detach_marker(key));
+      this.#modified_connect[key] = marker.modifiedSignal.connect((_m, flags) => {
+        // changing marker can impact object's visual bounding box, so request update on this object itself
+        if (flags & SP_OBJECT_MODIFIED_FLAG) this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+      });
+    }
+  }
+
+  /** Detach, hide and unref the marker at key (upstream sp_shape_marker_release and part of set_marker). */
+  #detach_marker(key: number): void {
+    const marker = this._marker[key];
+    if (!marker) return;
+    this.#release_connect[key]?.();
+    this.#modified_connect[key]?.();
+    this.#release_connect[key] = null;
+    this.#modified_connect[key] = null;
+    for (const v of this.views)
+      sp_marker_hide(marker, v.drawingitem.key() + SPItemKey.ITEM_KEY_MARKERS + key);
+    marker.unhrefObject(this);
+    this._marker[key] = null;
+  }
 
   /**
    * The nodes of the curve as snap points (cusp or smooth), line midpoints
@@ -281,8 +530,21 @@ export enum GeomNodeType {
   NODE_SMOOTH,
 }
 
-/** Unit tangent of c at t = 0 (forward) or t = 1 (backward); numeric, for any curve type. */
+/**
+ * Unit tangent of c at t = 0 (forward) or t = 1 (backward); exact for Bezier curves
+ * (the first control point that differs from the end, as upstream's derivatives give it),
+ * numeric for other curve types.
+ */
 function unitTangentAt(c: Curve, t: 0 | 1): Point {
+  if (c instanceof BezierCurve) {
+    const pts = t === 0 ? c.controlPoints() : [...c.controlPoints()].reverse();
+    const p0 = pts[0] as Point;
+    for (const p of pts.slice(1)) {
+      const d = t === 0 ? p.sub(p0) : p0.sub(p);
+      if (L2(d) > 1e-12) return d.normalized();
+    }
+    return p0.sub(p0);
+  }
   for (const eps of [1e-6, 1e-3, 0.1]) {
     const d = t === 0 ? c.pointAt(eps).sub(c.pointAt(0)) : c.pointAt(1).sub(c.pointAt(1 - eps));
     if (L2(d) > 1e-12) return d.normalized();
@@ -302,4 +564,75 @@ export function get_nodetype(c_incoming: Curve, c_outgoing: Curve): GeomNodeType
     return GeomNodeType.NODE_SMOOTH;
   }
   return GeomNodeType.NODE_CUSP;
+}
+
+/**
+ * Calculate the transform required to get a marker's path object in the
+ * right place for particular path segment on a shape.
+ *
+ * From SVG spec:
+ * The axes of the temporary new user coordinate system are aligned according to the orient attribute on the 'marker'
+ * element and the slope of the curve at the given vertex. (Note: if there is a discontinuity at a vertex, the slope
+ * is the average of the slopes of the two segments of the curve that join at the given vertex. If a slope cannot be
+ * determined, the slope is assumed to be zero.)
+ */
+export function sp_shape_marker_get_transform(c1: Curve, c2: Curve): Affine {
+  const p = c1.pointAt(1);
+  const tang1 = unitTangentAt(c1, 1);
+  const tang2 = unitTangentAt(c2, 0);
+  const angle1 = Math.atan2(tang1.y, tang1.x);
+  const angle2 = Math.atan2(tang2.y, tang2.x);
+  let ret_angle = 0.5 * (angle1 + angle2);
+  if (Math.abs(angle2 - angle1) > Math.PI) {
+    /* ret_angle is in the middle of the larger of the two sectors between angle1 and
+     * angle2, so flip it by 180degrees to force it to the middle of the smaller sector.
+     *
+     * (Imagine a circle with rays drawn at angle1 and angle2 from the centre of the
+     * circle.  Those two rays divide the circle into two sectors.)
+     */
+    ret_angle += Math.PI;
+  }
+  return Rotate(ret_angle).multiply(Translate(p));
+}
+
+export function sp_shape_marker_get_transform_at_start(c: Curve): Affine {
+  const p = c.pointAt(0);
+  if (c.isDegenerate()) {
+    /* FIXME: the svg spec says to search for a better alternative than zero angle directionality:
+     * http://www.w3.org/TR/SVG11/implnote.html#PathElementImplementationNotes */
+    return Translate(p);
+  }
+  const tang = unitTangentAt(c, 0);
+  return Rotate(Math.atan2(tang.y, tang.x)).multiply(Translate(p));
+}
+
+export function sp_shape_marker_get_transform_at_end(c: Curve): Affine {
+  const p = c.pointAt(1);
+  if (c.isDegenerate()) {
+    /* FIXME: the svg spec says to search for a better alternative than zero angle directionality:
+     * http://www.w3.org/TR/SVG11/implnote.html#PathElementImplementationNotes */
+    return Translate(p);
+  }
+  const tang = unitTangentAt(c, 1);
+  return Rotate(Math.atan2(tang.y, tang.x)).multiply(Translate(p));
+}
+
+/**
+ * Updates the instances (views) of a given marker in a shape.
+ * Marker views have to be scaled already.  The transformation
+ * is retrieved and then shown by calling sp_marker_show_instance.
+ */
+function sp_shape_update_marker_view(shape: SPShape, ai: DrawingItem, drawing: Drawing): void {
+  if (!shape.curve()) return;
+  // the first vertex should get a start marker, the last an end marker, and all the others a mid marker
+  // see bug 456148
+
+  // Record the number of instances of each marker type and their absolute position
+  const counter = [0, 0, 0, 0];
+  let z_order = 0;
+  for (const [type, marker, tr] of shape.get_markers()) {
+    const pos = counter[type] ?? 0;
+    counter[type] = pos + 1;
+    sp_marker_show_instance(marker, ai, drawing, type, pos, z_order++, tr, shape.style.stroke_width.computed);
+  }
 }

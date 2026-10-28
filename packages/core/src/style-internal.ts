@@ -84,6 +84,7 @@ import type { AnySpace } from './colors/spaces/base.ts';
 import type { SPDocument } from './document.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { SPPaintServerReference } from './object/sp-paint-server-reference.ts';
+import { URIReference } from './object/uri-references.ts';
 import {
   cssFontFamilyQuote,
   cssFontFamilyUnquote,
@@ -204,8 +205,7 @@ export function extractUri(s: string | null): { uri: string; end: number | null 
 export { SPPaintServerReference };
 
 /**
- * Placeholder for the URI references of SPStyle (SPFilterReference, SPMarkerReference,
- * SPShapeReference); SPPaintServerReference is real (object/sp-paint-server-reference.ts).
+ * Placeholder for the URI references of SPStyle that are not ported (SPShapeReference).
  * It keeps the URI but does not resolve it: getObject() is always null, like the reference to an
  * id that is not in the document.
  */
@@ -242,8 +242,29 @@ export class SPStyleReference {
     return this.#uri === null ? null : `url(${this.#uri})`;
   }
 }
-export class SPFilterReference extends SPStyleReference {}
-export class SPMarkerReference extends SPStyleReference {}
+
+/**
+ * The reference of a filter property to an svg:filter (upstream SPFilterReference in
+ * object/sp-filter-reference.h; here because of an import cycle).
+ */
+export class SPFilterReference extends URIReference {
+  /** Tells filters from other objects; set by object/sp-filter.ts (import cycle). */
+  static isFilter: (obj: SPObject) => boolean = () => false;
+
+  protected override _acceptObject(obj: SPObject): boolean {
+    return SPFilterReference.isFilter(obj) && super._acceptObject(obj);
+  }
+}
+
+/** The reference of a marker property to an svg:marker (upstream SPMarkerReference in object/sp-marker.h). */
+export class SPMarkerReference extends URIReference {
+  /** Tells markers from other objects; set by object/sp-marker.ts (import cycle). */
+  static isMarker: (obj: SPObject) => boolean = () => false;
+
+  protected override _acceptObject(obj: SPObject): boolean {
+    return SPMarkerReference.isMarker(obj) && super._acceptObject(obj);
+  }
+}
 export class SPShapeReference extends SPStyleReference {}
 
 // SPIBase ---------------------------------------------------------------------------------------
@@ -2285,7 +2306,7 @@ export class SPIFilter extends SPIBase {
       }
 
       // We have href
-      this.href.attach(uri);
+      if (!this.href.try_attach(uri)) this.href.detach();
     } else {
       console.error(`SPIFilter::read(): malformed value: ${str}`);
     }
@@ -2318,8 +2339,6 @@ export class SPIFilter extends SPIBase {
     // The "correct" thing to do is to combine the filter primitives.
     // The next best thing is to keep any filter on this object. If there
     // is no filter on this object, then use any filter on the parent.
-    // TODO: parent.href.getObject() is always null until the filter references are ported, so a
-    // parent's filter is never merged.
     if ((!this.set || this.inherit) && parent.href?.getObject()) {
       this.set = parent.set;
       this.inherit = parent.inherit;
@@ -2334,7 +2353,7 @@ export class SPIFilter extends SPIBase {
       }
       // If we now have an href, try to attach parent filter
       const uri = parent.href.getURI();
-      if (this.href && uri !== null) this.href.attach(uri);
+      if (this.href && uri !== null) this.href.try_attach(uri);
     }
   }
 
@@ -2369,7 +2388,7 @@ export class SPIMarker extends SPIString {
       return;
     }
     this.#href = new SPMarkerReference(target);
-    this.#href.attach(uri);
+    this.#href.try_attach(uri);
   }
 
   // Like upstream, this does not clear the string value (it skips SPIString::clear).
