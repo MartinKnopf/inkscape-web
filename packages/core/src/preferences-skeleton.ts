@@ -48,6 +48,13 @@ export const preferences_skeleton: Readonly<Record<string, string>> = {
   '/tools/nodes/edit_clipping_paths': '0',
   '/tools/nodes/edit_masks': '0',
 
+  '/tools/zoom/selcue': '1',
+  '/tools/zoom/gradientdrag': '0',
+  '/tools/dropper/selcue': '1',
+  '/tools/dropper/gradientdrag': '1',
+  '/tools/dropper/pick': '1',
+  '/tools/dropper/setalpha': '1',
+
   '/tools/freehand/style':
     'fill:none;stroke:black;stroke-opacity:1;stroke-linejoin:miter;stroke-linecap:butt;',
   '/tools/freehand/pencil/tolerance': '15.0',

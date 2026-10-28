@@ -237,3 +237,34 @@ export async function sp_file_save(doc: SPDocument): Promise<boolean> {
 export function sp_file_save_as(doc: SPDocument): Promise<boolean> {
   return sp_file_save_dialog(doc);
 }
+
+/**
+ * Save data (for example an exported image) under a name the user picks: with the File System
+ * Access API a save dialog, else a download under suggestedName. Returns false if the user cancels.
+ */
+export async function sp_file_save_blob(data: Blob, suggestedName: string): Promise<boolean> {
+  const w = window as Window & Partial<FilePickers>;
+  if (!w.showSaveFilePicker) {
+    await download(data, suggestedName);
+    return true;
+  }
+  const ext = suggestedName.includes('.') ? suggestedName.slice(suggestedName.lastIndexOf('.')) : '';
+  try {
+    const handle = await w.showSaveFilePicker({
+      suggestedName,
+      types: [
+        {
+          description: ext ? `*${ext}` : _('All files'),
+          accept: { [data.type || 'application/octet-stream']: ext ? [ext] : [] },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(data);
+    await writable.close();
+    return true;
+  } catch (e) {
+    if (isAbort(e)) return false;
+    throw e;
+  }
+}

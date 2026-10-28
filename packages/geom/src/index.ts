@@ -13,6 +13,7 @@ export * from './elliptical-arc.ts';
 export * from './interval.ts';
 export * from './nearest-time.ts';
 export * from './path.ts';
+export * from './path-intersection.ts';
 export * from './path-sink.ts';
 export * from './pathvector.ts';
 export * from './point.ts';

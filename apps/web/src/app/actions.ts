@@ -29,6 +29,12 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     SECTION_DIALOG,
     N_("Edit objects' colors, gradients, arrowheads, and other fill and stroke properties..."),
   ],
+  [
+    "win.dialog-open('Export')",
+    N_('Open Export'),
+    SECTION_DIALOG,
+    N_('Export this document or a selection as a PNG image'),
+  ],
   ["win.dialog-open('Objects')", N_('Open Objects'), SECTION_DIALOG, N_('View Objects')],
   [
     "win.dialog-open('AlignDistribute')",

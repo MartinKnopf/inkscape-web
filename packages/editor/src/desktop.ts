@@ -684,6 +684,44 @@ export class SPDesktop {
     this.set_display_area(rect, 10);
   }
 
+  /** Zoom to fit the width of the page (upstream PageManager::zoomToSelectedPage with width_only). */
+  zoom_page_width(): void {
+    const rect = this.doc.preferredBounds().transformed(this.doc2dt());
+    if (rect.minExtent() < 1.0) return;
+    this.set_display_width(rect, 10);
+  }
+
+  /** Center the page without zooming (upstream PageManager::centerToSelectedPage). */
+  center_page(): void {
+    this.set_display_center(this.doc.preferredBounds().transformed(this.doc2dt()));
+  }
+
+  /** Zoom to the visual bounding box of the selection. */
+  zoom_selection(): void {
+    const d = this.#selection.visualBounds();
+    if (!d || d.minExtent() < 0.1) return;
+    this.set_display_area(d, 10);
+  }
+
+  /**
+   * Set the display area in only the width dimension (upstream
+   * set_display_width; upstream takes the width as the right edge, which is
+   * wrong unless left is 0).
+   */
+  set_display_width(rect: Rect, border: number): void {
+    if (rect.width() < 1.0) return;
+    const center_y = this.current_center().y;
+    this.set_display_area(
+      new Rect(new Point(rect.left(), center_y), new Point(rect.right(), center_y)),
+      border,
+    );
+  }
+
+  /** Center rect without zooming. */
+  set_display_center(rect: Rect): void {
+    this.zoom_absolute(rect.midpoint(), this.current_zoom(), false);
+  }
+
   /**
    * Apply the zoom of the document once the canvas has a size.
    * TODO: inkscape:zoom, cx, cy from the namedview (sp_namedview_zoom_and_view_from_document);

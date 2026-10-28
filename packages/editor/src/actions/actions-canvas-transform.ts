@@ -10,13 +10,18 @@ import type { SPDesktop } from '../desktop.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 
 // Only the options that the desktop supports so far.
-// TODO: 1:2, 2:1, selection, page width, center page, prev/next, snapshot, rotate, flip.
+// TODO: prev/next, snapshot, rotate, flip.
 export enum CanvasTransform {
   INK_CANVAS_ZOOM_IN,
   INK_CANVAS_ZOOM_OUT,
   INK_CANVAS_ZOOM_1_1,
+  INK_CANVAS_ZOOM_1_2,
+  INK_CANVAS_ZOOM_2_1,
+  INK_CANVAS_ZOOM_SELECTION,
   INK_CANVAS_ZOOM_DRAWING,
   INK_CANVAS_ZOOM_PAGE,
+  INK_CANVAS_ZOOM_PAGE_WIDTH,
+  INK_CANVAS_ZOOM_CENTER_PAGE,
 }
 
 /** Upstream getDoubleLimited: def if the value is outside [min, max]. */
@@ -42,11 +47,26 @@ export function canvas_transform(dt: SPDesktop, option: CanvasTransform): void {
     case CanvasTransform.INK_CANVAS_ZOOM_1_1:
       dt.zoom_realworld(midpoint, 1.0);
       break;
+    case CanvasTransform.INK_CANVAS_ZOOM_1_2:
+      dt.zoom_realworld(midpoint, 0.5);
+      break;
+    case CanvasTransform.INK_CANVAS_ZOOM_2_1:
+      dt.zoom_realworld(midpoint, 2.0);
+      break;
+    case CanvasTransform.INK_CANVAS_ZOOM_SELECTION:
+      dt.zoom_selection();
+      break;
     case CanvasTransform.INK_CANVAS_ZOOM_DRAWING:
       dt.zoom_drawing();
       break;
     case CanvasTransform.INK_CANVAS_ZOOM_PAGE:
       dt.zoom_page();
+      break;
+    case CanvasTransform.INK_CANVAS_ZOOM_PAGE_WIDTH:
+      dt.zoom_page_width();
+      break;
+    case CanvasTransform.INK_CANVAS_ZOOM_CENTER_PAGE:
+      dt.center_page();
       break;
   }
 }
@@ -56,8 +76,13 @@ export const canvas_transform_actions: ReadonlyArray<readonly [string, CanvasTra
   ['canvas-zoom-in', CanvasTransform.INK_CANVAS_ZOOM_IN],
   ['canvas-zoom-out', CanvasTransform.INK_CANVAS_ZOOM_OUT],
   ['canvas-zoom-1-1', CanvasTransform.INK_CANVAS_ZOOM_1_1],
+  ['canvas-zoom-1-2', CanvasTransform.INK_CANVAS_ZOOM_1_2],
+  ['canvas-zoom-2-1', CanvasTransform.INK_CANVAS_ZOOM_2_1],
+  ['canvas-zoom-selection', CanvasTransform.INK_CANVAS_ZOOM_SELECTION],
   ['canvas-zoom-drawing', CanvasTransform.INK_CANVAS_ZOOM_DRAWING],
   ['canvas-zoom-page', CanvasTransform.INK_CANVAS_ZOOM_PAGE],
+  ['canvas-zoom-page-width', CanvasTransform.INK_CANVAS_ZOOM_PAGE_WIDTH],
+  ['canvas-zoom-center-page', CanvasTransform.INK_CANVAS_ZOOM_CENTER_PAGE],
 ];
 
 const SECTION = NC_('Action Section', 'Canvas Geometry');
@@ -67,8 +92,13 @@ export const raw_data_canvas_transform: readonly (readonly [string, string, stri
   ['win.canvas-zoom-in', N_('Zoom In'), SECTION, N_('Zoom in')],
   ['win.canvas-zoom-out', N_('Zoom Out'), SECTION, N_('Zoom out')],
   ['win.canvas-zoom-1-1', N_('Zoom 1:1'), SECTION, N_('Zoom to 1:1')],
+  ['win.canvas-zoom-1-2', N_('Zoom 1:2'), SECTION, N_('Zoom to 1:2')],
+  ['win.canvas-zoom-2-1', N_('Zoom 2:1'), SECTION, N_('Zoom to 2:1')],
+  ['win.canvas-zoom-selection', N_('Zoom Selection'), SECTION, N_('Zoom to fit selection in window')],
   ['win.canvas-zoom-drawing', N_('Zoom Drawing'), SECTION, N_('Zoom to fit drawing in window')],
   ['win.canvas-zoom-page', N_('Zoom Page'), SECTION, N_('Zoom to fit page in window')],
+  ['win.canvas-zoom-page-width', N_('Zoom Page Width'), SECTION, N_('Zoom to fit page width in window')],
+  ['win.canvas-zoom-center-page', N_('Center Page'), SECTION, N_('Center page in window')],
 ];
 
 /** Register the win.canvas-zoom-* actions. */

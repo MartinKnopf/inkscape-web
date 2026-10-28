@@ -22,6 +22,12 @@
   background: none;
 }
 
+.toolbar-text-button {
+  width: auto;
+  padding: 0 8px;
+  font: inherit;
+}
+
 .tool-button:hover,
 .toolbar-button:hover:not(:disabled) {
   background: #e8e8e8;

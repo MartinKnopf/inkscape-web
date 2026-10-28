@@ -10,7 +10,9 @@
  */
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
+import { DropperTool } from './tools/dropper-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
+import { MeasureTool } from './tools/measure-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
 import { PenTool } from './tools/pen-tool.ts';
 import { PencilTool } from './tools/pencil-tool.ts';
@@ -19,6 +21,7 @@ import { SelectTool } from './tools/select-tool.ts';
 import { SpiralTool } from './tools/spiral-tool.ts';
 import { StarTool } from './tools/star-tool.ts';
 import type { ToolBase } from './tools/tool-base.ts';
+import { ZoomTool } from './tools/zoom-tool.ts';
 
 /** The tools by preferences path. TODO: the other tools. */
 const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
@@ -28,6 +31,9 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/freehand/pen': PenTool,
   '/tools/freehand/pencil': PencilTool,
   '/tools/gradient': GradientTool,
+  '/tools/dropper': DropperTool,
+  '/tools/measure': MeasureTool,
+  '/tools/zoom': ZoomTool,
   '/tools/select': SelectTool,
   '/tools/shapes/spiral': SpiralTool,
   '/tools/shapes/star': StarTool,
