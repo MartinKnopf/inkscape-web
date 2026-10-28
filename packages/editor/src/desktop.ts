@@ -109,6 +109,8 @@ export class SPDesktop {
   readonly signal_zoom_changed = new Signal<[number]>();
   /** Emitted after the active tool changed (upstream _event_context_changed_signal). */
   readonly #event_context_changed_signal = new Signal<[SPDesktop, ToolBase | null]>();
+  /** Emitted after setDocument() showed another document. */
+  readonly #document_replaced_signal = new Signal<[SPDesktop, SPDocument]>();
   /** The slots of connectSetStyle(); the first that returns true intercepts the style. */
   readonly #setStyleSlots = new Set<(css: SPCSSAttr, switchStyle: boolean) => boolean>();
   /** The last used style (upstream SPDesktop::current), from "/desktop/style". */
@@ -277,6 +279,11 @@ export class SPDesktop {
     this.doc = doc;
     this.#selection.setDocument(doc);
     this.#attachDocument();
+    this.#document_replaced_signal.emit(this, doc);
+  }
+
+  connectDocumentReplaced(slot: (desktop: SPDesktop, doc: SPDocument) => void): () => void {
+    return this.#document_replaced_signal.connect(slot);
   }
 
   #attachDocument(): void {

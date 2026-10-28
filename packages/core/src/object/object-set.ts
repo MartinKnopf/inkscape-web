@@ -21,13 +21,19 @@
  * Copyright (C) 1999-2016 authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { Affine, type OptRect, type Point, Scale, Translate, unify } from '@inkscape-web/geom';
+import { Affine, type OptRect, type Point, Rotate, Scale, Translate, unify } from '@inkscape-web/geom';
 import { SPDocument } from '../document.ts';
 import { DocumentUndo } from '../document-undo.ts';
 import { C_ } from '../i18n.ts';
 import { Preferences } from '../preferences.ts';
+import { sp_svg_transform_read, sp_svg_transform_write } from '../svg/svg-affine.ts';
+import type { XmlDocument } from '../xml/document.ts';
+import type { Node } from '../xml/node.ts';
+import { spReprCssAttrInherited, spReprCssSet } from '../xml/repr-css.ts';
+import { sp_repr_compare_position } from '../xml/repr-sorting.ts';
+import { sp_repr_is_def } from '../xml/repr-util.ts';
 import { BBoxType, SPItem } from './sp-item.ts';
-import type { SPGroup } from './sp-item-group.ts';
+import { SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
 import { SPRoot } from './sp-root.ts';
 
@@ -59,10 +65,10 @@ export enum CompareSize {
  * ancestor are never both in the set.
  *
  * The operations on the set from upstream selection-chemistry.cpp are here
- * too (deleteItems, applyAffine, move, …).
+ * too (deleteItems, duplicate, group, ungroup, raise, lower, applyAffine, move, …).
  * TODO: 3D boxes, sibling state (clones with originals, text on path),
  * connectors, transform centers, LPE items, the operations not ported yet
- * (duplicate, group, z-order, clipboard, …).
+ * (popFromGroup, stackUp/Down, clipboard, clones, masks, layers, …).
  */
 export class ObjectSet {
   protected _desktop: ObjectSetDesktop | null;
@@ -303,6 +309,298 @@ export class ObjectSet {
     if (document) DocumentUndo.done(document, C_('Undo', 'Delete'), 'edit-delete');
   }
 
+  /** The reprs of the objects, in the order they were added. */
+  xmlNodes(): Node[] {
+    return this.#container.map((o) => o.getRepr());
+  }
+
+  /** The selected groups. */
+  groups(): SPGroup[] {
+    return this.#container.filter((o): o is SPGroup => o instanceof SPGroup);
+  }
+
+  /** Select the objects of the reprs in list (in reverse order, as upstream). */
+  setReprList(list: readonly Node[]): void {
+    const document = this.document();
+    if (!document) return;
+    this.clear();
+    for (const repr of [...list].reverse()) {
+      const obj = document.getObjectById(repr.attribute('id'));
+      if (obj) this.add(obj, true);
+    }
+    this._emitChanged();
+  }
+
+  /**
+   * Copy the selected objects in place (appended to their parents, so on
+   * top) and select the copies, with the undo step "Duplicate" unless
+   * suppressDone.
+   * TODO: duplicateLayer, LPE satellites and forking, text references,
+   * relinking clones (/options/relinkclonesonduplicate/value), tmp successors.
+   */
+  duplicate(suppressDone = false, includeHidden = false): void {
+    const doc = this.document();
+    if (!doc) return;
+    const xml_doc = doc.getReprDoc();
+
+    // check if something is selected
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>object(s)</b> to duplicate."
+      return;
+    }
+
+    const reprs = this.xmlNodes();
+    this.clear();
+    // sorting items from different parents sorts each parent's subset without possibly mixing
+    // them, just what we need
+    reprs.sort(sp_repr_compare_position);
+
+    const copies: Node[] = [];
+    for (const old_repr of reprs) {
+      const copy = old_repr.duplicate(xml_doc);
+      old_repr.parent()?.appendChild(copy);
+      copies.push(copy);
+    }
+
+    // copies contains def nodes, we don't want that in our selection
+    const newsel: Node[] = [];
+    for (const node of copies) {
+      const itm = doc.getObjectByRepr(node);
+      if ((!sp_repr_is_def(node) && includeHidden) || !(itm instanceof SPItem) || !itm.isHidden()) {
+        newsel.push(node);
+      }
+    }
+    this.setReprList(newsel);
+    if (!suppressDone) DocumentUndo.done(doc, C_('Undo', 'Duplicate'), 'edit-duplicate');
+  }
+
+  /**
+   * Put the selected objects into a new group (svg:a with is_anchor) at the
+   * place of the topmost one and select it. Objects of other parents keep
+   * their place on the canvas: their complete transform and inherited style
+   * are written to the copies. The caller adds the undo step.
+   */
+  group(is_anchor = false): Node | null {
+    const doc = this.document();
+    if (!doc) return null;
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>some objects</b> to group."
+      return null;
+    }
+    const xml_doc = doc.getReprDoc();
+    const group = xml_doc.createElement(is_anchor ? 'svg:a' : 'svg:g');
+
+    const p = this.xmlNodes().sort(sp_repr_compare_position);
+    this.clear();
+
+    // Remember the position and parent of the topmost object.
+    const topmost = p.at(-1);
+    const topmost_parent = topmost?.parent();
+    if (!topmost || !topmost_parent) return null;
+
+    // Add as close to the top as we can get it
+    topmost_parent.addChild(group, topmost);
+
+    for (const current of p) {
+      if (current.parent() === topmost_parent) {
+        const spnew = current.duplicate(xml_doc);
+        current.parent()?.removeChild(current);
+        group.appendChild(spnew);
+      } else {
+        // move it to topmost_parent first
+        const temp_clip: Node[] = [];
+
+        // At this point, current may already have no item, due to its being a clone whose original is already moved away
+        // So we copy it artificially calculating the transform from its repr->attr("transform") and the parent transform
+        const t_str = current.attribute('transform');
+        let item_t = (t_str && sp_svg_transform_read(t_str)) || Affine.identity();
+        const parent_item = doc.getObjectByRepr(current.parent());
+        if (!(parent_item instanceof SPItem)) throw new Error('group: parent is no item');
+        item_t = item_t.multiply(parent_item.i2docAffine());
+
+        sp_selection_copy_one(current, item_t, temp_clip, xml_doc);
+        current.parent()?.removeChild(current);
+
+        // paste into topmost_parent (temporarily)
+        const parent_obj = doc.getObjectByRepr(topmost_parent);
+        const copied = parent_obj ? sp_selection_paste_impl(doc, parent_obj, temp_clip) : [];
+        const in_topmost = copied.at(-1);
+        if (in_topmost) {
+          // take pasted object (now in topmost_parent)
+          // make a copy
+          const spnew = in_topmost.duplicate(xml_doc);
+          // remove pasted
+          in_topmost.parent()?.removeChild(in_topmost);
+          // put its copy into group
+          group.appendChild(spnew);
+        }
+      }
+    }
+
+    const object = doc.getObjectByRepr(group);
+    if (object) this.set(object);
+    return group;
+  }
+
+  /**
+   * Ungroup the selected groups (not recursive) and add their children to
+   * the set, with the undo step "Ungroup" unless skip_undo.
+   * TODO: unlink clones of the groups (find_clone_to_group).
+   */
+  ungroup(skip_undo = false): void {
+    if (this.isEmpty()) {
+      // TODO: flash "Select a <b>group</b> to ungroup."
+      return;
+    }
+    const groups = this.groups();
+    if (!groups.length) {
+      // TODO: flash "<b>No groups</b> to ungroup in the selection."
+      return;
+    }
+    const children: SPItem[] = [];
+    for (const group of groups) sp_item_group_ungroup(group, children);
+    this.addList(children);
+
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'Ungroup'), 'object-ungroup');
+  }
+
+  /**
+   * Raise each selected object above the next sibling that overlaps the
+   * selection, with the undo step "Raise" unless skip_undo.
+   */
+  raise(skip_undo = false): void {
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>object(s)</b> to raise."
+      return;
+    }
+    const items_copy = this.items();
+    const grepr = sp_item_list_common_parent_group(items_copy)?.getRepr();
+    if (!grepr) {
+      // TODO: flash "You cannot raise/lower objects from <b>different groups</b> or <b>layers</b>."
+      return;
+    }
+
+    /* Construct reverse-ordered list of selected children. */
+    const rev = [...items_copy].sort(sp_object_compare_position);
+
+    // Determine the common bbox of the selected items.
+    const selected = enclose_items(items_copy);
+
+    // Iterate over all objects in the selection (starting from top).
+    if (selected) {
+      for (const child of rev) {
+        // for each selected object, find the next sibling
+        for (let newref = child.getNext(); newref; newref = newref.getNext()) {
+          // if the sibling is an item AND overlaps our selection,
+          if (!(newref instanceof SPItem)) continue;
+          const newref_bbox = newref.documentVisualBounds();
+          if (newref_bbox && selected.intersects(newref_bbox)) {
+            // AND if it's not one of our selected objects,
+            if (!items_copy.includes(newref)) {
+              // move the selected object after that sibling
+              grepr.changeOrder(child.getRepr(), newref.getRepr());
+            }
+            break;
+          }
+        }
+      }
+    }
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'Raise'), 'selection-raise');
+  }
+
+  /** Move the selected objects to the top of their parent, with the undo step "Raise to top". */
+  raiseToTop(skip_undo = false): void {
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>object(s)</b> to raise."
+      return;
+    }
+    if (!sp_item_list_common_parent_group(this.items())) {
+      // TODO: flash "You cannot raise/lower objects from <b>different groups</b> or <b>layers</b>."
+      return;
+    }
+    const rl = this.xmlNodes().sort(sp_repr_compare_position);
+    for (const repr of rl) repr.setPosition(-1);
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'Raise to top'), 'selection-top');
+  }
+
+  /**
+   * Lower each selected object below the previous sibling that overlaps the
+   * selection, with the undo step "Lower" unless skip_undo.
+   */
+  lower(skip_undo = false): void {
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>object(s)</b> to lower."
+      return;
+    }
+    const items_copy = this.items();
+    const grepr = sp_item_list_common_parent_group(items_copy)?.getRepr();
+    if (!grepr) {
+      // TODO: flash "You cannot raise/lower objects from <b>different groups</b> or <b>layers</b>."
+      return;
+    }
+
+    // Determine the common bbox of the selected items.
+    const selected = enclose_items(items_copy);
+
+    /* Construct direct-ordered list of selected children. */
+    const rev = [...items_copy].sort(sp_object_compare_position);
+
+    // Iterate over all objects in the selection (starting from top).
+    if (selected) {
+      for (const child of rev.reverse()) {
+        // for each selected object, find the prev sibling
+        for (let newref = prev_sibling(child); newref; newref = prev_sibling(newref)) {
+          // if the sibling is an item AND overlaps our selection,
+          if (!(newref instanceof SPItem)) continue;
+          const ref_bbox = newref.documentVisualBounds();
+          if (ref_bbox && selected.intersects(ref_bbox)) {
+            // AND if it's not one of our selected objects,
+            if (!items_copy.includes(newref)) {
+              // move the selected object before that sibling
+              const put_after = prev_sibling(newref);
+              if (put_after) grepr.changeOrder(child.getRepr(), put_after.getRepr());
+              else child.getRepr().setPosition(0);
+            }
+            break;
+          }
+        }
+      }
+    }
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'Lower'), 'selection-lower');
+  }
+
+  /**
+   * Move the selected objects to the bottom of their parent (above the
+   * non-items like defs), with the undo step "Lower to bottom".
+   */
+  lowerToBottom(skip_undo = false): void {
+    const document = this.document();
+    if (!document) return;
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>object(s)</b> to lower to bottom."
+      return;
+    }
+    if (!sp_item_list_common_parent_group(this.items())) {
+      // TODO: flash "You cannot raise/lower objects from <b>different groups</b> or <b>layers</b>."
+      return;
+    }
+    const rl = this.xmlNodes().sort(sp_repr_compare_position);
+    for (const repr of rl.reverse()) {
+      let minpos = 0;
+      const pp = document.getObjectByRepr(repr.parent());
+      for (const pc of pp?.children ?? []) {
+        if (pc instanceof SPItem) break;
+        minpos++;
+      }
+      repr.setPosition(minpos);
+    }
+    if (!skip_undo) DocumentUndo.done(document, C_('Undo', 'Lower to bottom'), 'selection-bottom');
+  }
+
   /** Apply the last affine again. */
   reapplyAffine(): void {
     const cached = this.#lastAffine;
@@ -365,6 +663,14 @@ export class ObjectSet {
     const n2d = Translate(align.neg());
     const d2n = Translate(align);
     this.applyAffine(n2d.multiply(Scale(sx, sy)).multiply(d2n));
+  }
+
+  /** Rotate by angle_degrees around center (desktop coordinates). */
+  rotateRelative(center: Point, angle_degrees: number): void {
+    const d2n = Translate(center);
+    const n2d = Translate(center.neg());
+    const rotate = Rotate.from_degrees(angle_degrees);
+    this.applyAffine(n2d.multiply(rotate).multiply(d2n));
   }
 
   moveRelative(dx: number, dy: number, compensate = true): void {
@@ -488,4 +794,84 @@ export class ObjectSet {
       o = o.parent;
     }
   }
+}
+
+/** Compare the document order of two objects (upstream sp_object_compare_position). */
+export function sp_object_compare_position(first: SPObject, second: SPObject): number {
+  return sp_repr_compare_position(first.getRepr(), second.getRepr());
+}
+
+/**
+ * Copy repr with its complete inherited style and the accumulated transform
+ * full_t, and prepend the copy to clip.
+ */
+function sp_selection_copy_one(repr: Node, full_t: Affine, clip: Node[], xml_doc: XmlDocument): void {
+  const copy = repr.duplicate(xml_doc);
+
+  // copy complete inherited style
+  const css = spReprCssAttrInherited(repr, 'style');
+  spReprCssSet(copy, css, 'style');
+
+  // write the complete accumulated transform passed to us
+  // (we're dealing with unattached repr, so we write to its attr
+  // instead of using sp_item_set_transform)
+  copy.setAttribute('transform', sp_svg_transform_write(full_t) || null);
+
+  clip.unshift(copy);
+}
+
+/** Add copies of the reprs in clip to parent (after `after`), with the parent transform compensated. */
+function sp_selection_paste_impl(
+  doc: SPDocument,
+  parent: SPObject,
+  clip: readonly Node[],
+  after: Node | null = null,
+): Node[] {
+  const xml_doc = doc.getReprDoc();
+  if (!(parent instanceof SPItem)) throw new Error('sp_selection_paste_impl: parent is no item');
+
+  const copied: Node[] = [];
+  // add objects to document
+  for (const repr of clip) {
+    const copy = repr.duplicate(xml_doc);
+
+    // premultiply the item transform by the accumulated parent transform in the paste layer
+    const local = parent.i2docAffine();
+    if (!local.isIdentity()) {
+      const t_str = copy.attribute('transform');
+      let item_t = (t_str && sp_svg_transform_read(t_str)) || Affine.identity();
+      item_t = item_t.multiply(local.inverse());
+      // (we're dealing with unattached repr, so we write to its attr instead of using sp_item_set_transform)
+      copy.setAttribute('transform', sp_svg_transform_write(item_t) || null);
+      const original_d = copy.attribute('inkscape:original-d');
+      if (original_d) copy.setAttribute('d', original_d);
+    }
+
+    parent.getRepr().addChild(copy, after);
+    after = copy;
+    copied.push(copy);
+  }
+  return copied;
+}
+
+/** If items in the list have a common parent, return it, otherwise return null. */
+function sp_item_list_common_parent_group(items: readonly SPItem[]): SPGroup | null {
+  const first = items[0];
+  if (!first) return null;
+  const parent = first.parent;
+  // Strictly speaking this CAN happen, if user selects <svg> from Inkscape::XML editor
+  if (!(parent instanceof SPGroup)) return null;
+  for (const item of items) if (item.parent !== parent) return null;
+  return parent;
+}
+
+/** Finds out the minimum common bbox of the selected items. */
+function enclose_items(items: readonly SPItem[]): OptRect {
+  let r: OptRect = null;
+  for (const item of items) r = unify(r, item.documentVisualBounds());
+  return r;
+}
+
+function prev_sibling(child: SPObject): SPObject | null {
+  return child.parent instanceof SPGroup ? child.getPrev() : null;
 }

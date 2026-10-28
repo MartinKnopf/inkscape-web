@@ -1,153 +1,330 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/ui/shortcuts.cpp, share/keys/inkscape.xml
+// Upstream: src/ui/shortcuts.cpp, src/ui/shortcuts.h
 /*
  * Shortcuts
  *
  * Copyright (C) 2020 Tavmjong Bah
+ * Rewrite of code (C) MenTalguY and others.
  */
-import { CanvasTransform, canvas_transform } from '../actions/actions-canvas-transform.ts';
-import type { SPDesktop } from '../desktop.ts';
+import { type Node, readMem, Signal } from '@inkscape-web/core';
+import { canonical_detailed_name } from '../actions/action-map.ts';
+import { InkscapeApplication } from '../inkscape-application.ts';
 
 /**
- * Default keys of the canvas zoom actions, from share/keys/inkscape.xml, as
- * KeyboardEvent.key values (keypad keys give the same values).
- * TODO: the shortcut system: read share/keys/*.xml and user keys, all actions.
+ * A key combination: a GDK key name ("a", "asterisk", "KP_Add", "Page_Up",
+ * "F1") with modifiers. Letters are lower case; Shift is never set for
+ * symbol keys like "asterisk", where it is part of the key.
  */
-const CANVAS_KEYS: Record<string, CanvasTransform> = {
-  // win.canvas-zoom-in: plus, equal, KP_Add
-  '+': CanvasTransform.INK_CANVAS_ZOOM_IN,
-  '=': CanvasTransform.INK_CANVAS_ZOOM_IN,
-  // win.canvas-zoom-out: minus, underscore, KP_Subtract
-  '-': CanvasTransform.INK_CANVAS_ZOOM_OUT,
-  _: CanvasTransform.INK_CANVAS_ZOOM_OUT,
-  // win.canvas-zoom-1-1: 1, KP_1
-  '1': CanvasTransform.INK_CANVAS_ZOOM_1_1,
-  // win.canvas-zoom-drawing: 4, KP_4
-  '4': CanvasTransform.INK_CANVAS_ZOOM_DRAWING,
-  // win.canvas-zoom-page: 5, KP_5
-  '5': CanvasTransform.INK_CANVAS_ZOOM_PAGE,
-};
-
-/**
- * Run the canvas zoom shortcuts for key presses in element. Returns a
- * function that removes the handler.
- */
-export function attachCanvasShortcuts(element: HTMLElement, getDesktop: () => SPDesktop | null): () => void {
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.altKey || event.metaKey) return;
-    const option = CANVAS_KEYS[event.key];
-    const dt = getDesktop();
-    if (option === undefined || !dt) return;
-    event.preventDefault();
-    canvas_transform(dt, option);
-  };
-  element.addEventListener('keydown', onKeyDown);
-  return () => element.removeEventListener('keydown', onKeyDown);
-}
-
-/** A key combination. */
-export interface Accelerator {
-  /** KeyboardEvent.key, lower case for letters ("s", "F1", "*"). */
+export interface AccelKey {
   key: string;
-  /** The primary modifier: Ctrl, or Cmd on macOS. */
-  primary?: boolean;
-  shift?: boolean;
-  alt?: boolean;
+  shift: boolean;
+  ctrl: boolean;
+  alt: boolean;
+  meta: boolean;
 }
 
-/**
- * Default keys of the actions, from share/keys/inkscape.xml (<primary> is
- * Ctrl). The keypad keys give the same KeyboardEvent.key values.
- * TODO: replace with the shortcut system.
- */
-export const ACTION_KEYS: Record<string, Accelerator[]> = {
-  'app.document-new': [{ key: 'n', primary: true }],
-  'app.document-open': [{ key: 'o', primary: true }],
-  'win.document-save': [{ key: 's', primary: true }],
-  'win.document-save-as': [{ key: 's', primary: true, shift: true }],
-  'doc.undo': [{ key: 'z', primary: true }],
-  'doc.redo': [
-    { key: 'z', primary: true, shift: true },
-    { key: 'y', primary: true },
-  ],
-  "win.tool-switch('Select')": [{ key: 's' }, { key: 'F1' }],
-  "win.tool-switch('Node')": [{ key: 'n' }, { key: 'F2' }],
-  "win.tool-switch('Rect')": [{ key: 'r' }, { key: 'F4' }],
-  "win.tool-switch('Arc')": [{ key: 'e' }, { key: 'F5' }],
-  // asterisk, <shift>F9, KP_Multiply
-  "win.tool-switch('Star')": [{ key: '*' }, { key: 'F9', shift: true }],
-  "win.tool-switch('Spiral')": [{ key: 'i' }, { key: 'F9' }],
-  'app.object-to-path': [{ key: 'c', primary: true, shift: true }],
-  "win.tool-switch('Pencil')": [{ key: 'p' }, { key: 'F6' }],
-  "win.tool-switch('Pen')": [{ key: 'b' }, { key: 'F6', shift: true }],
-  "win.dialog-open('DocumentProperties')": [{ key: 'd', primary: true, shift: true }],
-  "win.dialog-open('FillStroke')": [{ key: 'f', primary: true, shift: true }],
-  "win.dialog-open('Objects')": [{ key: 'l', primary: true, shift: true }],
-  "win.dialog-open('XMLEditor')": [{ key: 'x', primary: true, shift: true }],
-  "win.dialog-open('AlignDistribute')": [{ key: 'a', primary: true, shift: true }],
-  // Path booleans: symbol keys match with or without Shift; keypad keys give the same key.
-  'app.path-union': [{ key: '+', primary: true }],
-  'app.path-difference': [
-    { key: '-', primary: true },
-    { key: '_', primary: true },
-  ],
-  'app.path-intersection': [{ key: '*', primary: true }],
-  'app.path-exclusion': [{ key: '^', primary: true }],
-  'app.path-division': [{ key: '/', primary: true }],
-  'app.path-cut': [{ key: '/', primary: true, alt: true }],
-  'app.path-combine': [{ key: 'k', primary: true }],
-  'app.path-break-apart': [{ key: 'k', primary: true, shift: true }],
-  "app.object-align('vcenter pref')": [{ key: '1', primary: true, alt: true }],
-  "app.object-align('bottom pref')": [{ key: '2', primary: true, alt: true }],
-  "app.object-align('left pref')": [{ key: '4', primary: true, alt: true }],
-  "app.object-align('hcenter vcenter pref')": [{ key: '5', primary: true, alt: true }],
-  "app.object-align('right pref')": [{ key: '6', primary: true, alt: true }],
-  "app.object-align('hcenter pref')": [{ key: '7', primary: true, alt: true }],
-  "app.object-align('top pref')": [{ key: '8', primary: true, alt: true }],
+/** Whether the platform is macOS, where <primary> is the Command key. */
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** GDK key names of the printable ASCII symbols. */
+const SYMBOL_NAMES: Record<string, string> = {
+  '!': 'exclam',
+  '"': 'quotedbl',
+  '#': 'numbersign',
+  $: 'dollar',
+  '%': 'percent',
+  '&': 'ampersand',
+  "'": 'apostrophe',
+  '(': 'parenleft',
+  ')': 'parenright',
+  '*': 'asterisk',
+  '+': 'plus',
+  ',': 'comma',
+  '-': 'minus',
+  '.': 'period',
+  '/': 'slash',
+  ':': 'colon',
+  ';': 'semicolon',
+  '<': 'less',
+  '=': 'equal',
+  '>': 'greater',
+  '?': 'question',
+  '@': 'at',
+  '[': 'bracketleft',
+  '\\': 'backslash',
+  ']': 'bracketright',
+  '^': 'asciicircum',
+  _: 'underscore',
+  '`': 'grave',
+  '{': 'braceleft',
+  '|': 'bar',
+  '}': 'braceright',
+  '~': 'asciitilde',
+};
+const SYMBOL_CHARS = Object.fromEntries(Object.entries(SYMBOL_NAMES).map(([c, n]) => [n, c]));
+
+/** GDK key names of KeyboardEvent.key values of non-printable keys. */
+const KEY_NAMES: Record<string, string> = {
+  ' ': 'space',
+  Backspace: 'BackSpace',
+  Enter: 'Return',
+  PageUp: 'Page_Up',
+  PageDown: 'Page_Down',
+  ArrowLeft: 'Left',
+  ArrowRight: 'Right',
+  ArrowUp: 'Up',
+  ArrowDown: 'Down',
 };
 
-/** The first key of an action as shown in menus and tooltips ("Ctrl+Shift+Z", "R"), or null. */
-export function shortcutLabel(actionId: string): string | null {
-  const acc = ACTION_KEYS[actionId]?.[0];
-  if (!acc) return null;
-  const key = acc.key.length === 1 ? acc.key.toUpperCase() : acc.key;
-  return [acc.primary && 'Ctrl', acc.shift && 'Shift', acc.alt && 'Alt', key].filter(Boolean).join('+');
-}
+/** GDK key names of keypad keys (KeyboardEvent.code Numpad*), by KeyboardEvent.key. */
+const KEYPAD_NAMES: Record<string, string> = {
+  '+': 'KP_Add',
+  '-': 'KP_Subtract',
+  '*': 'KP_Multiply',
+  '/': 'KP_Divide',
+  '.': 'KP_Decimal',
+  ',': 'KP_Separator',
+  '=': 'KP_Equal',
+  Enter: 'KP_Enter',
+  Insert: 'KP_Insert',
+  Delete: 'KP_Delete',
+  Home: 'KP_Home',
+  End: 'KP_End',
+  PageUp: 'KP_Page_Up',
+  PageDown: 'KP_Page_Down',
+  ArrowLeft: 'KP_Left',
+  ArrowRight: 'KP_Right',
+  ArrowUp: 'KP_Up',
+  ArrowDown: 'KP_Down',
+  Clear: 'KP_Begin',
+};
 
-/** Whether key is a symbol ("*", "+"), where Shift is part of the key, not a modifier. */
-const isSymbol = (key: string) =>
-  key.length === 1 && key.toLowerCase() === key.toUpperCase() && !/\d/.test(key);
+/** Whether a key name is a symbol key (Shift is part of the key, not a modifier). */
+const isSymbol = (key: string) => key in SYMBOL_CHARS;
 
-/** The action id for a key press, or null. */
-export function actionForKeyEvent(event: KeyboardEvent): string | null {
-  const primary = event.ctrlKey || event.metaKey;
-  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-  for (const [id, accs] of Object.entries(ACTION_KEYS)) {
-    const match = (a: Accelerator) =>
-      a.key === key &&
-      !!a.primary === primary &&
-      (isSymbol(a.key) || !!a.shift === event.shiftKey) &&
-      !!a.alt === event.altKey;
-    if (accs.some(match)) return id;
-  }
-  return null;
+/** The normalized string of a key combination ("<Shift><Control>z"), used as map key. */
+export function accel_abbrev(accel: AccelKey): string {
+  return (
+    (accel.shift ? '<Shift>' : '') +
+    (accel.ctrl ? '<Control>' : '') +
+    (accel.alt ? '<Alt>' : '') +
+    (accel.meta ? '<Meta>' : '') +
+    accel.key
+  );
 }
 
 /**
- * Run the actions of key presses in the window with run. This replaces the
- * browser keys (save page, open file), except in text fields and for keys
- * the active tool has handled (default prevented). Returns a function that
- * removes the handler.
+ * Parse a GTK accelerator ("<primary><shift>z", "KP_Add", "<alt>bracketleft").
+ * <primary> is Ctrl, or Command on macOS. Returns null if it is malformed.
  */
-export function attachActionShortcuts(run: (actionId: string) => void): () => void {
+export function parse_accelerator(str: string, mac = IS_MAC): AccelKey | null {
+  const accel: AccelKey = { key: '', shift: false, ctrl: false, alt: false, meta: false };
+  let rest = str.trim();
+  for (let m = /^<([A-Za-z0-9]+)>/.exec(rest); m; m = /^<([A-Za-z0-9]+)>/.exec(rest)) {
+    switch (m[1]?.toLowerCase()) {
+      case 'shift':
+        accel.shift = true;
+        break;
+      case 'primary':
+        if (mac) accel.meta = true;
+        else accel.ctrl = true;
+        break;
+      case 'ctrl':
+      case 'control':
+        accel.ctrl = true;
+        break;
+      case 'alt':
+      case 'mod1':
+        accel.alt = true;
+        break;
+      case 'meta':
+      case 'super':
+      case 'command':
+        accel.meta = true;
+        break;
+      default:
+        return null;
+    }
+    rest = rest.slice(m[0].length);
+  }
+  if (!/^[A-Za-z0-9_]+$/.test(rest)) return null;
+  // GTK keeps letters in lower case.
+  accel.key = rest.length === 1 ? rest.toLowerCase() : rest;
+  if (isSymbol(accel.key)) accel.shift = false;
+  return accel;
+}
+
+/**
+ * The key combination of a key press (upstream Shortcuts::get_from_event):
+ * keypad keys get KP_ names, symbols lose Shift, letters are lower case with
+ * Shift kept. Non-Latin letters and letters changed by Alt (macOS Option)
+ * use the key position instead.
+ */
+export function get_from_event(event: KeyboardEvent): AccelKey | null {
+  let { key } = event;
+  if (key === 'Unidentified' || key === 'Dead' || ['Shift', 'Control', 'Alt', 'Meta'].includes(key))
+    return null;
+  let name: string | undefined;
+  if (event.code.startsWith('Numpad')) {
+    name = /^\d$/.test(key) ? `KP_${key}` : KEYPAD_NAMES[key];
+  }
+  if (!name && key.length === 1) {
+    const latin = /^Key([A-Z])$/.exec(event.code)?.[1];
+    if (latin && (event.altKey || key.charCodeAt(0) > 127)) key = latin;
+    name = SYMBOL_NAMES[key] ?? KEY_NAMES[key] ?? key.toLowerCase();
+  }
+  name ??= KEY_NAMES[key] ?? key;
+  return {
+    key: name,
+    shift: event.shiftKey && !isSymbol(name),
+    ctrl: event.ctrlKey,
+    alt: event.altKey,
+    meta: event.metaKey,
+  };
+}
+
+/** The label of a key combination for menus and tooltips ("Shift+Ctrl+Z", "Numpad +"; "⇧⌘Z" on macOS). */
+export function get_label(accel: AccelKey, mac = IS_MAC): string {
+  let key = accel.key;
+  let prefix = '';
+  if (key.startsWith('KP_')) {
+    // Upstream: ::get_label shows key pad and numeric keys identically.
+    prefix = 'Numpad ';
+    key = key.slice(3);
+    key = { Add: '+', Subtract: '-', Multiply: '*', Divide: '/', Decimal: '.' }[key] ?? key;
+  }
+  if (key.length === 1) key = key.toUpperCase();
+  else key = SYMBOL_CHARS[key] ?? (key === 'space' ? 'Space' : key.replace(/_/g, ' '));
+  if (mac) {
+    return `${prefix}${accel.ctrl ? '⌃' : ''}${accel.alt ? '⌥' : ''}${accel.shift ? '⇧' : ''}${accel.meta ? '⌘' : ''}${key}`;
+  }
+  const mods = [accel.shift && 'Shift', accel.ctrl && 'Ctrl', accel.alt && 'Alt', accel.meta && 'Meta'];
+  return prefix + [...mods.filter(Boolean), key].join('+');
+}
+
+/**
+ * The keyboard shortcuts of actions, read from share/keys/*.xml. Actions are
+ * detailed action names ("win.tool-switch('Rect')"); invoke_action() runs
+ * them through the action registry of InkscapeApplication.
+ * TODO: user shortcuts (add/remove, writing keys files), modifiers (<modifier>).
+ */
+export class Shortcuts {
+  static #instance: Shortcuts | null = null;
+
+  static getInstance(): Shortcuts {
+    Shortcuts.#instance ??= new Shortcuts();
+    return Shortcuts.#instance;
+  }
+
+  readonly mac: boolean;
+  /** Triggers by canonical detailed action name; the first is shown in menus. */
+  readonly #shortcuts = new Map<string, AccelKey[]>();
+  /** Emitted after a keys file was read. */
+  readonly signal_changed = new Signal<[]>();
+
+  constructor(mac = IS_MAC) {
+    this.mac = mac;
+  }
+
+  /** Clear the shortcuts and read the bindings of a keys file (the XML text). Returns false if it is malformed. */
+  read(xml: string): boolean {
+    const root = readMem(xml, null)?.root();
+    if (!root) return false;
+    if (root.name() !== 'keys') return false;
+    this.#shortcuts.clear();
+    this.#read(root);
+    this.signal_changed.emit();
+    return true;
+  }
+
+  #read(keysnode: Node): void {
+    for (const iter of keysnode.children()) {
+      if (iter.name() === 'keys') {
+        this.#read(iter);
+        continue;
+      }
+      if (iter.name() !== 'bind') continue; // Unknown element (or modifier), do not complain.
+      const gaction = iter.attribute('gaction');
+      const keys = iter.attribute('keys');
+      if (!gaction || !keys) continue;
+      const key_vector = keys.trim().split(/\s*,\s*/);
+      // Last key added will appear in menus, upstream adds them in reverse.
+      for (const key of key_vector.reverse()) this.add_shortcut(gaction, key);
+    }
+  }
+
+  /**
+   * Add a trigger (GTK accelerator) to an action; other actions lose it, and
+   * it becomes the first trigger of the action. Returns false if it is malformed.
+   */
+  add_shortcut(detailed_action_name: string, trigger: string): boolean {
+    const key = parse_accelerator(trigger, this.mac);
+    if (!key) return false;
+    // Remove previous use of trigger.
+    const abbrev = accel_abbrev(key);
+    for (const [action, triggers] of this.#shortcuts) {
+      const kept = triggers.filter((t) => accel_abbrev(t) !== abbrev);
+      if (kept.length !== triggers.length) this.#shortcuts.set(action, kept);
+    }
+    const name = canonical_detailed_name(detailed_action_name);
+    this.#shortcuts.set(name, [key, ...(this.#shortcuts.get(name) ?? [])]);
+    return true;
+  }
+
+  /** The triggers of an action. */
+  get_triggers(detailed_action_name: string): readonly AccelKey[] {
+    return this.#shortcuts.get(canonical_detailed_name(detailed_action_name)) ?? [];
+  }
+
+  /** The actions of a trigger. */
+  get_actions(trigger: AccelKey): string[] {
+    const abbrev = accel_abbrev(trigger);
+    const actions: string[] = [];
+    for (const [action, triggers] of this.#shortcuts) {
+      if (triggers.some((t) => accel_abbrev(t) === abbrev)) actions.push(action);
+    }
+    return actions;
+  }
+
+  /** The label of the first trigger of an action, or null. */
+  get_shortcut_label(detailed_action_name: string): string | null {
+    const first = this.get_triggers(detailed_action_name)[0];
+    return first ? get_label(first, this.mac) : null;
+  }
+
+  /** The action of a key press, or null. */
+  get_action_for_event(event: KeyboardEvent): string | null {
+    const accel = get_from_event(event);
+    return accel ? (this.get_actions(accel)[0] ?? null) : null;
+  }
+
+  /** Run the action of a key press. Returns whether an enabled action ran. */
+  invoke_action(event: KeyboardEvent, app = InkscapeApplication.instance()): boolean {
+    const action = this.get_action_for_event(event);
+    return !!action && app.activate_action(action);
+  }
+}
+
+/** The label of the first key of an action ("Shift+Ctrl+Z", "R"), or null. */
+export function shortcutLabel(detailed_action_name: string): string | null {
+  return Shortcuts.getInstance().get_shortcut_label(detailed_action_name);
+}
+
+/** Whether a key event comes from a text field, where keys type text. */
+function isTextInput(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && !!target.closest('input, textarea, select, [contenteditable]');
+}
+
+/**
+ * Run the actions of key presses in the window. Keys typed in text fields
+ * and keys the active tool has handled (default prevented) are ignored.
+ * Handled keys are default prevented, which replaces browser keys (save
+ * page, open file). Returns a function that removes the handler.
+ */
+export function attachActionShortcuts(app = InkscapeApplication.instance()): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented) return;
-    const target = event.target;
-    if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]')) return;
-    const id = actionForKeyEvent(event);
-    if (!id) return;
-    event.preventDefault();
-    run(id);
+    if (event.defaultPrevented || isTextInput(event.target)) return;
+    if (Shortcuts.getInstance().invoke_action(event, app)) event.preventDefault();
   };
   window.addEventListener('keydown', onKeyDown);
   return () => window.removeEventListener('keydown', onKeyDown);

@@ -19,7 +19,8 @@ import type { SPDocument } from '../document.ts';
 import { _, C_, ngettext } from '../i18n.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
-import { type BBoxType, SPItem, type SPItemCtx } from './sp-item.ts';
+import { sp_repr_is_meta_element } from '../xml/repr-util.ts';
+import { type BBoxType, i2anc_affine, SPItem, type SPItemCtx } from './sp-item.ts';
 import {
   SP_OBJECT_CHILD_MODIFIED_FLAG,
   SP_OBJECT_FLAGS_ALL,
@@ -41,7 +42,7 @@ export enum LayerMode {
 
 /**
  * svg:g and the base of svg:svg (upstream SPGroup).
- * TODO: LPE, layer resources in the document, ungroup, insertBottom, title/desc in write().
+ * TODO: LPE, layer resources in the document, insertBottom, title/desc in write().
  */
 export class SPGroup extends SPItem {
   _layer_mode = LayerMode.GROUP;
@@ -261,5 +262,67 @@ export class SPGroup extends SPItem {
       const ac = child.invokeShow(drawing, key, flags);
       if (ac) ai.appendChild(ac);
     }
+  }
+}
+
+/**
+ * Ungroup group: move its items into its parent at its place, with the
+ * group's transform and style merged into each child. Non-items go to defs
+ * (title, desc and metadata are dropped). The new items are prepended to
+ * children, topmost first.
+ * TODO: adjust_paint_recursive (gradients/patterns to userSpaceOnUse), 3D boxes,
+ * path effects, clip and mask (/options/maskobject/maskonungroup), clones of
+ * the group and of its children (unlink, compensate source transform).
+ */
+export function sp_item_group_ungroup(group: SPGroup, children: SPItem[]): void {
+  const doc = group.document;
+  const defs = doc.getDefs();
+  const pitem = group.parent;
+  if (!(pitem instanceof SPGroup)) throw new Error('sp_item_group_ungroup: parent is no group');
+  const prepr = pitem.getRepr();
+
+  /* Step 1 - generate lists of children objects */
+  const items: Node[] = [];
+  const objects: Node[] = [];
+  const g = i2anc_affine(group, group.parent);
+
+  for (const child of group.children) {
+    if (child instanceof SPItem) {
+      /* Merging of style */
+      child.style.merge(group.style);
+      // Merging transform
+      child.transform = child.transform.multiply(g);
+      child.updateRepr();
+      items.push(child.getRepr().duplicate(prepr.document()));
+    } else {
+      objects.push(child.getRepr().duplicate(prepr.document()));
+    }
+  }
+
+  /* Step 2 - clear group */
+  // remember the position of the group
+  let insert_after = group.getRepr().prev();
+  // the group is leaving forever, no heir, clones should take note; its children however are going to reemerge
+  group.deleteObject(true);
+
+  /* Step 3 - add nonitems */
+  if (objects.length && defs) {
+    const last_def = defs.getRepr().lastChild();
+    for (const repr of objects.reverse()) {
+      if (!sp_repr_is_meta_element(repr)) defs.getRepr().addChild(repr, last_def);
+    }
+  }
+
+  /* Step 4 - add items */
+  for (const repr of items) {
+    // add item
+    prepr.addChild(repr, insert_after);
+    insert_after = repr;
+    // fill in the children list if non-null
+    const item = doc.getObjectByRepr(repr);
+    if (!(item instanceof SPItem)) throw new Error('sp_item_group_ungroup: item not built');
+    item.doWriteTransform(item.transform, null, false);
+    children.unshift(item);
+    item.requestModified(SP_OBJECT_MODIFIED_FLAG);
   }
 }

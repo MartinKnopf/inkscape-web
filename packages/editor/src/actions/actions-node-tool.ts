@@ -16,6 +16,7 @@
  */
 import { N_, NC_, Preferences } from '@inkscape-web/core';
 import type { SPDesktop } from '../desktop.ts';
+import type { InkscapeApplication } from '../inkscape-application.ts';
 import { ExtremumType } from '../ui/tool/manipulator.ts';
 import type { MultiPathManipulator } from '../ui/tool/multi-path-manipulator.ts';
 import { NodeType, SegmentType } from '../ui/tool/node-types.ts';
@@ -111,3 +112,14 @@ export const raw_data_node_tool: readonly (readonly [string, string, string, str
     N_('Convert selected path segments to lines'),
   ],
 ];
+
+/** Register the win.node-* actions. */
+export function add_actions_node_tool(app: InkscapeApplication): void {
+  for (const [name, run] of Object.entries(node_tool_actions)) {
+    app.actions.win.add_action(name, () => {
+      const dt = app.get_active_desktop();
+      if (dt) run(dt);
+    });
+  }
+  app.get_action_extra_data().add_data(raw_data_node_tool);
+}

@@ -10,6 +10,7 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * g++ port Copyright (C) 2003 Nathan Hurst
  */
+import type { Node } from './node.ts';
 
 export const SODIPODI_NS_URI = 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd';
 export const BROKEN_SODIPODI_NS_URI = 'http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd';
@@ -73,4 +74,21 @@ export function qnamePrefix(qname: string): string | null {
 /** Local part of a qualified name ("svg:rect" → "rect"). */
 export function qnameLocalName(qname: string): string {
   return qname.slice(qname.indexOf(':') + 1);
+}
+
+/** Whether node is a child of svg:defs. */
+export function sp_repr_is_def(node: Node): boolean {
+  return node.parent()?.name() === 'svg:defs';
+}
+
+/** Whether node is svg:title, svg:desc or svg:metadata. */
+export function sp_repr_is_meta_element(node: Node | null): boolean {
+  if (node?.type() !== 'element') return false;
+  const name = node.name();
+  return name === 'svg:title' || name === 'svg:desc' || name === 'svg:metadata';
+}
+
+/** Whether node is a layer (inkscape:groupmode="layer"). */
+export function sp_repr_is_layer(node: Node): boolean {
+  return node.attribute('inkscape:groupmode') === 'layer';
 }

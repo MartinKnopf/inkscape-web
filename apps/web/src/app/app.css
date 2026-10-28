@@ -73,6 +73,12 @@ body,
   color: #999;
 }
 
+.menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: #ddd;
+}
+
 .menu-shortcut {
   color: #666;
 }

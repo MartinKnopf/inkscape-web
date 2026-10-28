@@ -12,8 +12,18 @@
  *            Patrick Storz
  *            Jabier Arraiza
  */
-import { C_, CompareSize, DocumentUndo, ObjectSet, Preferences, type SPItem } from '@inkscape-web/core';
+import {
+  C_,
+  CompareSize,
+  DocumentUndo,
+  N_,
+  NC_,
+  ObjectSet,
+  Preferences,
+  type SPItem,
+} from '@inkscape-web/core';
 import { are_near, type OptRect, Point, type Rect, Translate } from '@inkscape-web/geom';
+import type { InkscapeApplication } from '../inkscape-application.ts';
 
 enum ObjectAlignTarget {
   LAST,
@@ -272,3 +282,34 @@ export const object_align_actions: Readonly<Record<string, (selection: ObjectSet
   'object-align': object_align,
   'object-distribute': object_distribute,
 };
+
+const SECTION = NC_('Action Section', 'Object');
+
+/** Action id, label, section and tooltip of the align actions (untranslated). */
+export const raw_data_object_align: readonly (readonly [string, string, string, string])[] = [
+  [
+    'app.object-align',
+    N_('Align objects'),
+    SECTION,
+    N_(
+      'Align selected objects; usage: [[left|hcenter|right] || [top|vcenter|bottom]] [last|first|biggest|smallest|page|drawing|selection|pref]? group? anchor?',
+    ),
+  ],
+  [
+    'app.object-distribute',
+    N_('Distribute objects'),
+    SECTION,
+    N_('Distribute selected objects; usage: [hgap | left | hcenter | right | vgap | top | vcenter | bottom]'),
+  ],
+];
+
+/** Register app.object-align and app.object-distribute (string parameter). */
+export function add_actions_object_align(app: InkscapeApplication): void {
+  for (const [name, run] of Object.entries(object_align_actions)) {
+    app.actions.app.add_action_with_parameter(name, 's', (value) => {
+      const selection = app.get_active_selection();
+      if (selection) run(selection, value);
+    });
+  }
+  app.get_action_extra_data().add_data(raw_data_object_align);
+}
