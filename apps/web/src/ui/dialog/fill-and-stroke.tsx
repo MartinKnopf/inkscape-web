@@ -53,7 +53,7 @@ import {
 } from '@inkscape-web/editor';
 import { useId, useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
-import { iconUrl } from '../icon-loader.ts';
+import { iconFallback, iconUrl } from '../icon-loader.ts';
 import { SpinButton } from '../widget/spinbutton.tsx';
 import { useReprVersion, useSelectionVersion } from './use-repr.ts';
 
@@ -300,7 +300,7 @@ function GradientEditor(props: { desktop: SPDesktop; isFill: boolean; gradient: 
 
 /** An icon of the icon theme. */
 function Icon({ name }: { name: string }) {
-  return <img src={iconUrl(name)} alt="" width={16} height={16} />;
+  return <img src={iconUrl(name)} alt="" width={16} height={16} onError={iconFallback(name)} />;
 }
 
 // Color editor ----------------------------------------------------------------------------------

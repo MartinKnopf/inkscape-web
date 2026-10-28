@@ -3,7 +3,7 @@
 import { _, type SPItem } from '@inkscape-web/core';
 import type { SPDesktop } from '@inkscape-web/editor';
 import { useEffect, useReducer } from 'react';
-import { iconUrl } from '../icon-loader.ts';
+import { iconFallback, iconUrl } from '../icon-loader.ts';
 import './toolbar.css';
 
 /**
@@ -62,7 +62,7 @@ export function IconButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
     >
-      <img src={iconUrl(props.icon)} alt="" width={16} height={16} />
+      <img src={iconUrl(props.icon)} alt="" width={16} height={16} onError={iconFallback(props.icon)} />
     </button>
   );
 }

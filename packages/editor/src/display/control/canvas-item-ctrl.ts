@@ -195,6 +195,8 @@ export class CanvasItemCtrl extends CanvasItem {
     if (this.#type === type) return;
     this.#type = type;
     this.set_size_default();
+    // The shape changes even if the size does not.
+    this.request_update();
   }
 
   /** Set the size index directly (upstream _set_size). */
