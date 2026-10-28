@@ -8,10 +8,12 @@ import {
   InkscapeApplication,
   type MenuEntry,
   parse_mnemonic,
+  print_detailed_name,
   Shortcuts,
 } from '@inkscape-web/editor';
 import * as Menubar from '@radix-ui/react-menubar';
 import { Fragment, type ReactNode, useSyncExternalStore } from 'react';
+import { useRecentFiles } from '../../app/recent-files.ts';
 
 let menu: MenuEntry[] = [];
 
@@ -73,25 +75,42 @@ function MenuEntries({ entries }: { entries: readonly MenuEntry[] }) {
   return <>{out}</>;
 }
 
+/** The entries of the submenu "Open Recent" (id recent-files): the recent files, newest first. */
+function useRecentEntries(): MenuEntry[] {
+  return useRecentFiles().map((e) => ({
+    kind: 'item',
+    // The label is a file name: it has no mnemonic and no translation.
+    label: e.name.replaceAll('_', '__'),
+    action: print_detailed_name('app', 'open-recent', e.id),
+    icon: null,
+  }));
+}
+
+function SubmenuEntry({ entry }: { entry: Extract<MenuEntry, { kind: 'submenu' }> }) {
+  const recent = useRecentEntries();
+  const children = entry.id === 'recent-files' ? recent : entry.children;
+  return (
+    <Menubar.Sub>
+      <Menubar.SubTrigger className="menu-item" disabled={children.every(isEmpty)}>
+        <span>{label(entry.label)}</span>
+        <span className="menu-shortcut">›</span>
+      </Menubar.SubTrigger>
+      <Menubar.Portal>
+        <Menubar.SubContent className="menu-popup" loop>
+          <MenuEntries entries={children} />
+        </Menubar.SubContent>
+      </Menubar.Portal>
+    </Menubar.Sub>
+  );
+}
+
 function Entry({ entry }: { entry: MenuEntry }) {
   const app = InkscapeApplication.instance();
   switch (entry.kind) {
     case 'section':
       return <MenuEntries entries={entry.children} />;
     case 'submenu':
-      return (
-        <Menubar.Sub>
-          <Menubar.SubTrigger className="menu-item" disabled={entry.children.every(isEmpty)}>
-            <span>{label(entry.label)}</span>
-            <span className="menu-shortcut">›</span>
-          </Menubar.SubTrigger>
-          <Menubar.Portal>
-            <Menubar.SubContent className="menu-popup" loop>
-              <MenuEntries entries={entry.children} />
-            </Menubar.SubContent>
-          </Menubar.Portal>
-        </Menubar.Sub>
-      );
+      return <SubmenuEntry entry={entry} />;
     case 'item': {
       // Boolean actions show their state as a check mark (upstream: GTK check menu items).
       const state = app.actions.lookup_action(entry.action)?.get_state();

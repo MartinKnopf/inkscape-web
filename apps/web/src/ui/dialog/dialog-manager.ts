@@ -3,6 +3,7 @@
 import { _ } from '@inkscape-web/core';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react';
 import type { FunctionComponent } from 'react';
+import { getDocumentAnchor } from '../../app/documents.ts';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
@@ -70,7 +71,9 @@ export function openDialog(key: string): void {
     id: key,
     component: key,
     title: data.label.replace('_', ''),
-    position: sibling ? { referenceGroup: sibling.group } : { referencePanel: 'drawing', direction: 'right' },
+    position: sibling
+      ? { referenceGroup: sibling.group }
+      : { referencePanel: getDocumentAnchor(dockview) ?? '', direction: 'right' },
   });
   if (!sibling) panel.api.setSize({ width: 320 });
   panel.api.setActive();

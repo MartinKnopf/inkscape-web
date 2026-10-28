@@ -159,3 +159,9 @@ body,
   gap: 6px;
   margin-top: 6px;
 }
+
+.message-dialog p {
+  margin: 0;
+  max-width: 420px;
+  white-space: pre-line;
+}

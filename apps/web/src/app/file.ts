@@ -21,10 +21,14 @@
 import { _, DocumentUndo, gdkpixbuf_input_open, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
 import { file_import, type SPDesktop } from '@inkscape-web/editor';
 import { decodeSvgBytes, gzip } from './gzip.ts';
+import { getRecentFiles } from './recent-files.ts';
 
 /** The part of FileSystemFileHandle that we use. */
 interface FileHandle {
   readonly name: string;
+  isSameEntry?(other: FileHandle): Promise<boolean>;
+  queryPermission?(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
+  requestPermission?(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
   getFile(): Promise<File>;
   createWritable(): Promise<{ write(data: Blob): Promise<void>; close(): Promise<void> }>;
 }
@@ -76,16 +80,45 @@ export async function sp_file_new_default(): Promise<SPDocument> {
  */
 export async function sp_file_open_dialog(): Promise<SPDocument | null> {
   const picked = await pickFile();
-  if (!picked) return null;
-  const { file, handle } = picked;
+  return picked ? openPickedFile(picked.file, picked.handle) : null;
+}
+
+/** Parse file as a document and remember handle for saving and in the recent files. */
+async function openPickedFile(file: File, handle: FileHandle | null): Promise<SPDocument | null> {
   const text = await decodeSvgBytes(new Uint8Array(await file.arrayBuffer()));
   const doc = SPDocument.createNewDocFromMem(text, file.name);
   if (!doc) {
     alert(_('Failed to load the requested file %s').replace('%s', file.name));
     return null;
   }
-  if (handle) fileHandles.set(doc, handle);
+  if (handle) {
+    fileHandles.set(doc, handle);
+    void getRecentFiles().add(handle);
+  }
   return doc;
+}
+
+/**
+ * Open a file of the recent list: ask for the permission to read the file
+ * again if the browser forgot it. Returns null if the user denies it or the
+ * file is gone (the entry is then removed from the list).
+ */
+export async function sp_file_open_recent(id: string): Promise<SPDocument | null> {
+  const recent = getRecentFiles();
+  const entry = recent.entries.find((e) => e.id === id);
+  if (!entry) return null;
+  const handle = entry.handle as FileHandle;
+  try {
+    const mode = { mode: 'readwrite' } as const;
+    const state = (await handle.queryPermission?.(mode)) ?? 'granted';
+    if (state !== 'granted' && (await handle.requestPermission?.(mode)) !== 'granted') return null;
+    return await openPickedFile(await handle.getFile(), handle);
+  } catch (e) {
+    console.error(e);
+    alert(_('Failed to load the requested file %s').replace('%s', handle.name));
+    await recent.remove(id);
+    return null;
+  }
 }
 
 /** Input formats for import: SVG and the bitmaps that the browser shows (upstream GdkpixbufInput). */
@@ -187,6 +220,7 @@ async function saveToHandle(doc: SPDocument, handle: FileHandle): Promise<boolea
     return false;
   }
   fileHandles.set(doc, handle);
+  void getRecentFiles().add(handle);
   return true;
 }
 

@@ -5,11 +5,11 @@
 import { N_, NC_ } from '@inkscape-web/core';
 import { InkscapeApplication, type SPDesktop } from '@inkscape-web/editor';
 import { hasDialog, openDialog } from '../ui/dialog/dialog-manager.ts';
-import { replaceDocument } from './active-desktop.ts';
+import { app_quit, document_close_active, document_new, openDocumentWindow } from './documents.ts';
 import {
   sp_file_import,
-  sp_file_new_default,
   sp_file_open_dialog,
+  sp_file_open_recent,
   sp_file_save,
   sp_file_save_as,
 } from './file.ts';
@@ -20,6 +20,8 @@ const SECTION_DIALOG = NC_('Action Section', 'Dialog');
 const raw_data_file: readonly (readonly [string, string, string, string])[] = [
   ['app.document-new', N_('New'), SECTION_FILE, N_('Create new document from the default template')],
   ['app.document-open', N_('Open File Dialog'), SECTION_FILE, N_('Open an existing document')],
+  ['win.document-close', N_('Close'), SECTION_FILE, N_('Close document (unless last document)')],
+  ['app.quit', N_('Quit'), SECTION_FILE, N_('Quit Inkscape, check for data loss')],
   ['win.document-save', N_('Save'), SECTION_FILE, N_('Save document')],
   ['win.document-save-as', N_('Save As'), SECTION_FILE, N_('Save document under a new name')],
   ['win.document-import', N_('Import'), SECTION_FILE, N_('Import a bitmap or SVG image into this document')],
@@ -29,6 +31,13 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     SECTION_DIALOG,
     N_("Edit objects' colors, gradients, arrowheads, and other fill and stroke properties..."),
   ],
+  [
+    "win.dialog-open('Preferences')",
+    N_('Open Preferences'),
+    SECTION_DIALOG,
+    N_('Edit global Inkscape preferences'),
+  ],
+  ['app.preferences', N_('Open Preferences'), SECTION_DIALOG, N_('Edit global Inkscape preferences')],
   [
     "win.dialog-open('Export')",
     N_('Open Export'),
@@ -69,23 +78,19 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
     if (dt) void run(dt);
   };
 
-  // TODO: open the new document in a new window.
-  app.actions.app.add_action(
-    'document-new',
-    withDesktop(async (dt) => {
-      replaceDocument(dt, await sp_file_new_default());
-      dt.zoom_page();
-    }),
-  );
-  app.actions.app.add_action(
-    'document-open',
-    withDesktop(async (dt) => {
-      const doc = await sp_file_open_dialog();
-      if (!doc) return;
-      replaceDocument(dt, doc);
-      dt.zoom_page();
-    }),
-  );
+  // Each document opens in a new tab (upstream: a new window).
+  app.actions.app.add_action('document-new', () => void document_new());
+  app.actions.app.add_action('document-open', async () => {
+    const doc = await sp_file_open_dialog();
+    if (doc) openDocumentWindow(doc);
+  });
+  app.actions.app.add_action_with_parameter('open-recent', 's', async (id) => {
+    const doc = await sp_file_open_recent(id);
+    if (doc) openDocumentWindow(doc);
+  });
+  app.actions.win.add_action('document-close', () => void document_close_active());
+  app.actions.app.add_action('quit', () => void app_quit());
+  app.actions.app.add_action('preferences', () => openDialog('Preferences'));
   app.actions.win.add_action(
     'document-save',
     withDesktop((dt) => sp_file_save(dt.doc)),

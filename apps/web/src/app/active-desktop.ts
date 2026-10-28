@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // The desktop that menus and the status bar act on (upstream: the active
-// desktop of InkscapeApplication, which actions use). There is one desktop for now.
+// desktop of InkscapeApplication, which actions use). It follows the focused
+// document tab (see documents.ts).
 import { Signal, type SPDocument } from '@inkscape-web/core';
 import { InkscapeApplication, type SPDesktop } from '@inkscape-web/editor';
 import { useSyncExternalStore } from 'react';
@@ -16,12 +17,6 @@ export function getActiveDesktop(): SPDesktop | null {
 export function setActiveDesktop(desktop: SPDesktop | null): void {
   active = desktop;
   InkscapeApplication.instance().set_active_desktop(desktop);
-  changed.emit();
-}
-
-/** Show doc in desktop (upstream InkscapeApplication::swap_document). */
-export function replaceDocument(desktop: SPDesktop, doc: SPDocument): void {
-  desktop.setDocument(doc);
   changed.emit();
 }
 
