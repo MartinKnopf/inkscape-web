@@ -5,8 +5,9 @@
  *
  * Copyright (C) 2020 Tavmjong Bah
  */
-import { Preferences } from '@inkscape-web/core';
+import { N_, NC_, Preferences } from '@inkscape-web/core';
 import type { SPDesktop } from '../desktop.ts';
+import type { InkscapeApplication } from '../inkscape-application.ts';
 
 // Only the options that the desktop supports so far.
 // TODO: 1:2, 2:1, selection, page width, center page, prev/next, snapshot, rotate, flip.
@@ -58,3 +59,25 @@ export const canvas_transform_actions: ReadonlyArray<readonly [string, CanvasTra
   ['canvas-zoom-drawing', CanvasTransform.INK_CANVAS_ZOOM_DRAWING],
   ['canvas-zoom-page', CanvasTransform.INK_CANVAS_ZOOM_PAGE],
 ];
+
+const SECTION = NC_('Action Section', 'Canvas Geometry');
+
+/** Action id, label, section and tooltip of the canvas transform actions (untranslated). */
+export const raw_data_canvas_transform: readonly (readonly [string, string, string, string])[] = [
+  ['win.canvas-zoom-in', N_('Zoom In'), SECTION, N_('Zoom in')],
+  ['win.canvas-zoom-out', N_('Zoom Out'), SECTION, N_('Zoom out')],
+  ['win.canvas-zoom-1-1', N_('Zoom 1:1'), SECTION, N_('Zoom to 1:1')],
+  ['win.canvas-zoom-drawing', N_('Zoom Drawing'), SECTION, N_('Zoom to fit drawing in window')],
+  ['win.canvas-zoom-page', N_('Zoom Page'), SECTION, N_('Zoom to fit page in window')],
+];
+
+/** Register the win.canvas-zoom-* actions. */
+export function add_actions_canvas_transform(app: InkscapeApplication): void {
+  for (const [name, option] of canvas_transform_actions) {
+    app.actions.win.add_action(name, () => {
+      const dt = app.get_active_desktop();
+      if (dt) canvas_transform(dt, option);
+    });
+  }
+  app.get_action_extra_data().add_data(raw_data_canvas_transform);
+}

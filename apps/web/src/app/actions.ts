@@ -1,81 +1,86 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/actions/actions-file-gui.cpp, src/actions/actions-undo-document.cpp, src/actions/actions-tools.cpp, src/actions/actions-dialogs.cpp, src/actions/actions-object.cpp, src/actions/actions-node-tool.cpp, src/actions/actions-paths.cpp, src/actions/actions-object-align.cpp
-// The file, undo, tool and dialog actions, by upstream action id.
-import { DocumentUndo, toCurves } from '@inkscape-web/core';
-import {
-  node_tool_actions,
-  object_align_actions,
-  path_actions,
-  tool_switch,
-  toolSwitchTarget,
-} from '@inkscape-web/editor';
-import { openDialog } from '../ui/dialog/dialog-manager.ts';
-import { getActiveDesktop, replaceDocument } from './active-desktop.ts';
+// Upstream: src/actions/actions-file-gui.cpp, src/actions/actions-file-window.cpp, src/actions/actions-dialogs.cpp
+// The actions that need the web app: files and dialogs. The other actions are
+// registered by InkscapeApplication in @inkscape-web/editor.
+import { N_, NC_ } from '@inkscape-web/core';
+import { InkscapeApplication, type SPDesktop } from '@inkscape-web/editor';
+import { hasDialog, openDialog } from '../ui/dialog/dialog-manager.ts';
+import { replaceDocument } from './active-desktop.ts';
 import { sp_file_new_default, sp_file_open_dialog, sp_file_save, sp_file_save_as } from './file.ts';
 
-/**
- * Run an action on the active desktop. Ids are the upstream ids of
- * actions-file-gui.cpp, actions-undo-document.cpp and actions-tools.cpp.
- * TODO: the action system (Gio::Action replacement) with all actions.
- */
-export async function runAction(id: string): Promise<void> {
-  // Detailed action name, as in share/keys/inkscape.xml: win.dialog-open('XMLEditor')
-  const dialog = /^win\.dialog-open\('(\w+)'\)$/.exec(id);
-  if (dialog?.[1]) return openDialog(dialog[1]);
-  const dt = getActiveDesktop();
-  if (!dt) return;
-  const tool = toolSwitchTarget(id);
-  if (tool) {
-    tool_switch(tool, dt);
-    return;
-  }
-  // win.node-* (actions-node-tool.cpp)
-  const node_action = id.startsWith('win.') ? node_tool_actions[id.slice(4)] : undefined;
-  if (node_action) {
-    node_action(dt);
-    return;
-  }
-  // app.path-* (actions-paths.cpp)
-  const path_action = id.startsWith('app.') ? path_actions[id.slice(4)] : undefined;
-  if (path_action) {
-    path_action(dt.getSelection());
-    return;
-  }
-  // Detailed names with a string target: app.object-align('left pref') (actions-object-align.cpp)
-  const target = /^app\.([\w-]+)\('([^']*)'\)$/.exec(id);
-  const align_action = target?.[1] ? object_align_actions[target[1]] : undefined;
-  if (align_action) {
-    align_action(dt.getSelection(), target?.[2] ?? '');
-    return;
-  }
-  switch (id) {
-    case 'app.document-new':
-      // TODO: open the new document in a new window.
+const SECTION_FILE = NC_('Action Section', 'File');
+const SECTION_DIALOG = NC_('Action Section', 'Dialog');
+
+const raw_data_file: readonly (readonly [string, string, string, string])[] = [
+  ['app.document-new', N_('New'), SECTION_FILE, N_('Create new document from the default template')],
+  ['app.document-open', N_('Open File Dialog'), SECTION_FILE, N_('Open an existing document')],
+  ['win.document-save', N_('Save'), SECTION_FILE, N_('Save document')],
+  ['win.document-save-as', N_('Save As'), SECTION_FILE, N_('Save document under a new name')],
+  [
+    "win.dialog-open('FillStroke')",
+    N_('Open Fill and Stroke'),
+    SECTION_DIALOG,
+    N_("Edit objects' colors, gradients, arrowheads, and other fill and stroke properties..."),
+  ],
+  ["win.dialog-open('Objects')", N_('Open Objects'), SECTION_DIALOG, N_('View Objects')],
+  [
+    "win.dialog-open('AlignDistribute')",
+    N_('Open Align and Distribute'),
+    SECTION_DIALOG,
+    N_('Align and distribute objects'),
+  ],
+  [
+    "win.dialog-open('DocumentProperties')",
+    N_('Open Document Properties'),
+    SECTION_DIALOG,
+    N_('Edit properties of this document (to be saved with the document)'),
+  ],
+  [
+    "win.dialog-open('XMLEditor')",
+    N_('Open XML Editor'),
+    SECTION_DIALOG,
+    N_('View and edit the XML tree of the document'),
+  ],
+];
+
+/** Register the file and dialog actions of the web app. Call once at startup. */
+export function add_actions_web(app = InkscapeApplication.instance()): void {
+  const withDesktop = (run: (dt: SPDesktop) => unknown) => () => {
+    const dt = app.get_active_desktop();
+    if (dt) void run(dt);
+  };
+
+  // TODO: open the new document in a new window.
+  app.actions.app.add_action(
+    'document-new',
+    withDesktop(async (dt) => {
       replaceDocument(dt, await sp_file_new_default());
       dt.zoom_page();
-      break;
-    case 'app.document-open': {
+    }),
+  );
+  app.actions.app.add_action(
+    'document-open',
+    withDesktop(async (dt) => {
       const doc = await sp_file_open_dialog();
       if (!doc) return;
       replaceDocument(dt, doc);
       dt.zoom_page();
-      break;
-    }
-    case 'win.document-save':
-      await sp_file_save(dt.doc);
-      break;
-    case 'win.document-save-as':
-      await sp_file_save_as(dt.doc);
-      break;
-    case 'doc.undo':
-      DocumentUndo.undo(dt.doc);
-      break;
-    case 'doc.redo':
-      DocumentUndo.redo(dt.doc);
-      break;
-    case 'app.object-to-path':
-      // TODO: /options/clonestocurvesjustunlink/value (clones).
-      toCurves(dt.getSelection());
-      break;
-  }
+    }),
+  );
+  app.actions.win.add_action(
+    'document-save',
+    withDesktop((dt) => sp_file_save(dt.doc)),
+  );
+  app.actions.win.add_action(
+    'document-save-as',
+    withDesktop((dt) => sp_file_save_as(dt.doc)),
+  );
+  // Dialogs that are not ported yet are disabled.
+  app.actions.win.add_action_with_parameter('dialog-open', 's', openDialog, hasDialog);
+  app.get_action_extra_data().add_data(raw_data_file);
+}
+
+/** Run an action by detailed name, e.g. "win.tool-switch('Rect')". */
+export function runAction(id: string): void {
+  InkscapeApplication.instance().activate_action(id);
 }

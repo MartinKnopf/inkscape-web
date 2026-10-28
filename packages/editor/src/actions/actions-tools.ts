@@ -7,6 +7,7 @@
  */
 import { N_, NC_, SPGenericEllipse, type SPItem, SPPath, SPRect, SPSpiral, SPStar } from '@inkscape-web/core';
 import type { SPDesktop } from '../desktop.ts';
+import type { InkscapeApplication } from '../inkscape-application.ts';
 import { pref_path_to_tool_name, tool_data } from '../ui/tools/tool-data.ts';
 
 /** The name of the active tool of desktop ("Select", "Rect", ...), the state of win.tool-switch. */
@@ -83,7 +84,36 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
   ],
 ];
 
-/** The tool name of a win.tool-switch action id ("win.tool-switch('Rect')" → "Rect"), or null. */
-export function toolSwitchTarget(actionId: string): string | null {
-  return /^win\.tool-switch\('([^']+)'\)$/.exec(actionId)?.[1] ?? null;
+/**
+ * Register win.tool-switch and win.tool-toggle; tools whose preferences path
+ * toolIsPorted() rejects are disabled (it comes from tool-factory.ts, which
+ * cannot be imported here: import cycle through tool-base.ts).
+ * TODO: the action state (the active tool).
+ */
+export function add_actions_tools(
+  app: InkscapeApplication,
+  toolIsPorted: (pref_path: string) => boolean,
+): void {
+  const win = app.actions.win;
+  // Tools that are not ported yet are disabled.
+  const known = (tool: string) => toolIsPorted(tool_data[tool]?.pref_path ?? '');
+  win.add_action_with_parameter(
+    'tool-switch',
+    's',
+    (tool) => {
+      const dt = app.get_active_desktop();
+      if (dt) tool_switch(tool, dt);
+    },
+    known,
+  );
+  win.add_action_with_parameter(
+    'tool-toggle',
+    's',
+    (tool) => {
+      const dt = app.get_active_desktop();
+      if (dt) tool_toggle(tool, dt);
+    },
+    known,
+  );
+  app.get_action_extra_data().add_data(raw_data_tools);
 }

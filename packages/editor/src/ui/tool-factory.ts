@@ -19,28 +19,28 @@ import { SpiralTool } from './tools/spiral-tool.ts';
 import { StarTool } from './tools/star-tool.ts';
 import type { ToolBase } from './tools/tool-base.ts';
 
-/** Create the tool with the preferences path id. TODO: the other tools. */
+/** The tools by preferences path. TODO: the other tools. */
+const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
+  '/tools/nodes': NodeTool,
+  '/tools/shapes/arc': ArcTool,
+  '/tools/shapes/rect': RectTool,
+  '/tools/freehand/pen': PenTool,
+  '/tools/freehand/pencil': PencilTool,
+  '/tools/select': SelectTool,
+  '/tools/shapes/spiral': SpiralTool,
+  '/tools/shapes/star': StarTool,
+};
+
+/** Whether createTool() knows the tool with the preferences path id. */
+export function toolIsPorted(id: string): boolean {
+  return id in TOOLS;
+}
+
+/** Create the tool with the preferences path id. */
 export function createTool(desktop: SPDesktop, id: string): ToolBase {
-  switch (id) {
-    case '/tools/nodes':
-      return new NodeTool(desktop);
-    case '/tools/shapes/arc':
-      return new ArcTool(desktop);
-    case '/tools/shapes/rect':
-      return new RectTool(desktop);
-    case '/tools/freehand/pen':
-      return new PenTool(desktop);
-    case '/tools/freehand/pencil':
-      return new PencilTool(desktop);
-    case '/tools/select':
-      return new SelectTool(desktop);
-    case '/tools/shapes/spiral':
-      return new SpiralTool(desktop);
-    case '/tools/shapes/star':
-      return new StarTool(desktop);
-    default:
-      console.warn(`WARNING: unknown tool: ${id}`);
-      // Backup tool prevents crashes in signals that expect a tool to exist.
-      return new SelectTool(desktop);
-  }
+  const Tool = TOOLS[id];
+  if (Tool) return new Tool(desktop);
+  console.warn(`WARNING: unknown tool: ${id}`);
+  // Backup tool prevents crashes in signals that expect a tool to exist.
+  return new SelectTool(desktop);
 }

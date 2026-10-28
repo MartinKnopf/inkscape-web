@@ -30,7 +30,8 @@ import { sp_svg_transform_read, sp_svg_transform_write } from '../svg/svg-affine
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { spReprCssAttrInherited, spReprCssSet } from '../xml/repr-css.ts';
-import { sp_repr_compare_position, sp_repr_is_def } from '../xml/repr-util.ts';
+import { sp_repr_compare_position } from '../xml/repr-sorting.ts';
+import { sp_repr_is_def } from '../xml/repr-util.ts';
 import { BBoxType, SPItem } from './sp-item.ts';
 import { SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';

@@ -41,6 +41,11 @@ export function setDialogDock(api: DockviewApi | null): void {
   dockview = api;
 }
 
+/** Whether a dialog with key exists (the dialogs that are ported). */
+export function hasDialog(key: string): boolean {
+  return key in DIALOGS;
+}
+
 /**
  * Open the dialog with key, or show it if it is open (action
  * win.dialog-open). A new dialog is a tab beside the open dialogs; the first

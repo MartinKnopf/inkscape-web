@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Desktop, canvas, display tree, tools, snapping and actions.
 // Uses the DOM, but not React.
+export * from './actions/action-map.ts';
 export * from './actions/actions-canvas-transform.ts';
+export * from './actions/actions-edit.ts';
+export * from './actions/actions-extra-data.ts';
 export * from './actions/actions-node-tool.ts';
+export * from './actions/actions-object.ts';
 export * from './actions/actions-object-align.ts';
 export * from './actions/actions-paths.ts';
+export * from './actions/actions-selection-object.ts';
+export * from './actions/actions-selection-window.ts';
 export * from './actions/actions-tools.ts';
+export * from './actions/actions-transform.ts';
+export * from './actions/actions-undo-document.ts';
 export * from './context-fns.ts';
 export * from './desktop.ts';
 export * from './desktop-style.ts';
@@ -19,11 +27,14 @@ export * from './display/drawing-group.ts';
 export * from './display/drawing-item.ts';
 export * from './display/drawing-shape.ts';
 export * from './enums.ts';
+export * from './inkscape-application.ts';
 export * from './layer-manager.ts';
 export * from './rubberband.ts';
 export * from './selcue.ts';
+export * from './selection-chemistry.ts';
 export * from './seltrans.ts';
 export * from './seltrans-handles.ts';
+export * from './ui/desktop/menubar.ts';
 export * from './ui/dialog/attrdialog.ts';
 export * from './ui/dialog/document-properties.ts';
 export * from './ui/dialog/fill-and-stroke.ts';

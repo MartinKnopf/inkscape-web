@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: share/attributes/, share/examples/, share/filters/, share/icons/, share/keys/, share/markers/, share/paint/, share/palettes/, share/symbols/, share/templates/, share/tutorials/, po, COPYING, AUTHORS, LICENSES/
+// Upstream: share/attributes/, share/examples/, share/filters/, share/icons/, share/keys/, share/markers/, share/paint/, share/palettes/, share/symbols/, share/templates/, share/tutorials/, share/ui/, po, COPYING, AUTHORS, LICENSES/
 // Copy runtime data from the upstream checkout into dist/ and convert the
 // translations to JSON. The web app serves dist/ as static files, with the
 // same paths as upstream (dist/share/icons/... = share/icons/...).
@@ -27,6 +27,7 @@ const SHARE_DIRS = [
   'symbols',
   'templates',
   'tutorials',
+  'ui',
 ];
 
 /** Build files and helper scripts that are not runtime data. */
