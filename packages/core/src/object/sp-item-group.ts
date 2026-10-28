@@ -82,6 +82,11 @@ export class SPGroup extends SPItem {
     }
   }
 
+  /** Move the child items by tr (desktop coordinates). */
+  translateChildItems(tr: Affine): void {
+    for (const item of this.item_list()) item.move_rel(tr);
+  }
+
   item_list(): SPItem[] {
     return this.children.filter((c): c is SPItem => c instanceof SPItem);
   }

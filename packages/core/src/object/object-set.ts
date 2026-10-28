@@ -22,6 +22,7 @@
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
 import { Affine, type OptRect, type Point, Rotate, Scale, Translate, unify } from '@inkscape-web/geom';
+import { SPAttr } from '../attributes.ts';
 import { SPDocument } from '../document.ts';
 import { DocumentUndo } from '../document-undo.ts';
 import { C_ } from '../i18n.ts';
@@ -36,6 +37,7 @@ import { BBoxType, SPItem } from './sp-item.ts';
 import { SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
 import { SPRoot } from './sp-root.ts';
+import { SPCloneCompensation, SPUse } from './sp-use.ts';
 
 /** The part of upstream LayerManager that the selection uses (the editor implements it). */
 export interface ObjectSetLayerManager {
@@ -66,9 +68,9 @@ export enum CompareSize {
  *
  * The operations on the set from upstream selection-chemistry.cpp are here
  * too (deleteItems, duplicate, group, ungroup, raise, lower, applyAffine, move, …).
- * TODO: 3D boxes, sibling state (clones with originals, text on path),
+ * TODO: 3D boxes, sibling state (text on path, offsets, flowed text),
  * connectors, transform centers, LPE items, the operations not ported yet
- * (popFromGroup, stackUp/Down, clipboard, clones, masks, layers, …).
+ * (popFromGroup, stackUp/Down, relink, masks, layers, …).
  */
 export class ObjectSet {
   protected _desktop: ObjectSetDesktop | null;
@@ -312,6 +314,13 @@ export class ObjectSet {
   /** The reprs of the objects, in the order they were added. */
   xmlNodes(): Node[] {
     return this.#container.map((o) => o.getRepr());
+  }
+
+  /** The repr of the topmost object in document order, or null for an empty set. */
+  topRepr(): Node | null {
+    const nodes = this.xmlNodes();
+    if (!nodes.length) return null;
+    return nodes.reduce((a, b) => (sp_repr_compare_position(a, b) < 0 ? b : a));
   }
 
   /** The selected groups. */
@@ -601,6 +610,165 @@ export class ObjectSet {
     if (!skip_undo) DocumentUndo.done(document, C_('Undo', 'Lower to bottom'), 'selection-bottom');
   }
 
+  /** Give the selected items that have no id a unique id. */
+  enforceIds(): void {
+    let idAssigned = false;
+    for (const item of this.items()) {
+      if (!item.getId()) {
+        // Selected object does not have an ID, so assign it a unique ID
+        item.setAttribute('id', item.generateUniqueId());
+        idAssigned = true;
+      }
+    }
+    if (idAssigned) this.document()?.setModifiedSinceSave(true);
+  }
+
+  /**
+   * Create a clone (svg:use) of each selected object on top of its parent and
+   * select the clones, with the undo step "Clone" unless skip_undo.
+   */
+  clone(skip_undo = false): void {
+    const doc = this.document();
+    if (!doc) return;
+    const xml_doc = doc.getReprDoc();
+
+    // check if something is selected
+    if (this.isEmpty()) {
+      // TODO: flash "Select an <b>object</b> to clone."
+      return;
+    }
+
+    // Assign IDs to selected objects that don't have an ID attribute
+    this.enforceIds();
+
+    const reprs = this.xmlNodes();
+    this.clear();
+
+    // sorting items from different parents sorts each parent's subset without possibly mixing them, just what we need
+    reprs.sort(sp_repr_compare_position);
+
+    const newsel: Node[] = [];
+    for (const sel_repr of reprs) {
+      const parent = sel_repr.parent();
+      if (!parent) continue;
+      const clone = xml_doc.createElement('svg:use');
+      clone.setAttribute('x', '0');
+      clone.setAttribute('y', '0');
+      clone.setAttribute('xlink:href', `#${sel_repr.attribute('id')}`);
+      clone.setAttribute('inkscape:transform-center-x', sel_repr.attribute('inkscape:transform-center-x'));
+      clone.setAttribute('inkscape:transform-center-y', sel_repr.attribute('inkscape:transform-center-y'));
+
+      // add the new clone to the top of the original's parent
+      parent.appendChild(clone);
+      newsel.push(clone);
+    }
+    if (!skip_undo) DocumentUndo.done(doc, C_('Undo', 'Clone'), 'edit-clone');
+    this.setReprList(newsel);
+  }
+
+  /**
+   * Replace the selected clones by copies of their originals and select them
+   * (with the other selected items), with the undo step "Unlink clone" unless
+   * skip_undo. Returns whether a clone was unlinked.
+   * TODO: clipped and masked items, text references (tref), the messages.
+   */
+  unlink(skip_undo = false, _silent = false): boolean {
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>clones</b> to unlink." unless silent
+      return false;
+    }
+
+    // Get a copy of current selection.
+    const new_select: SPItem[] = [];
+    let unlinked = false;
+
+    for (const item of this.items().reverse()) {
+      if (!(item instanceof SPUse)) {
+        // keep the non-use item in the new selection
+        new_select.push(item);
+        continue;
+      }
+      const unlink = item.unlink();
+      // Unable to unlink use (external or invalid href?)
+      if (!unlink) {
+        new_select.push(item);
+        continue;
+      }
+      unlinked = true;
+      // Add ungrouped items to the new selection.
+      new_select.push(unlink);
+    }
+
+    if (new_select.length) {
+      // set new selection
+      this.clear();
+      this.setList(new_select);
+    }
+    // TODO: flash "<b>No clones to unlink</b> in the selection." unless unlinked or silent
+
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'Unlink clone'), 'edit-clone-unlink');
+    return unlinked;
+  }
+
+  /**
+   * Unlink the selected clones and the clones in the selected groups, with the
+   * undo step "Unlink clone recursively" unless skip_undo. Does nothing unless
+   * force or /options/pathoperationsunlink/value.
+   */
+  unlinkRecursive(skip_undo = false, force = false, silent = false): boolean {
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>clones</b> to unlink." unless silent
+      return false;
+    }
+    const pathoperationsunlink = Preferences.get().getBool('/options/pathoperationsunlink/value', true);
+    if (!force && !pathoperationsunlink) {
+      // TODO: flash "Unable to unlink. Check the setting for 'Unlinking Clones' in your preferences."
+      return false;
+    }
+    let unlinked = false;
+    const tmp_set = new ObjectSet(this.document());
+    const items_vec = this.items();
+    for (let i = 0; i < items_vec.length; i++) {
+      tmp_set.set(items_vec[i] as SPItem);
+      unlinked = tmp_set.unlink(true, silent) || unlinked;
+      const item = tmp_set.singleItem();
+      if (!item) continue;
+      items_vec[i] = item;
+      if (item instanceof SPGroup) {
+        tmp_set.setList(item.childList());
+        unlinked = tmp_set.unlinkRecursive(skip_undo, force, silent) || unlinked;
+      }
+    }
+    // TODO: flash "<b>No clones to unlink</b> in the selection." unless unlinked or silent
+    const document = this.document();
+    if (document && !skip_undo) {
+      DocumentUndo.done(document, C_('Undo', 'Unlink clone recursively'), 'edit-clone-unlink');
+    }
+    this.setList(items_vec);
+    return unlinked;
+  }
+
+  /**
+   * Select the original of the single selected clone.
+   * TODO: linked offsets, text on path, flowed text, the highlight line
+   * (/options/highlightoriginal/value), scrolling to the original, the messages.
+   */
+  cloneOriginal(): void {
+    const item = this.singleItem();
+    // TODO: flash "Select a <b>clone</b> to go to its original. ..." for these returns.
+    if (!(item instanceof SPUse)) return;
+    const original = item.get_original();
+    if (!original) return;
+
+    for (let o: SPObject | null = original; o && !(o instanceof SPRoot); o = o.parent) {
+      // TODO: flash "The object you're trying to select is <b>not visible</b> (it is in &lt;defs&gt;)"
+      if (o.getRepr().name() === 'svg:defs') return;
+    }
+    this.clear();
+    this.set(original);
+  }
+
   /** Apply the last affine again. */
   reapplyAffine(): void {
     const cached = this.#lastAffine;
@@ -628,11 +796,56 @@ export class ObjectSet {
         // TODO: flash "Cannot transform an embedded SVG." in the message stack.
         break;
       }
-      // TODO: connectors, clones with originals, offsets, text on path, flowed text,
-      // 3D box perspectives.
+      // TODO: connectors, offsets, text on path, flowed text, 3D box perspectives.
       const old_center = item.isCenterSet() ? item.getCenter() : null;
-      if (set_i2d) item.setI2dAffine(item.i2dtAffine().multiply(affine));
-      item.doWriteTransform(item.transform, null, compensate);
+
+      // "clones are unmoved when original is moved" preference
+      const compensation = Preferences.get().getInt(
+        '/options/clonecompensation/value',
+        SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED,
+      );
+      const prefs_unmoved = compensation === SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED;
+      const prefs_parallel = compensation === SPCloneCompensation.SP_CLONE_COMPENSATION_PARALLEL;
+
+      /* If this is a clone and it's selected along with its original, do not move it;
+       * it will feel the transform of its original and respond to it itself.
+       * Without this, a clone is doubly transformed, very unintuitive. */
+      if (item instanceof SPUse && object_set_contains_original(item, this)) {
+        // We are transforming a clone along with its original. The below matrix juggling is
+        // necessary to ensure that they transform as a whole, i.e. the clone's induced
+        // transform and its move compensation are both cancelled out.
+
+        // restore item->transform field from the repr, in case it was changed by seltrans
+        item.readAttr(SPAttr.TRANSFORM);
+
+        // calculate the matrix we need to apply to the clone to cancel its induced transform from its original
+        const parent2dt = item.parent instanceof SPItem ? item.parent.i2dtAffine() : Affine.identity();
+        const t = parent2dt.multiply(affine).multiply(parent2dt.inverse());
+        const t_inv = t.inverse();
+        const result = t_inv.multiply(item.transform).multiply(t);
+
+        if ((prefs_parallel || prefs_unmoved) && affine.isTranslation()) {
+          // we need to cancel out the move compensation, too
+
+          // find out the clone move, same as in sp_use_move_compensate
+          const parent = item.get_parent_transform();
+          const clone_move = parent.inverse().multiply(t).multiply(parent);
+
+          if (prefs_parallel) {
+            const move = result.multiply(clone_move).multiply(t_inv);
+            item.doWriteTransform(move, move, compensate);
+          } else {
+            const move = result.multiply(clone_move);
+            item.doWriteTransform(move, t, compensate);
+          }
+        } else {
+          // just apply the result
+          item.doWriteTransform(result, t, compensate);
+        }
+      } else {
+        if (set_i2d) item.setI2dAffine(item.i2dtAffine().multiply(affine));
+        item.doWriteTransform(item.transform, null, compensate);
+      }
       // The transformation center follows the object, unless the transformation is a translation
       // (then the center is relative to the bounding box anyway).
       if (adjust_transf_center && set_i2d && old_center && !(affine.isTranslation() || affine.isIdentity())) {
@@ -794,6 +1007,19 @@ export class ObjectSet {
       o = o.parent;
     }
   }
+}
+
+/** True if the set contains an original (or an original of an original, …) of the clone item. */
+function object_set_contains_original(item: SPItem, set: ObjectSet): boolean {
+  let contains_original = false;
+  let item_use: SPItem | null = item;
+  while (item_use instanceof SPUse && !contains_original) {
+    item_use = item_use.get_original();
+    contains_original = !!item_use && set.includes(item_use);
+    if (item_use === item) break;
+  }
+  // TODO: text references (tref)
+  return contains_original;
 }
 
 /** Compare the document order of two objects (upstream sp_object_compare_position). */

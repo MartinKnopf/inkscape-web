@@ -12,7 +12,7 @@
  * Copyright (C) 2001 Ximian, Inc.
  * Copyright (C) 2004 Monash University
  */
-import { Affine, are_near, type OptRect, Point, Rect } from '@inkscape-web/geom';
+import { Affine, are_near, type OptRect, Point, Rect, Translate } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { Drawing, DrawingItem } from '../display/drawing.ts';
@@ -501,13 +501,13 @@ export class SPItem extends SPObject {
   /** Scale the stroke width of this item and its children by expansion. */
   adjustStrokeWidthRecursive(expansion: number): void {
     this.adjustStroke(expansion);
-    // TODO: skip the children of SPUse (a clone's child is the ghost of its original).
+    // SPUse overrides it: a clone's child is the ghost of its original, it is not touched.
     for (const o of this.children) if (o instanceof SPItem) o.adjustStrokeWidthRecursive(expansion);
   }
 
   freezeStrokeWidthRecursive(freeze: boolean): void {
     this.freeze_stroke_width = freeze;
-    // TODO: skip the children of SPUse.
+    // SPUse overrides it and skips its child.
     for (const o of this.children) if (o instanceof SPItem) o.freezeStrokeWidthRecursive(freeze);
   }
 
@@ -602,6 +602,16 @@ export class SPItem extends SPObject {
 
   dt2iAffine(): Affine {
     return this.i2dtAffine().inverse();
+  }
+
+  /** Scale the item around the middle of its visual bounds (desktop coordinates) and write the transform. */
+  scale_rel(scale: Affine): void {
+    const bbox = this.desktopVisualBounds();
+    if (bbox) {
+      const s = Translate(bbox.midpoint()); // use getCenter?
+      this.setI2dAffine(this.i2dtAffine().multiply(s.inverse()).multiply(scale).multiply(s));
+      this.doWriteTransform(this.transform);
+    }
   }
 
   /** Move the item by tr in desktop coordinates and write the transform. */

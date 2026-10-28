@@ -6,7 +6,13 @@ import { N_, NC_ } from '@inkscape-web/core';
 import { InkscapeApplication, type SPDesktop } from '@inkscape-web/editor';
 import { hasDialog, openDialog } from '../ui/dialog/dialog-manager.ts';
 import { replaceDocument } from './active-desktop.ts';
-import { sp_file_new_default, sp_file_open_dialog, sp_file_save, sp_file_save_as } from './file.ts';
+import {
+  sp_file_import,
+  sp_file_new_default,
+  sp_file_open_dialog,
+  sp_file_save,
+  sp_file_save_as,
+} from './file.ts';
 
 const SECTION_FILE = NC_('Action Section', 'File');
 const SECTION_DIALOG = NC_('Action Section', 'Dialog');
@@ -16,6 +22,7 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
   ['app.document-open', N_('Open File Dialog'), SECTION_FILE, N_('Open an existing document')],
   ['win.document-save', N_('Save'), SECTION_FILE, N_('Save document')],
   ['win.document-save-as', N_('Save As'), SECTION_FILE, N_('Save document under a new name')],
+  ['win.document-import', N_('Import'), SECTION_FILE, N_('Import a bitmap or SVG image into this document')],
   [
     "win.dialog-open('FillStroke')",
     N_('Open Fill and Stroke'),
@@ -74,6 +81,10 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   app.actions.win.add_action(
     'document-save-as',
     withDesktop((dt) => sp_file_save_as(dt.doc)),
+  );
+  app.actions.win.add_action(
+    'document-import',
+    withDesktop((dt) => sp_file_import(dt)),
   );
   // Dialogs that are not ported yet are disabled.
   app.actions.win.add_action_with_parameter('dialog-open', 's', openDialog, hasDialog);

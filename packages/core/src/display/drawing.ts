@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/display/drawing.h, src/display/drawing-item.h, src/display/drawing-group.h, src/display/drawing-shape.h
+// Upstream: src/display/drawing.h, src/display/drawing-item.h, src/display/drawing-group.h, src/display/drawing-shape.h, src/display/drawing-image.h
 /*
  * Authors:
  *   Krzysztof Kosiński <tweenk.pl@gmail.com>
  *
  * Copyright (C) 2011 Authors
  */
-import type { Affine, OptRect, PathVector } from '@inkscape-web/geom';
+import type { Affine, OptRect, PathVector, Point, Rect } from '@inkscape-web/geom';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
+import type { Pixbuf } from './cairo-utils.ts';
 
 /**
  * The display tree that SPItem.show() builds (upstream Inkscape::Drawing and
@@ -19,6 +20,7 @@ import type { SPStyle } from '../style.ts';
 export interface Drawing {
   createGroup(): DrawingGroup;
   createShape(): DrawingShape;
+  createImage(): DrawingImage;
 }
 
 export interface DrawingItem {
@@ -53,4 +55,15 @@ export interface DrawingGroup extends DrawingItem {
 
 export interface DrawingShape extends DrawingItem {
   setPath(path: PathVector | null): void;
+}
+
+/**
+ * A bitmap image: the pixbuf is drawn at origin, scaled by scale (pixbuf
+ * pixels to user units) and clipped to clipbox. The style gives image-rendering.
+ */
+export interface DrawingImage extends DrawingItem {
+  setPixbuf(pixbuf: Pixbuf | null): void;
+  setScale(sx: number, sy: number): void;
+  setOrigin(origin: Point): void;
+  setClipbox(box: Rect): void;
 }

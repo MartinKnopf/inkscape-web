@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Test helper: an in-memory Drawing that records what SPItem.show() and update() set.
 // Not used in production code.
-import type { Affine, OptRect, PathVector } from '@inkscape-web/geom';
+import type { Affine, OptRect, PathVector, Point, Rect } from '@inkscape-web/geom';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
-import type { Drawing, DrawingGroup, DrawingItem, DrawingShape } from './drawing.ts';
+import type { Pixbuf } from './cairo-utils.ts';
+import type { Drawing, DrawingGroup, DrawingImage, DrawingItem, DrawingShape } from './drawing.ts';
 
 export class FakeDrawingItem implements DrawingItem {
   parent: FakeDrawingItem | null = null;
@@ -23,7 +24,7 @@ export class FakeDrawingItem implements DrawingItem {
   itemBounds: OptRect = null;
   unlinked = false;
 
-  constructor(readonly kind: 'group' | 'shape') {}
+  constructor(readonly kind: 'group' | 'shape' | 'image') {}
 
   key(): number {
     return this.keyValue;
@@ -119,11 +120,36 @@ export class FakeDrawingShape extends FakeDrawingItem implements DrawingShape {
   }
 }
 
+export class FakeDrawingImage extends FakeDrawingItem implements DrawingImage {
+  pixbuf: Pixbuf | null = null;
+  scale: [number, number] = [1, 1];
+  origin: Point | null = null;
+  clipbox: Rect | null = null;
+  constructor() {
+    super('image');
+  }
+  setPixbuf(pixbuf: Pixbuf | null): void {
+    this.pixbuf = pixbuf;
+  }
+  setScale(sx: number, sy: number): void {
+    this.scale = [sx, sy];
+  }
+  setOrigin(origin: Point): void {
+    this.origin = origin;
+  }
+  setClipbox(box: Rect): void {
+    this.clipbox = box;
+  }
+}
+
 export class FakeDrawing implements Drawing {
   createGroup(): FakeDrawingGroup {
     return new FakeDrawingGroup();
   }
   createShape(): FakeDrawingShape {
     return new FakeDrawingShape();
+  }
+  createImage(): FakeDrawingImage {
+    return new FakeDrawingImage();
   }
 }

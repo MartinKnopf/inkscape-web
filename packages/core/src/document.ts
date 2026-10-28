@@ -15,11 +15,13 @@
  * Copyright (C) 2012 Tavmjong Bah
  */
 
-import { Affine, Point, Rect } from '@inkscape-web/geom';
+import { Affine, Point, Rect, Translate } from '@inkscape-web/geom';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
+import { prevent_id_clashes } from './id-clash.ts';
+import { ObjectSet } from './object/object-set.ts';
 import { createObject } from './object/sp-factory.ts';
 import { SPItem, type SPItemCtx } from './object/sp-item.ts';
-import { LayerMode, SPGroup } from './object/sp-item-group.ts';
+import { LayerMode, SPGroup, sp_item_group_ungroup } from './object/sp-item-group.ts';
 import { SPNamedView } from './object/sp-namedview.ts';
 import { getTypeString, type SPObject } from './object/sp-object.ts';
 import { SPRoot } from './object/sp-root.ts';
@@ -27,8 +29,35 @@ import { convertUnit, type SVGLength, SVGLengthUnit, svgUnitOf } from './svg/svg
 import { Signal } from './util/signal.ts';
 import type { XmlDocument } from './xml/document.ts';
 import type { Node } from './xml/node.ts';
+import { spReprCssAttrAddFromString, spReprCssAttrNew, spReprCssSet } from './xml/repr-css.ts';
 import { readMem } from './xml/repr-io.ts';
-import { SVG_NS_URI } from './xml/repr-util.ts';
+import {
+  SVG_NS_URI,
+  sp_repr_is_layer,
+  sp_repr_lookup_name,
+  sp_repr_lookup_name_many,
+  sp_repr_visit_descendants,
+} from './xml/repr-util.ts';
+
+/** How SPDocument.import() treats the layers of the imported document. */
+export enum ImportLayersMode {
+  None,
+  /** convert layers to groups */
+  ToGroup,
+}
+
+/** How SPDocument.import() treats the root of the imported document. */
+export enum ImportRoot {
+  None,
+  /** always create new group at root */
+  AlwaysGroup,
+  /** Create group if needed for applying properties */
+  WhenNeeded,
+  /** Keep single object at root, group when needed */
+  Single,
+  /** Single+ungroup when possible */
+  UngroupSingle,
+}
 
 /**
  * Schedules the idle update (upstream: Glib idle handler). The editor can
@@ -308,6 +337,22 @@ export class SPDocument {
     root.updateRepr();
   }
 
+  /**
+   * Resize the page to rect (desktop coordinates) and move the items so that
+   * they keep their place on the page.
+   * TODO: the unit of the root height, guides, grids, pages, scrolling the desktops.
+   */
+  fitToRect(rect: Rect, _with_margins = false): void {
+    const tr_x = -rect.left();
+    const tr_y_items = -rect.top() * this.yaxisdir();
+    // Item translation (in desktop coordinates)
+    const item_translation = Translate(tr_x, tr_y_items);
+    // Resize the document. This changes the SVG origin relative to the drawing.
+    this.setWidthAndHeight(rect.width(), 'px', rect.height(), 'px');
+    // Translate everything to cancel out the change in the origin position.
+    this.root.translateChildItems(item_translation);
+  }
+
   /** The page area in document coordinates: (0,0) to getDimensions(). */
   preferredBounds(): Rect {
     return new Rect(new Point(0, 0), this.getDimensions());
@@ -360,6 +405,172 @@ export class SPDocument {
       enter_groups,
       enter_layers,
     });
+  }
+
+  /**
+   * Import content of a document into current document.
+   *
+   * @param input_doc warning, this object will be modified
+   * @param parent the new partent of the imported objects, must be part of current document
+   * @param after_node place of insertion
+   * @param transform additional transformation in doc space, in case of identity source and target doc (0, 0) will
+   * match
+   * @param rootMode how to handle imported object root
+   * @param layerMode
+   * @returns the newly created objects
+   * TODO: rebase_hrefs, LPE items (sp_file_fix_lpe, enabling path effects), svg:style elements.
+   */
+  import(
+    input_doc: SPDocument,
+    parent: Node | null,
+    after_node: Node | null,
+    transform: Affine,
+    rootMode = ImportRoot.None,
+    layerMode = ImportLayersMode.None,
+  ): Node[] {
+    prevent_id_clashes(input_doc, this);
+    this.importDefs(input_doc);
+
+    if (parent === null) {
+      parent = this.getReprRoot();
+      after_node = null;
+    }
+    let place_to_add = parent;
+    let newgroup: Node | null = null;
+    if (rootMode !== ImportRoot.None) {
+      newgroup = this.getReprDoc().createElement('svg:g');
+      if (after_node) parent.addChild(newgroup, after_node);
+      else parent.appendChild(newgroup);
+      place_to_add = newgroup;
+      after_node = null;
+    }
+    const root = input_doc.getReprRoot();
+
+    let has_group_attributes = false;
+    const style = spReprCssAttrNew();
+    spReprCssAttrAddFromString(style, input_doc.getRoot().style.write());
+    if (style.attributeList().length && newgroup) {
+      spReprCssSet(newgroup, style, 'style');
+      has_group_attributes = true;
+    }
+
+    let pasted_objects: Node[] = [];
+    for (let obj = root.firstChild(); obj; obj = obj.next()) {
+      // Don't copy metadata, defs, named views and internal clipboard contents to the document
+      const tag = obj.name();
+      if (
+        tag === 'svg:defs' || // imported by import_defs
+        tag === 'svg:metadata' ||
+        tag === 'sodipodi:namedview' ||
+        tag === 'inkscape:clipboard'
+      ) {
+        continue;
+      }
+      if (tag === 'svg:style') {
+        this.getReprRoot().appendChild(obj.duplicate(this.getReprDoc()));
+        continue;
+      }
+
+      const obj_copy = obj.duplicate(this.getReprDoc());
+      if (after_node) {
+        place_to_add.addChild(obj_copy, after_node);
+        after_node = obj_copy;
+      } else {
+        place_to_add.appendChild(obj_copy);
+      }
+
+      sp_repr_visit_descendants(obj_copy, (node) => {
+        if (layerMode === ImportLayersMode.ToGroup && node.name() === 'svg:g') {
+          // convert layers to groups, and make sure they are unlocked
+          // FIXME: add "preserve layers" mode where each layer from
+          //        import is copied to the same-named layer in host
+          if (sp_repr_is_layer(node)) {
+            node.removeAttribute('inkscape:groupmode');
+            node.removeAttribute('sodipodi:insensitive');
+          }
+        }
+        return true;
+      });
+
+      if (this.getObjectByRepr(obj_copy) instanceof SPItem) pasted_objects.push(obj_copy);
+    }
+
+    // Fixup objects referencing objects that didn't get copied, for example copying <use> without original.
+    // When the original gets erased, clones get properly unlinked and replaced by the content of original.
+    const pasted_objects_not: Node[] = [];
+    const clipboard = sp_repr_lookup_name(root, 'inkscape:clipboard', 1);
+    if (clipboard) {
+      for (let obj = clipboard.firstChild(); obj; obj = obj.next()) {
+        if (this.getObjectById(obj.attribute('id'))) continue;
+        const obj_copy = obj.duplicate(this.getReprDoc());
+        place_to_add.appendChild(obj_copy);
+        pasted_objects_not.push(obj_copy);
+      }
+    }
+    this.ensureUpToDate();
+    const object_set = new ObjectSet(this);
+    object_set.setReprList(pasted_objects_not);
+    object_set.deleteItems(true);
+
+    if (
+      newgroup &&
+      !has_group_attributes &&
+      rootMode !== ImportRoot.AlwaysGroup &&
+      (newgroup.childCount() === 1 || rootMode === ImportRoot.WhenNeeded)
+    ) {
+      // remove unnecessary group
+      const group_root = this.getObjectByRepr(newgroup);
+      let group_children: SPItem[] = [];
+      if (group_root instanceof SPGroup) sp_item_group_ungroup(group_root, group_children);
+      newgroup = null;
+      // further ungroup, mainly needed only for imported images
+      if (rootMode === ImportRoot.UngroupSingle) {
+        for (;;) {
+          const group = group_children.length === 1 ? group_children[0] : null;
+          if (!(group instanceof SPGroup && group.children.length === 1)) break;
+          group_children = [];
+          sp_item_group_ungroup(group, group_children);
+        }
+      }
+      pasted_objects = group_children.map((item) => item.getRepr());
+    } else if (newgroup) {
+      pasted_objects = [newgroup];
+    }
+
+    this.ensureUpToDate();
+    input_doc.ensureUpToDate();
+
+    const sp_parent = this.getObjectByRepr(parent);
+    const parent2doc = sp_parent instanceof SPItem ? sp_parent.i2docAffine() : this.getRoot().i2docAffine();
+
+    const final_transform = this.dt2doc() // objectSet operates in dt space, but for following operations it's easier to use doc
+      .multiply(parent2doc.inverse()) // cancel out parent transformation
+      .multiply(input_doc.getRoot().c2p) // cancel out source doc user scaling and viewport
+      .multiply(transform) // addd the new transform
+      .multiply(this.doc2dt());
+
+    object_set.setReprList(pasted_objects);
+    object_set.applyAffine(final_transform, true, false);
+    return pasted_objects;
+  }
+
+  /**
+   * Paste all defs from the clipboard (or an imported document) into this document.
+   * TODO: merge equivalent gradients and path effects (first and second pass of
+   * upstream _importDefsNode), symbol duplicates.
+   */
+  importDefs(source: SPDocument): void {
+    const root = source.getReprRoot();
+    const target_defs = this.getDefs()?.getRepr();
+    if (!target_defs) return;
+    prevent_id_clashes(source, this);
+    for (const defs of sp_repr_lookup_name_many(root, 'svg:defs')) {
+      /* Final pass: copy over those parts which are not duplicates  */
+      for (let def = defs.firstChild(); def; def = def.next()) {
+        if (def.type() !== 'element') continue;
+        target_defs.appendChild(def.duplicate(this.getReprDoc()));
+      }
+    }
   }
 
   #emitModified(objectModifiedTag: number): void {

@@ -92,3 +92,43 @@ export function sp_repr_is_meta_element(node: Node | null): boolean {
 export function sp_repr_is_layer(node: Node): boolean {
   return node.attribute('inkscape:groupmode') === 'layer';
 }
+
+/** The first node named name in repr and its descendants, depth first, down to maxdepth levels (-1: all). */
+export function sp_repr_lookup_name(repr: Node, name: string, maxdepth = -1): Node | null {
+  if (repr.name() === name) return repr;
+  if (maxdepth === 0) return null;
+  // maxdepth == -1 means unlimited
+  const depth = maxdepth === -1 ? 0 : maxdepth;
+  for (let child = repr.firstChild(); child; child = child.next()) {
+    const found = sp_repr_lookup_name(child, name, depth - 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** All nodes named name in repr and its descendants, down to maxdepth levels (-1: all). */
+export function sp_repr_lookup_name_many(repr: Node, name: string, maxdepth = -1): Node[] {
+  const nodes: Node[] = repr.name() === name ? [repr] : [];
+  if (maxdepth === 0) return nodes;
+  const depth = maxdepth === -1 ? 0 : maxdepth;
+  for (let child = repr.firstChild(); child; child = child.next()) {
+    nodes.push(...sp_repr_lookup_name_many(child, name, depth - 1));
+  }
+  return nodes;
+}
+
+/** The first descendant (or repr itself) whose attribute key has value. */
+export function sp_repr_lookup_descendant(repr: Node, key: string, value: string | null): Node | null {
+  if (repr.attribute(key) === value) return repr;
+  for (let child = repr.firstChild(); child; child = child.next()) {
+    const found = sp_repr_lookup_descendant(child, key, value);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Call visitor for repr and its descendants; it returns false to skip the descendants of a node. */
+export function sp_repr_visit_descendants(repr: Node, visitor: (node: Node) => boolean): void {
+  if (!visitor(repr)) return;
+  for (let child = repr.firstChild(); child; child = child.next()) sp_repr_visit_descendants(child, visitor);
+}

@@ -69,6 +69,10 @@ let createObject: (typeString: string) => SPObject | null = () => {
 export function setObjectFactory(factory: (typeString: string) => SPObject | null): void {
   createObject = factory;
 }
+/** The object for a type string, from the factory (upstream SPFactory::createObject). */
+export function factoryCreateObject(typeString: string): SPObject | null {
+  return createObject(typeString);
+}
 
 /** Type string of a repr for the factory (upstream NodeTraits::get_type_string). */
 export function getTypeString(node: Node): string {
@@ -107,7 +111,10 @@ export class SPObject implements NodeObserver {
   uflags = 0;
   /** Pending modified flags. */
   mflags = 0;
+  /** Number of references to this object (not counting clones). */
   hrefcount = 0;
+  /** The objects that reference this object, newest first. */
+  hrefList: SPObject[] = [];
   xmlSpace = { set: false, value: SPXMLSpace.DEFAULT };
 
   #id: string | null = null;
@@ -192,6 +199,22 @@ export class SPObject implements NodeObserver {
     const last = this.children.at(-1);
     if (last?.repr === repr) return last;
     return this.children.find((c) => c.repr === repr) ?? null;
+  }
+
+  /** Count a reference from owner (upstream hrefObject); see URIReference. TODO: _total_hrefcount, collection. */
+  hrefObject(owner: SPObject | null = null): void {
+    // If owner is a clone, do not increase hrefcount, it's already href'ed by original.
+    if (!owner?.cloned) this.hrefcount++;
+    if (owner) this.hrefList.unshift(owner);
+  }
+
+  /** Remove a reference from owner (upstream unhrefObject). */
+  unhrefObject(owner: SPObject | null = null): void {
+    if (!owner?.cloned) {
+      if (this.hrefcount <= 0) return;
+      this.hrefcount--;
+    }
+    if (owner) this.hrefList = this.hrefList.filter((o) => o !== owner);
   }
 
   // Repr access

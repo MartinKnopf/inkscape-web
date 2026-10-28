@@ -39,6 +39,8 @@ export class Canvas {
   readonly #signalResize = new Signal<[]>();
   readonly #signalAffine = new Signal<[Affine]>();
   readonly #resizeObserver: ResizeObserver | null = null;
+  /** The last pointer position over the canvas (window coordinates), null after it left. */
+  #last_mouse: Point | null = null;
 
   constructor(host: HTMLElement) {
     this.host = host;
@@ -57,6 +59,12 @@ export class Canvas {
     this.#world.append(this.desktopLayer, this.controlsLayer);
     this.svg.append(this.#world);
     host.append(this.svg);
+    this.svg.addEventListener('pointermove', (e) => {
+      this.#last_mouse = this.windowPoint(e);
+    });
+    this.svg.addEventListener('pointerleave', () => {
+      this.#last_mouse = null;
+    });
 
     if (typeof ResizeObserver !== 'undefined') {
       this.#resizeObserver = new ResizeObserver(() => this.#signalResize.emit());
@@ -95,6 +103,11 @@ export class Canvas {
   /** Set the desk (background) color, 0xRRGGBBAA. */
   set_desk(rgba: number): void {
     this.svg.style.background = rgbaCss(rgba);
+  }
+
+  /** The last pointer position over the canvas in window coordinates, or null if the pointer is outside. */
+  get_last_mouse(): Point | null {
+    return this.#last_mouse;
   }
 
   /** Window size in px. */

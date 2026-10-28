@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/display/drawing.cpp, src/display/drawing-item.cpp, src/display/drawing-group.cpp, src/display/drawing-shape.cpp
 // @vitest-environment happy-dom
-import { SPBlendMode, SPStyle } from '@inkscape-web/core';
-import { Affine, parse_svg_path } from '@inkscape-web/geom';
+import { Pixbuf, SPBlendMode, SPStyle } from '@inkscape-web/core';
+import { Affine, Point, parse_svg_path, Rect } from '@inkscape-web/geom';
 import { describe, expect, it } from 'vitest';
 import { SvgDrawing } from './drawing.ts';
 import { SvgDrawingItem } from './drawing-item.ts';
@@ -148,5 +148,35 @@ describe('setStyle', () => {
     s.setStyle(null);
     expect(s.element.style.getPropertyValue('stroke')).toBe('');
     expect(s.element.style.getPropertyValue('isolation')).toBe('isolate');
+  });
+});
+
+describe('image', () => {
+  it('draws the scaled pixbuf in a nested svg for the clip box', () => {
+    const { drawing } = setup();
+    const img = drawing.createImage();
+    img.setPixbuf(new Pixbuf('data:image/png;base64,', 40, 30));
+    img.setScale(2, 1);
+    img.setOrigin(new Point(10, 5));
+    img.setClipbox(Rect.fromXywh(10, 0, 50, 40));
+    const clip = img.element.querySelector('svg');
+    const image = img.element.querySelector('image');
+    expect([...['x', 'y', 'width', 'height'].map((a) => clip?.getAttribute(a))]).toEqual([
+      '10',
+      '0',
+      '50',
+      '40',
+    ]);
+    expect([...['x', 'y', 'width', 'height'].map((a) => image?.getAttribute(a))]).toEqual([
+      '0',
+      '5',
+      '80',
+      '30',
+    ]);
+    expect(image?.getAttribute('href')).toBe('data:image/png;base64,');
+    expect(img.bounds().width()).toBe(50);
+
+    img.setPixbuf(null);
+    expect(clip?.getAttribute('display')).toBe('none');
   });
 });

@@ -428,6 +428,12 @@ export class SPDesktop {
     return this.doc2dt().c3;
   }
 
+  /** The pointer position in desktop coordinates, or the center of the window if the pointer is outside. */
+  point(): Point {
+    const pt = this.canvas.get_last_mouse() ?? this.canvas.get_dimensions().div(2.0);
+    return this.w2d(this.canvas.canvas_to_world(pt));
+  }
+
   // Zoom and scroll
 
   current_zoom(): number {
