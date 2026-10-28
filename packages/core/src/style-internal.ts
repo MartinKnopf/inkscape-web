@@ -83,6 +83,7 @@ import { Manager } from './colors/manager.ts';
 import type { AnySpace } from './colors/spaces/base.ts';
 import type { SPDocument } from './document.ts';
 import type { SPObject } from './object/sp-object.ts';
+import { SPPaintServerReference } from './object/sp-paint-server-reference.ts';
 import {
   cssFontFamilyQuote,
   cssFontFamilyUnquote,
@@ -200,10 +201,13 @@ export function extractUri(s: string | null): { uri: string; end: number | null 
 
 // References ------------------------------------------------------------------------------------
 
+export { SPPaintServerReference };
+
 /**
- * Placeholder for the URI references of SPStyle (SPPaintServerReference, SPFilterReference,
- * SPMarkerReference, SPShapeReference). It keeps the URI but does not resolve it: getObject() is
- * always null, like the reference to an id that is not in the document.
+ * Placeholder for the URI references of SPStyle (SPFilterReference, SPMarkerReference,
+ * SPShapeReference); SPPaintServerReference is real (object/sp-paint-server-reference.ts).
+ * It keeps the URI but does not resolve it: getObject() is always null, like the reference to an
+ * id that is not in the document.
  */
 // TODO: replace by the real references (object/uri-references.ts and subclasses) when ported.
 export class SPStyleReference {
@@ -238,7 +242,6 @@ export class SPStyleReference {
     return this.#uri === null ? null : `url(${this.#uri})`;
   }
 }
-export class SPPaintServerReference extends SPStyleReference {}
 export class SPFilterReference extends SPStyleReference {}
 export class SPMarkerReference extends SPStyleReference {}
 export class SPShapeReference extends SPStyleReference {}
@@ -1901,7 +1904,7 @@ export class SPIPaint extends SPIBase {
     this.noneSet = false;
     this.#color = undefined;
     this.tag = null;
-    this.href = null;
+    this.dropHref();
 
     if (init && this.id === SPAttr.FILL) {
       this.#color = new Color(0x000000ff); // 'black' is default for 'fill'
@@ -1964,7 +1967,21 @@ export class SPIPaint extends SPIBase {
     this.noneSet = rhs.noneSet;
     this.inheritSource = rhs.inheritSource;
     this.#color = rhs.#color?.clone();
-    this.href = rhs.href;
+    if (rhs.href !== this.href) {
+      this.dropHref();
+      this.href = rhs.href;
+      if (this.href) this.href._shares++;
+    }
+  }
+
+  /**
+   * Release the reference: detach it when no other SPIPaint shares it (upstream: href.reset()
+   * on the shared_ptr, whose destructor detaches).
+   */
+  dropHref(): void {
+    const href = this.href;
+    this.href = null;
+    if (href && --href._shares === 0) href.detach();
   }
 
   isSameType(other: SPIPaint): boolean {

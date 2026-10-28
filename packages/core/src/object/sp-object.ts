@@ -14,6 +14,7 @@
  */
 import { attributeIsCss, attributeLookup, attributeName, SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
+import { Preferences } from '../preferences.ts';
 import { SP_STYLE_FLAG_IFSET, SP_STYLE_FLAG_IFSRC, SPStyle, SPStyleSrc } from '../style.ts';
 import { Signal } from '../util/signal.ts';
 import type { XmlDocument } from '../xml/document.ts';
@@ -111,9 +112,11 @@ export class SPObject implements NodeObserver {
   uflags = 0;
   /** Pending modified flags. */
   mflags = 0;
-  /** Number of references to this object (not counting clones). */
+  /** Number of references (xlink:href, url()) to this object, see URIReference. */
   hrefcount = 0;
-  /** The objects that reference this object, newest first. */
+  /** hrefcount of this object and all its descendants. */
+  _total_hrefcount = 0;
+  /** The objects that reference this object (owners of the URIReferences). */
   hrefList: SPObject[] = [];
   xmlSpace = { set: false, value: SPXMLSpace.DEFAULT };
 
@@ -152,6 +155,67 @@ export class SPObject implements NodeObserver {
   }
   setCollectionPolicy(policy: CollectionPolicy): void {
     this.#collectionPolicy = policy;
+  }
+
+  // References and orphan collection
+
+  /** Increase the hrefcount; owner is the referencing object (upstream hrefObject). */
+  hrefObject(owner: SPObject | null = null): void {
+    // If owner is a clone, do not increase hrefcount, it's already href'ed by original.
+    if (!owner?.cloned) {
+      this.hrefcount++;
+      this.#updateTotalHRefCount(1);
+    }
+    if (owner) this.hrefList.unshift(owner);
+  }
+
+  /** Decrease the hrefcount; the object is collected when it drops to zero and its policy allows it. */
+  unhrefObject(owner: SPObject | null = null): void {
+    if (!owner?.cloned) {
+      if (this.hrefcount <= 0) {
+        console.error('unhrefObject: hrefcount is already 0');
+        return;
+      }
+      this.hrefcount--;
+      this.#updateTotalHRefCount(-1);
+    }
+    if (owner) {
+      const i = this.hrefList.indexOf(owner);
+      if (i >= 0) this.hrefList.splice(i, 1);
+    }
+  }
+
+  #updateTotalHRefCount(increment: number): void {
+    let topmost_collectable: SPObject | null = null;
+    for (let iter: SPObject | null = this; iter; iter = iter.parent) {
+      iter._total_hrefcount += increment;
+      if (iter._total_hrefcount < iter.hrefcount) console.error('HRefs overcounted');
+      if (iter._total_hrefcount === 0 && iter.#collectionPolicy !== CollectionPolicy.COLLECT_WITH_PARENT) {
+        topmost_collectable = iter;
+      }
+    }
+    topmost_collectable?.requestOrphanCollection();
+  }
+
+  /** Whether another object references this object or a descendant. */
+  isReferenced(): boolean {
+    return this._total_hrefcount > 0;
+  }
+
+  /**
+   * Queue the object for collectOrphan() in the next document commit (SPDocument.collectOrphans).
+   * Swatches are kept unless /options/cleanupswatches/value is set.
+   * TODO: style, script, font, color profile and page elements are kept (not ported yet).
+   */
+  requestOrphanCollection(): void {
+    const swatch = 'isSwatch' in this && typeof this.isSwatch === 'function' && this.isSwatch();
+    if (swatch && !Preferences.get().getBool('/options/cleanupswatches/value', false)) return;
+    this.document.queueForOrphanCollection(this);
+  }
+
+  /** Delete the object if nothing references it (no notification at the SPObject level). */
+  collectOrphan(): void {
+    if (this._total_hrefcount === 0) this.deleteObject(false);
   }
 
   // Tree navigation
@@ -199,22 +263,6 @@ export class SPObject implements NodeObserver {
     const last = this.children.at(-1);
     if (last?.repr === repr) return last;
     return this.children.find((c) => c.repr === repr) ?? null;
-  }
-
-  /** Count a reference from owner (upstream hrefObject); see URIReference. TODO: _total_hrefcount, collection. */
-  hrefObject(owner: SPObject | null = null): void {
-    // If owner is a clone, do not increase hrefcount, it's already href'ed by original.
-    if (!owner?.cloned) this.hrefcount++;
-    if (owner) this.hrefList.unshift(owner);
-  }
-
-  /** Remove a reference from owner (upstream unhrefObject). */
-  unhrefObject(owner: SPObject | null = null): void {
-    if (!owner?.cloned) {
-      if (this.hrefcount <= 0) return;
-      this.hrefcount--;
-    }
-    if (owner) this.hrefList = this.hrefList.filter((o) => o !== owner);
   }
 
   // Repr access
@@ -347,8 +395,8 @@ export class SPObject implements NodeObserver {
 
   protected release(): void {
     this.style.filter.clear();
-    this.style.fill.href = null;
-    this.style.stroke.href = null;
+    this.style.fill.dropHref();
+    this.style.stroke.dropHref();
     this.style.shape_inside.clear();
     this.style.shape_subtract.clear();
 

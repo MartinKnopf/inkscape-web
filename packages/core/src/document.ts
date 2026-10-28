@@ -19,6 +19,7 @@ import { Affine, Point, Rect, Translate } from '@inkscape-web/geom';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { prevent_id_clashes } from './id-clash.ts';
 import { ObjectSet } from './object/object-set.ts';
+import { SPDefs } from './object/sp-defs.ts';
 import { createObject } from './object/sp-factory.ts';
 import { SPItem, type SPItemCtx } from './object/sp-item.ts';
 import { LayerMode, SPGroup, sp_item_group_ungroup } from './object/sp-item-group.ts';
@@ -101,6 +102,7 @@ export class SPDocument {
   #reprdef = new Map<Node, SPObject>();
   #objectIdCounter = 1;
   #updatePending = false;
+  #collectionQueue: SPObject[] = [];
 
   /** Build the object tree for rdoc (upstream SPDocument::createDoc). */
   constructor(rdoc: XmlDocument, filename: string | null = null, name: string | null = null) {
@@ -196,6 +198,43 @@ export class SPDocument {
       if (!this.getObjectById(id)) return id;
       this.#objectIdCounter++;
     }
+  }
+
+  // Orphan collection
+
+  /** Queue object for collectOrphans() (called by SPObject.requestOrphanCollection). */
+  queueForOrphanCollection(object: SPObject): void {
+    if (object.document !== this) throw new Error('queueForOrphanCollection: object of another document');
+    this.#collectionQueue.push(object);
+  }
+
+  /** Delete the queued objects that are still unreferenced (called before each undo step). */
+  collectOrphans(): void {
+    while (this.#collectionQueue.length) {
+      const objects = this.#collectionQueue;
+      this.#collectionQueue = [];
+      for (const object of objects) {
+        // Upstream holds a reference; here skip objects that were deleted meanwhile.
+        if (this.getObjectByRepr(object.repr) === object) object.collectOrphan();
+      }
+    }
+  }
+
+  /** Remove unused definitions (collectable or not) from the defs; returns the number of removed objects. */
+  vacuumDocument(): number {
+    const start = objects_in_document(this);
+    let end: number;
+    let newend = start;
+    let iterations = 0;
+    do {
+      end = newend;
+      vacuum_document_recursive(this.root);
+      this.collectOrphans();
+      iterations++;
+      newend = objects_in_document(this);
+    } while (iterations < 100 && newend < end);
+    // We stop if vacuum_document_recursive doesn't remove any more objects or after 100 iterations, whichever occurs first.
+    return start - newend;
   }
 
   isSeeking(): boolean {
@@ -581,6 +620,26 @@ export class SPDocument {
   setModifiedSinceSave(modified = true): void {
     this.modifiedSinceSave = modified;
     this.modifiedSinceSaveSignal.emit(modified);
+  }
+}
+
+function count_objects_recursive(obj: SPObject, count: number): number {
+  count++; // obj itself
+  for (const child of obj.children) count = count_objects_recursive(child, count);
+  return count;
+}
+
+function objects_in_document(document: SPDocument): number {
+  return count_objects_recursive(document.getRoot(), 0);
+}
+
+/** Request the collection of every child of the defs (in obj and its descendants). */
+function vacuum_document_recursive(obj: SPObject): void {
+  if (obj instanceof SPDefs) {
+    // fixme: some inkscape-internal nodes in the future might not be collectable
+    for (const def of obj.childList()) def.requestOrphanCollection();
+  } else {
+    for (const child of obj.childList()) vacuum_document_recursive(child);
   }
 }
 
