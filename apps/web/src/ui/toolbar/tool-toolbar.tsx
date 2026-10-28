@@ -39,6 +39,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Pen', 'draw-path'],
     ['Pencil', 'draw-freehand'],
   ],
+  [['Gradient', 'color-gradient']],
 ];
 
 /** The name of the active tool of desktop ("Select", "Rect", ...), or ''. */

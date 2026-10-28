@@ -190,6 +190,42 @@
   border-color: #3584e4;
 }
 
+.gradient-preview {
+  height: 16px;
+  margin: 6px 0;
+  border: 1px solid #b8b8b8;
+  background-color: #fff;
+}
+
+.gradient-stops {
+  display: flex;
+  flex-direction: column;
+  max-height: 96px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+}
+
+.gradient-stops button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.gradient-stops button[aria-selected="true"] {
+  background: #cfe3ff;
+}
+
+.stop-swatch {
+  width: 24px;
+  height: 12px;
+  border: 1px solid #888;
+}
+
 .sv-picker {
   position: relative;
   height: 120px;

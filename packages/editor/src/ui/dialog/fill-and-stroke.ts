@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/dialog/fill-and-stroke.h, src/ui/widget/stroke-style.cpp, src/ui/widget/paint-switch.cpp, src/ui/widget/paint-enums.cpp, src/ui/widget/object-composite-settings.cpp
+// Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/dialog/fill-and-stroke.h, src/ui/widget/stroke-style.cpp, src/ui/widget/paint-switch.cpp, src/ui/widget/paint-enums.cpp, src/ui/widget/object-composite-settings.cpp, src/ui/widget/gradient-editor.cpp
 /*
  * Fill and Stroke dialog: the logic behind the widgets. It reads the paint and the stroke style of
  * the selection with sp_desktop_query_style() and changes them with sp_desktop_set_style(), each
@@ -20,13 +20,24 @@ import {
   DocumentUndo,
   Preferences,
   type SPCSSAttr,
+  type SPGradient,
+  type SPGradientSpread,
+  SPGradientType,
   type SPIPaint,
   type SPItem,
+  SPLinearGradient,
+  SPRadialGradient,
+  SPStop,
   SPStrokeCapType,
   SPStrokeJoinType,
   SPStyle,
   SPWindRule,
+  sp_gradient_add_stop,
+  sp_gradient_delete_stop,
+  sp_gradient_reverse_vector,
+  sp_set_gradient_stop_color,
   spReprCssAttrNew,
+  spReprCssChangeRecursive,
   spReprCssSetProperty,
   spReprCssSetPropertyDouble,
   spReprCssSetPropertyString,
@@ -50,6 +61,7 @@ import {
   sp_desktop_set_color,
   sp_desktop_set_style,
 } from '../../desktop-style.ts';
+import { sp_item_apply_gradient } from '../../gradient-chemistry.ts';
 
 const ICON = 'dialog-fill-and-stroke';
 const UNDO = 'Undo';
@@ -72,12 +84,19 @@ export type PaintInfo =
   | { kind: 'empty' }
   /** The selected objects have different kinds of paint. */
   | { kind: 'multiple' }
-  | { kind: 'paint'; mode: PaintMode; color: Colors.Color; fillRule: SPWindRule };
+  | {
+      kind: 'paint';
+      mode: PaintMode;
+      color: Colors.Color;
+      fillRule: SPWindRule;
+      /** The linear or radial gradient of the first selected object (PaintMode.Gradient), else null. */
+      gradient: SPGradient | null;
+    };
 
 /** The mode of paint (upstream get_mode_from_paint). */
 export function paintModeFromPaint(paint: SPIPaint): PaintMode {
   if (paint.isDerived()) return PaintMode.Derived;
-  if (paint.isPaintserver()) return PaintMode.Gradient; // TODO: patterns, hatches, meshes, swatches
+  if (paint.isPaintserver()) return PaintMode.Gradient; // TODO: patterns, hatches, meshes, swatches (tell them by the server)
   if (paint.isColor()) return PaintMode.Solid;
   return PaintMode.None;
 }
@@ -110,7 +129,13 @@ export function queryPaint(desktop: SPDesktop, isFill: boolean): PaintInfo {
   color = color.clone();
   color.enableOpacity(true);
   color.setOpacity(opacity);
-  return { kind: 'paint', mode, color, fillRule: style.fill_rule.computed };
+  const server = paint.isPaintserver()
+    ? isFill
+      ? style.getFillPaintServer()
+      : style.getStrokePaintServer()
+    : null;
+  const gradient = server instanceof SPLinearGradient || server instanceof SPRadialGradient ? server : null;
+  return { kind: 'paint', mode, color, fillRule: style.fill_rule.computed, gradient };
 }
 
 /** Set the paint to a flat color; sliders merge their steps (upstream get_flat_color_changed). */
@@ -156,9 +181,92 @@ export function setPaintMode(
     case PaintMode.Solid:
       if (color) setFlatColor(desktop, color, isFill);
       break;
+    case PaintMode.Gradient:
+      // A new gradient from the current paint (upstream fire_gradient_changed(nullptr)).
+      setGradient(desktop, isFill, null, SPGradientType.SP_GRADIENT_TYPE_LINEAR);
+      break;
     default:
-      break; // TODO
+      break; // TODO: mesh, pattern, swatch
   }
+}
+
+/** Unset fill-opacity or stroke-opacity of item (upstream remove_opacity). */
+function remove_opacity(item: SPItem, isFill: boolean): void {
+  const css = spReprCssAttrNew();
+  spReprCssUnsetProperty(css, isFill ? 'fill-opacity' : 'stroke-opacity');
+  spReprCssChangeRecursive(item.getRepr(), css, 'style');
+}
+
+/**
+ * Apply the gradient vector (null: a new one from the current paint) as a linear or radial
+ * gradient to the selection (upstream: the get_gradient_changed handler of the dialog).
+ */
+export function setGradient(
+  desktop: SPDesktop,
+  isFill: boolean,
+  vector: SPGradient | null,
+  type: SPGradientType,
+): void {
+  for (const item of desktop.getSelection().items()) {
+    sp_item_apply_gradient(item, vector, desktop, type, false, isFill);
+    remove_opacity(item, isFill);
+  }
+  DocumentUndo.done(
+    desktop.getDocument(),
+    isFill ? C_(UNDO, 'Set gradient on fill') : C_(UNDO, 'Set gradient on stroke'),
+    ICON,
+  );
+}
+
+// Gradient editor (upstream GradientEditor, reduced) -----------------------------------------------
+
+const GRADIENT_ICON = 'color-gradient';
+
+/** The stops of the vector of gradient. */
+export function gradientStops(gradient: SPGradient): SPStop[] {
+  return gradient.getVector().children.filter((c): c is SPStop => c instanceof SPStop);
+}
+
+/** Set the color of a stop (upstream GradientEditor::set_stop_color); slider steps merge. */
+export function setStopColor(stop: SPStop, color: Colors.Color): void {
+  sp_set_gradient_stop_color(stop.document, stop, color);
+}
+
+/** Set the offset (0 to 1) of a stop, limited by its neighbors (upstream GradientEditor::set_stop_offset). */
+export function setStopOffset(stop: SPStop, offset: number): void {
+  const prev = stop.getPrevStop();
+  const next = stop.getNextStop();
+  stop.offset = Math.min(Math.max(offset, prev?.offset ?? 0), next?.offset ?? 1);
+  stop.getRepr().setAttribute('offset', cssNumber(stop.offset));
+  DocumentUndo.maybeDone(
+    stop.document,
+    'gradient:stop:offset',
+    C_(UNDO, 'Change gradient stop offset'),
+    GRADIENT_ICON,
+  );
+}
+
+/** Add a stop after stop (upstream GradientEditor::add_stop); returns the new stop. */
+export function addGradientStop(gradient: SPGradient, stop: SPStop): SPStop | null {
+  return sp_gradient_add_stop(gradient.getVector(), stop);
+}
+
+/** Delete stop if the vector keeps two stops (upstream GradientEditor::delete_stop). */
+export function deleteGradientStop(gradient: SPGradient, stop: SPStop): boolean {
+  return sp_gradient_delete_stop(gradient.getVector(), stop);
+}
+
+/** Reverse the stops of the vector (upstream GradientEditor::reverse_gradient). */
+export function reverseGradient(gradient: SPGradient): void {
+  sp_gradient_reverse_vector(gradient.getVector());
+  DocumentUndo.done(gradient.document, C_(UNDO, 'Reverse gradient'), GRADIENT_ICON);
+}
+
+/** Set the spread of the gradient (upstream GradientEditor::set_repeat_mode). */
+export function setGradientRepeat(gradient: SPGradient, mode: SPGradientSpread): void {
+  gradient.setSpread(mode);
+  gradient.updateRepr();
+  DocumentUndo.done(gradient.document, C_(UNDO, 'Set gradient repeat'), GRADIENT_ICON);
 }
 
 /** Set the fill rule (upstream get_fill_rule_changed). */

@@ -1,7 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/dialog/fill-and-stroke.h, src/ui/widget/stroke-style.cpp, src/ui/widget/paint-switch.cpp, src/ui/widget/color-notebook.cpp
-import { _, C_, type Colors, SPStrokeCapType, SPStrokeJoinType, SPWindRule } from '@inkscape-web/core';
+// Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/dialog/fill-and-stroke.h, src/ui/widget/stroke-style.cpp, src/ui/widget/paint-switch.cpp, src/ui/widget/color-notebook.cpp, src/ui/widget/gradient-editor.cpp
 import {
+  _,
+  C_,
+  type Colors,
+  type SPGradient,
+  SPGradientSpread,
+  SPGradientType,
+  SPRadialGradient,
+  SPStrokeCapType,
+  SPStrokeJoinType,
+  SPWindRule,
+} from '@inkscape-web/core';
+import {
+  addGradientStop,
   CAP_NAMES,
   colorFromHsva,
   colorFromRgba8,
@@ -9,6 +21,8 @@ import {
   colorToHsva,
   colorToRgba8,
   DASH_PATTERNS,
+  deleteGradientStop,
+  gradientStops,
   type Hsva,
   JOIN_NAMES,
   type PaintInfo,
@@ -18,14 +32,19 @@ import {
   queryOpacity,
   queryPaint,
   queryStrokeStyle,
+  reverseGradient,
   type SPDesktop,
   STROKE_UNITS,
   type StrokeStyleInfo,
   type StrokeUnit,
   setFillRule,
   setFlatColor,
+  setGradient,
+  setGradientRepeat,
   setOpacity,
   setPaintMode,
+  setStopColor,
+  setStopOffset,
   setStrokeDash,
   setStrokeJoinOrCap,
   setStrokeMiter,
@@ -34,6 +53,7 @@ import {
 } from '@inkscape-web/editor';
 import { useId, useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
+import { iconUrl } from '../icon-loader.ts';
 import { SpinButton } from '../widget/spinbutton.tsx';
 import { useReprVersion, useSelectionVersion } from './use-repr.ts';
 
@@ -45,7 +65,7 @@ const label = (s: string) => s.replace('_', '');
 /**
  * The Fill and Stroke dialog (dialog key "FillStroke"): the tabs Fill, Stroke paint and Stroke
  * style for the selection, and the opacity.
- * TODO: gradient, mesh, pattern and swatch paints, the Advanced tab, markers, paint order,
+ * TODO: mesh, pattern and swatch paints, the gradient library, the Advanced tab, markers, paint order,
  * hairline strokes, blur, blend mode and isolation, icons.
  */
 export function FillAndStrokeDialog() {
@@ -90,7 +110,7 @@ const PAINT_MODES: { mode: PaintMode; name: string; tip: string; implemented: bo
     mode: PaintMode.Gradient,
     name: C_('Paint type', 'Gradient'),
     tip: _('Linear gradient fill'),
-    implemented: false,
+    implemented: true,
   },
   { mode: PaintMode.Mesh, name: C_('Paint type', 'Mesh'), tip: _('Mesh fill'), implemented: false },
   {
@@ -132,6 +152,9 @@ function PaintPage({ desktop, isFill }: { desktop: SPDesktop; isFill: boolean })
       {info.mode === PaintMode.Solid && (
         <ColorEditor color={info.color} onChange={(c) => setFlatColor(desktop, c, isFill)} />
       )}
+      {info.mode === PaintMode.Gradient && info.gradient && (
+        <GradientEditor desktop={desktop} isFill={isFill} gradient={info.gradient} />
+      )}
       {info.mode === PaintMode.None && <p className="fillstroke-placeholder">{_('No paint')}</p>}
       {info.mode === PaintMode.Derived && <p className="fillstroke-placeholder">{_('Inherited')}</p>}
       {isFill && (
@@ -155,6 +178,129 @@ function PaintPage({ desktop, isFill }: { desktop: SPDesktop; isFill: boolean })
       )}
     </div>
   );
+}
+
+// Gradient editor -------------------------------------------------------------------------------
+
+/** The repeat modes (upstream sp_get_spread_repeats). */
+const SPREAD_REPEATS: readonly [SPGradientSpread, string][] = [
+  [SPGradientSpread.SP_GRADIENT_SPREAD_PAD, C_('Gradient repeat type', 'None')],
+  [SPGradientSpread.SP_GRADIENT_SPREAD_REPEAT, C_('Gradient repeat type', 'Direct')],
+  [SPGradientSpread.SP_GRADIENT_SPREAD_REFLECT, C_('Gradient repeat type', 'Reflected')],
+];
+
+/**
+ * Editor of the gradient of the selection (upstream GradientEditor, reduced): linear or radial,
+ * repeat, the list of stops, the offset and the color of the selected stop, add, remove, reverse.
+ * TODO: the gradient library, the angle, the stops on a preview strip.
+ */
+function GradientEditor(props: { desktop: SPDesktop; isFill: boolean; gradient: SPGradient }) {
+  const { desktop, isFill, gradient } = props;
+  const [index, setIndex] = useState(0);
+  const stops = gradientStops(gradient);
+  const current = stops[Math.min(index, stops.length - 1)];
+  const radial = gradient instanceof SPRadialGradient;
+  const setType = (type: SPGradientType) => setGradient(desktop, isFill, gradient.getVector(), type);
+  const background = `linear-gradient(to right, ${stops
+    .map((s) => `${s.getColor().toString()} ${s.offset * 100}%`)
+    .join(', ')})`;
+
+  return (
+    <div className="gradient-editor">
+      <div className="fillstroke-row">
+        <button
+          type="button"
+          title={_('Linear gradient')}
+          aria-pressed={!radial}
+          onClick={() => setType(SPGradientType.SP_GRADIENT_TYPE_LINEAR)}
+        >
+          <Icon name="paint-gradient-linear" />
+        </button>
+        <button
+          type="button"
+          title={_('Radial gradient')}
+          aria-pressed={radial}
+          onClick={() => setType(SPGradientType.SP_GRADIENT_TYPE_RADIAL)}
+        >
+          <Icon name="paint-gradient-radial" />
+        </button>
+        <select
+          title={_('Repeat mode')}
+          value={gradient.getSpread()}
+          onChange={(e) => setGradientRepeat(gradient, Number(e.target.value) as SPGradientSpread)}
+        >
+          {SPREAD_REPEATS.map(([mode, label]) => (
+            <option key={mode} value={mode}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          title={_('Reverse the direction of the gradient')}
+          onClick={() => reverseGradient(gradient)}
+        >
+          <Icon name="object-flip-horizontal" />
+        </button>
+      </div>
+      <div className="gradient-preview" style={{ backgroundImage: background }} />
+      <div className="gradient-stops" role="listbox" aria-label={_('Stop')}>
+        {stops.map((s, i) => (
+          <button
+            key={s.getId() ?? i}
+            type="button"
+            role="option"
+            aria-selected={s === current}
+            onClick={() => setIndex(i)}
+          >
+            <span className="stop-swatch" style={{ background: s.getColor().toString() }} />
+            {s.getId()}
+          </button>
+        ))}
+      </div>
+      {current && (
+        <>
+          <div className="fillstroke-row">
+            <SpinButton
+              label={_('Offset')}
+              tooltip={_('Offset of selected stop')}
+              value={current.offset * 100}
+              min={0}
+              max={100}
+              step={1}
+              digits={1}
+              suffix="%"
+              onChange={(v) => setStopOffset(current, v / 100)}
+            />
+            <button
+              type="button"
+              title={_('Add stop')}
+              onClick={() => {
+                const added = addGradientStop(gradient, current);
+                if (added) setIndex(gradientStops(gradient).indexOf(added));
+              }}
+            >
+              <Icon name="gradient-add-stop" />
+            </button>
+            <button
+              type="button"
+              title={_('Remove stop')}
+              disabled={stops.length <= 2}
+              onClick={() => deleteGradientStop(gradient, current)}
+            >
+              <Icon name="gradient-remove-stop" />
+            </button>
+          </div>
+          <ColorEditor color={current.getColor()} onChange={(c) => setStopColor(current, c)} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** An icon of the icon theme. */
+function Icon({ name }: { name: string }) {
+  return <img src={iconUrl(name)} alt="" width={16} height={16} />;
 }
 
 // Color editor ----------------------------------------------------------------------------------
