@@ -11,6 +11,7 @@ import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
+import { SwatchesDialog } from './swatches.tsx';
 import { TextEditDialog } from './text-edit.tsx';
 import { TransformationDialog } from './transformation.tsx';
 import { UndoHistoryDialog } from './undo-history.tsx';
@@ -38,6 +39,7 @@ const DIALOGS: Record<string, DialogData> = {
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
+  Swatches: { label: _('S_watches'), component: SwatchesDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
   Transform: { label: _('Transfor_m'), component: TransformationDialog },
   UndoHistory: { label: _('Undo _History'), component: UndoHistoryDialog },

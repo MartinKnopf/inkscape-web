@@ -12,6 +12,7 @@ import { SnapToolbar } from '../ui/toolbar/snap-toolbar.tsx';
 import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
 import { Toolbars } from '../ui/toolbar/toolbars.tsx';
 import { useActiveDesktop, useActiveDocument, useDocumentTitle, useZoom } from './active-desktop.ts';
+import { ColorPaletteBar } from '../ui/widget/color-palette.tsx';
 import {
   document_new,
   restoreAutosaved,
@@ -74,6 +75,7 @@ export function App() {
           onReady={onReady}
         />
       </div>
+      <ColorPaletteBar />
       <StatusBar />
       <GuidelineDialogHost />
       <MessageDialogHost />
