@@ -3,6 +3,8 @@
 // Uses the DOM, but not React.
 export * from './actions/actions-canvas-transform.ts';
 export * from './actions/actions-node-tool.ts';
+export * from './actions/actions-object-align.ts';
+export * from './actions/actions-paths.ts';
 export * from './actions/actions-tools.ts';
 export * from './context-fns.ts';
 export * from './desktop.ts';

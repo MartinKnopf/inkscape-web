@@ -242,6 +242,11 @@ export class SPDocument {
     return new Rect(new Point(0, 0), this.getDimensions());
   }
 
+  /** The bounds of the selected page. TODO: pages (the page manager); now preferredBounds(). */
+  pageBounds(): Rect {
+    return this.preferredBounds();
+  }
+
   // Items in an area
 
   /**
