@@ -5,7 +5,19 @@
  *
  * Copyright (C) 2020 Tavmjong Bah
  */
-import { N_, NC_, SPGenericEllipse, type SPItem, SPPath, SPRect, SPSpiral, SPStar } from '@inkscape-web/core';
+import {
+  N_,
+  NC_,
+  SPFlowtext,
+  SPGenericEllipse,
+  type SPItem,
+  SPPath,
+  SPRect,
+  SPSpiral,
+  SPStar,
+  SPText,
+} from '@inkscape-web/core';
+import type { Point } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 import { pref_path_to_tool_name, tool_data } from '../ui/tools/tool-data.ts';
@@ -21,9 +33,17 @@ export function set_active_tool(desktop: SPDesktop, tool: string): void {
   tool_switch(tool, desktop);
 }
 
-/** Set tool to appropriate one to edit item. TODO: 3D box, marker, connectors, text, offset. */
-export function set_active_tool_for_item(desktop: SPDesktop, item: SPItem): void {
-  if (item instanceof SPRect) tool_switch('Rect', desktop);
+/**
+ * Set tool to appropriate one to edit item; for text, put the cursor at p
+ * (desktop coordinates). TODO: 3D box, marker, connectors, offset.
+ */
+export function set_active_tool_for_item(desktop: SPDesktop, item: SPItem, p: Point | null = null): void {
+  if (item instanceof SPText || item instanceof SPFlowtext) {
+    tool_switch('Text', desktop);
+    // The text tool (not imported here: import cycle with tool-base).
+    const tool = desktop.getTool() as { placeCursorAt?: (item: SPItem, p: Point) => void } | null;
+    if (p) tool?.placeCursorAt?.(item, p);
+  } else if (item instanceof SPRect) tool_switch('Rect', desktop);
   else if (item instanceof SPGenericEllipse) tool_switch('Arc', desktop);
   else if (item instanceof SPStar) tool_switch('Star', desktop);
   else if (item instanceof SPSpiral) tool_switch('Spiral', desktop);

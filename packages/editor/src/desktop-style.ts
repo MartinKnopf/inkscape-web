@@ -22,6 +22,7 @@ import {
   SPStrokeCapType,
   SPStrokeJoinType,
   type SPStyle,
+  SPStyle as SPStyleClass,
   spCssAttrScale,
   spCssAttrUnsetText,
   spCssAttrUnsetUris,
@@ -455,4 +456,21 @@ export function sp_desktop_query_style(
   const selection = desktop.getSelection();
   if (selection.isEmpty()) return QUERY_STYLE_NOTHING;
   return sp_desktop_query_style_from_list(selection.items(), style, property);
+}
+
+/**
+ * The font size (px) of new text: the last used style if /tools/text/usecurrent
+ * is set, else the text tool's style. Default 12.
+ */
+export function sp_desktop_get_font_size_tool(desktop: SPDesktop): number {
+  const prefs = Preferences.get();
+  const desktop_style = prefs.getString('/desktop/style');
+  const style_str =
+    prefs.getBool('/tools/text/usecurrent') && desktop_style
+      ? desktop_style
+      : prefs.getString('/tools/text/style');
+  if (!style_str) return 12;
+  const style = new SPStyleClass(desktop.getDocument());
+  style.mergeString(style_str);
+  return style.font_size.computed;
 }

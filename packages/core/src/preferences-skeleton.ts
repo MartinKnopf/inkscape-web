@@ -66,4 +66,12 @@ export const preferences_skeleton: Readonly<Record<string, string>> = {
   '/tools/freehand/pen/selcue': '1',
   '/tools/freehand/pen/style': 'stroke-width:1px;',
   '/tools/freehand/pen/usecurrent': 'path',
+  '/tools/text/usecurrent': 'text',
+  '/tools/text/gradientdrag': '1',
+  '/tools/text/font_sample': 'AaBbCcIiPpQq12369$€¢?.;/()',
+  '/tools/text/show_sample_in_list': '1',
+  '/tools/text/use_svg2': '1',
+  '/tools/text/style':
+    'fill:black;fill-opacity:1;line-height:1.25;stroke:none;font-family:sans-serif;font-style:normal;font-weight:normal;font-size:40px;',
+  '/tools/text/selcue': '1',
 };
