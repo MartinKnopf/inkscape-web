@@ -10,6 +10,7 @@ import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
+import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
 import { SPPolygon } from './sp-polygon.ts';
@@ -41,6 +42,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['spiral', () => new SPSpiral()],
   ['star', () => new SPStar()],
   ['svg:svg', () => new SPRoot()],
+  ['sodipodi:namedview', () => new SPNamedView()],
 
   // ignore
   ['rdf:RDF', null], // no SP node yet

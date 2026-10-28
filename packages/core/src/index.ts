@@ -17,6 +17,7 @@ export * from './object/sp-factory.ts';
 export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';
 export * from './object/sp-line.ts';
+export * from './object/sp-namedview.ts';
 export * from './object/sp-object.ts';
 export * from './object/sp-path.ts';
 export * from './object/sp-polygon.ts';

@@ -20,6 +20,7 @@ import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { createObject } from './object/sp-factory.ts';
 import { SPItem, type SPItemCtx } from './object/sp-item.ts';
 import { LayerMode, SPGroup } from './object/sp-item-group.ts';
+import { SPNamedView } from './object/sp-namedview.ts';
 import { getTypeString, type SPObject } from './object/sp-object.ts';
 import { SPRoot } from './object/sp-root.ts';
 import { convertUnit, type SVGLength, SVGLengthUnit } from './svg/svg-length.ts';
@@ -111,6 +112,17 @@ export class SPDocument {
   }
   getRoot(): SPRoot {
     return this.root;
+  }
+  /** The sodipodi:namedview object; the element is created if the document has none. */
+  getNamedView(): SPNamedView {
+    let repr = [...this.rroot.children()].find((c) => c.name() === 'sodipodi:namedview');
+    if (!repr) {
+      repr = this.rdoc.createElement('sodipodi:namedview');
+      this.rroot.addChild(repr, null);
+    }
+    const nv = this.getObjectByRepr(repr);
+    if (!(nv instanceof SPNamedView)) throw new Error('namedview object missing');
+    return nv;
   }
   getDefs(): SPObject | null {
     return this.root.defs;
