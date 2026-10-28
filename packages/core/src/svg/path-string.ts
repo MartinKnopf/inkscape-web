@@ -14,6 +14,7 @@
  */
 
 import { Point } from '@inkscape-web/geom';
+import { Preferences } from '../preferences.ts';
 import { DEFAULT_MINIMUM_EXPONENT, DEFAULT_NUMERIC_PRECISION } from './stringstream.ts';
 import { spSvgNumberReadD, spSvgNumberWriteDe } from './svg-length.ts';
 
@@ -198,12 +199,22 @@ export class PathString {
   // to cause a quadratic time complexity (in the number of characters/operators)
   #commonbase = '';
 
-  /** Without options: the defaults of Inkscape's preferences. */
+  /** Options that are not given come from the preferences /options/svgoutput/... (upstream does the same). */
   constructor(options: PathStringOptions = {}) {
-    const precision = options.precision ?? DEFAULT_NUMERIC_PRECISION;
-    const minexp = options.minexp ?? DEFAULT_MINIMUM_EXPONENT;
-    this.#format = options.format ?? PATHSTRING_FORMAT.PATHSTRING_OPTIMIZE;
-    this.#forceRepeatCommands = options.forceRepeatCommands ?? false;
+    const prefs = Preferences.get();
+    const precision =
+      options.precision ??
+      Math.min(
+        Math.max(prefs.getInt('/options/svgoutput/numericprecision', DEFAULT_NUMERIC_PRECISION), 1),
+        16,
+      );
+    const minexp =
+      options.minexp ?? prefs.getInt('/options/svgoutput/minimumexponent', DEFAULT_MINIMUM_EXPONENT);
+    this.#format =
+      options.format ??
+      prefs.getInt('/options/svgoutput/pathstring_format', PATHSTRING_FORMAT.PATHSTRING_OPTIMIZE);
+    this.#forceRepeatCommands =
+      options.forceRepeatCommands ?? prefs.getBool('/options/svgoutput/forcerepeatcommands', false);
     this.#absState = new State(precision, minexp);
     this.#relState = new State(precision, minexp);
   }
