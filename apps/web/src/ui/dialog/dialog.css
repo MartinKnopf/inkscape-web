@@ -360,8 +360,13 @@
 .docprops-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 3px 0;
+}
+
+.docprops select {
+  max-width: 190px;
 }
 
 .docprops-row > span:first-child {
