@@ -62,6 +62,7 @@ export * from './ui/clipboard.ts';
 export * from './ui/desktop/menubar.ts';
 export * from './ui/dialog/attrdialog.ts';
 export * from './ui/dialog/document-properties.ts';
+export * from './ui/dialog/export.ts';
 export * from './ui/dialog/fill-and-stroke.ts';
 export * from './ui/dialog/guides.ts';
 export * from './ui/dialog/objects.ts';

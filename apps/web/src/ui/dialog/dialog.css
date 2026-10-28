@@ -485,3 +485,63 @@
   background: #cfe3ff;
   border-color: #3584e4;
 }
+.export-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 8px;
+  overflow: auto;
+  background: #fff;
+  font-size: 12px;
+}
+
+.export-dialog h4 {
+  margin: 4px 0 0;
+}
+
+.export-areas {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.export-legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.export-areas button,
+.export-button {
+  flex: 1;
+  padding: 2px 4px;
+  font: inherit;
+}
+
+.export-areas button[aria-pressed="true"] {
+  background: #cfe3ff;
+  border-color: #3584e4;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+
+.export-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-filename {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+}
