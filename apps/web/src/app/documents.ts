@@ -123,8 +123,8 @@ export function openDocumentWindow(doc: SPDocument): string {
 }
 
 /** A new document from the default template in a new tab (action app.document-new). */
-export async function document_new(): Promise<void> {
-  openDocumentWindow(await sp_file_new_default());
+export async function document_new(): Promise<string> {
+  return openDocumentWindow(await sp_file_new_default());
 }
 
 /**
@@ -236,9 +236,10 @@ let restoreAsked = false;
 /**
  * Offer to open the documents that earlier sessions autosaved and did not
  * save or close (after a crash or a closed tab). Restored documents are open
- * as modified documents without a file.
+ * as modified documents without a file. The unmodified start document
+ * initialId is closed then.
  */
-export async function restoreAutosaved(): Promise<void> {
+export async function restoreAutosaved(initialId?: string): Promise<void> {
   if (restoreAsked) return;
   restoreAsked = true;
   const service = autosave();
@@ -263,6 +264,8 @@ export async function restoreAutosaved(): Promise<void> {
       doc.setModifiedSinceSave(true);
       openDocumentWindow(doc);
     }
+    const initial = initialId ? windows.get(initialId) : undefined;
+    if (initial && !initial.doc.modifiedSinceSave) dock?.getPanel(initial.id)?.api.close();
     // Store the restored documents again before the old records go.
     await service.save();
   }
