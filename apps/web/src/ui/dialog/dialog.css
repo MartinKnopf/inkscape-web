@@ -344,3 +344,30 @@
   background: #d4d4d4;
   border-color: #b8b8b8;
 }
+
+.docprops {
+  padding: 4px 8px;
+  overflow: auto;
+  height: 100%;
+  background: #fff;
+  font-size: 12px;
+}
+
+.docprops fieldset {
+  margin: 0 0 8px;
+}
+
+.docprops-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+}
+
+.docprops-row > span:first-child {
+  min-width: 110px;
+}
+
+.docprops-number {
+  width: 64px;
+}

@@ -4,6 +4,7 @@ import { _ } from '@inkscape-web/core';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react';
 import type { FunctionComponent } from 'react';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
+import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { XmlTreeDialog } from './xml-tree.tsx';
@@ -22,6 +23,7 @@ interface DialogData {
  */
 const DIALOGS: Record<string, DialogData> = {
   AlignDistribute: { label: _('_Align and Distribute'), component: AlignAndDistributeDialog },
+  DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   XMLEditor: { label: _('_XML Editor'), component: XmlTreeDialog },
