@@ -94,6 +94,8 @@ export class SPDocument {
 
   readonly modifiedSignal = new Signal<[number]>();
   readonly commitSignal = new Signal<[]>();
+  /** Emitted when the undo or redo stack changes (upstream: the EventLog notifications). */
+  readonly undoStackChangedSignal = new Signal<[]>();
   readonly modifiedSinceSaveSignal = new Signal<[boolean]>();
   readonly idChangedSignals = new Map<string, Signal<[SPObject | null]>>();
 

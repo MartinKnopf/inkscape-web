@@ -108,15 +108,19 @@ export const DocumentUndo = {
     doc.rdoc.beginTransaction();
     s.sensitive = true;
     s.seeking = false;
+    if (step) doc.undoStackChangedSignal.emit();
     return step !== undefined;
   },
 
   clearUndo(doc: SPDocument): void {
     doc.undoStack.undo = [];
+    doc.undoStackChangedSignal.emit();
   },
 
   clearRedo(doc: SPDocument): void {
+    if (!doc.undoStack.redo.length) return;
     doc.undoStack.redo = [];
+    doc.undoStackChangedSignal.emit();
   },
 };
 
@@ -153,6 +157,7 @@ function maybeDoneInternal(
   doc.rdoc.beginTransaction();
   doc.commitSignal.emit();
   if (!key) while (s.undo.length > UNDO_LIMIT) s.undo.shift();
+  doc.undoStackChangedSignal.emit();
 }
 
 function undoInternal(doc: SPDocument, temporary: boolean): boolean {
@@ -172,6 +177,7 @@ function undoInternal(doc: SPDocument, temporary: boolean): boolean {
   doc.rdoc.beginTransaction();
   s.sensitive = true;
   s.seeking = false;
+  if (step) doc.undoStackChangedSignal.emit();
   return step !== undefined;
 }
 

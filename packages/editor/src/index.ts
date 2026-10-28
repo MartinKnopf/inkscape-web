@@ -73,6 +73,7 @@ export * from './ui/dialog/object-properties.ts';
 export * from './ui/dialog/objects.ts';
 export * from './ui/dialog/text-edit.ts';
 export * from './ui/dialog/transformation.ts';
+export * from './ui/dialog/undo-history.ts';
 export * from './ui/dialog/xml-tree.ts';
 export * from './ui/knot/knot.ts';
 export * from './ui/shortcuts.ts';

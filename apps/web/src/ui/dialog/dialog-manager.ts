@@ -13,6 +13,7 @@ import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { TextEditDialog } from './text-edit.tsx';
 import { TransformationDialog } from './transformation.tsx';
+import { UndoHistoryDialog } from './undo-history.tsx';
 import { XmlTreeDialog } from './xml-tree.tsx';
 import './dialog.css';
 
@@ -39,6 +40,7 @@ const DIALOGS: Record<string, DialogData> = {
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
   Transform: { label: _('Transfor_m'), component: TransformationDialog },
+  UndoHistory: { label: _('Undo _History'), component: UndoHistoryDialog },
   XMLEditor: { label: _('_XML Editor'), component: XmlTreeDialog },
 };
 
