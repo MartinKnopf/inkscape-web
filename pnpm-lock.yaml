@@ -157,6 +157,9 @@ importers:
       '@inkscape-web/geom':
         specifier: workspace:*
         version: link:../../packages/geom
+      '@inkscape-web/wasm':
+        specifier: workspace:*
+        version: link:../../packages/wasm
       '@radix-ui/react-menubar':
         specifier: ^1.2.1
         version: 1.2.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -200,6 +203,10 @@ importers:
       saxes:
         specifier: ^6.0.0
         version: 6.0.0
+    devDependencies:
+      '@inkscape-web/wasm':
+        specifier: workspace:*
+        version: link:../wasm
 
   packages/editor:
     dependencies:

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+!packages/wasm/dist/
 build/
 coverage/
 *.log

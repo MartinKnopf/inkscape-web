@@ -46,6 +46,13 @@ export interface ObjectSetDesktop {
   layerManager(): ObjectSetLayerManager;
 }
 
+/** The size that smallestItem() and largestItem() compare (upstream ObjectSet::CompareSize). */
+export enum CompareSize {
+  HORIZONTAL,
+  VERTICAL,
+  AREA,
+}
+
 /**
  * An ordered set of objects (upstream Inkscape::ObjectSet): the base of the
  * selection, also used for operations on lists of objects. An object and its
@@ -197,6 +204,37 @@ export class ObjectSet {
   /** The selected items, in the order they were added. */
   items(): SPItem[] {
     return this.#container.filter((o): o is SPItem => o instanceof SPItem);
+  }
+
+  /** The smallest item by its document preferred bounds: width, height or area. */
+  smallestItem(compare: CompareSize): SPItem | null {
+    return this.#sizeistItem(true, compare);
+  }
+
+  /** The largest item by its document preferred bounds: width, height or area. */
+  largestItem(compare: CompareSize): SPItem | null {
+    return this.#sizeistItem(false, compare);
+  }
+
+  #sizeistItem(sml: boolean, compare: CompareSize): SPItem | null {
+    let max = sml ? 1e18 : 0;
+    let ist: SPItem | null = null;
+    for (const item of this.items()) {
+      const bbox = item.documentPreferredBounds();
+      if (!bbox) continue;
+      let size =
+        compare === CompareSize.AREA
+          ? bbox.area()
+          : compare === CompareSize.VERTICAL
+            ? bbox.height()
+            : bbox.width();
+      size = sml ? size : size * -1;
+      if (size < max) {
+        max = size;
+        ist = item;
+      }
+    }
+    return ist;
   }
 
   // Bounds

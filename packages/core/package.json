@@ -12,5 +12,8 @@
   "dependencies": {
     "@inkscape-web/geom": "workspace:*",
     "saxes": "^6.0.0"
+  },
+  "devDependencies": {
+    "@inkscape-web/wasm": "workspace:*"
   }
 }

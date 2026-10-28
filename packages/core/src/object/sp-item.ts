@@ -581,6 +581,12 @@ export class SPItem extends SPObject {
     return this.i2dtAffine().inverse();
   }
 
+  /** Move the item by tr in desktop coordinates and write the transform. */
+  move_rel(tr: Affine): void {
+    this.setI2dAffine(this.i2dtAffine().multiply(tr));
+    this.doWriteTransform(this.transform);
+  }
+
   getRelativeTransform(dest: SPObject): Affine {
     return i2i_affine(this, dest);
   }

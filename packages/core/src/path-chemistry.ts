@@ -13,6 +13,7 @@
  * Copyright (C) 1999-2008 Authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
+import { PathVector } from '@inkscape-web/geom';
 import { DocumentUndo } from './document-undo.ts';
 import { C_ } from './i18n.ts';
 import type { ObjectSet } from './object/object-set.ts';
@@ -21,8 +22,211 @@ import { SPGroup } from './object/sp-item-group.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { SPPath } from './object/sp-path.ts';
 import { SPShape } from './object/sp-shape.ts';
-import { sp_svg_write_path } from './svg/svg-path.ts';
+import { FillRule, pathBoolopBackend } from './path/path-boolop.ts';
+import { pathvector_append } from './path/path-curve.ts';
+import { SPWindRule } from './style-enums.ts';
+import { sp_svg_transform_write } from './svg/svg-affine.ts';
+import { sp_svg_read_pathv, sp_svg_write_path } from './svg/svg-path.ts';
 import type { Node } from './xml/node.ts';
+import { sp_repr_compare_position } from './xml/repr-sorting.ts';
+
+function sp_degroup_list_recursive(out: SPItem[], item: SPItem): void {
+  if (item instanceof SPGroup) {
+    for (const child of item.children) {
+      if (child instanceof SPItem) sp_degroup_list_recursive(out, child);
+    }
+  } else {
+    out.push(item);
+  }
+}
+
+/** Replace all groups in the list with their member objects, recursively. */
+function sp_degroup_list(items: readonly SPItem[]): SPItem[] {
+  const out: SPItem[] = [];
+  for (const item of items) sp_degroup_list_recursive(out, item);
+  return out;
+}
+
+/** The objects of reprs, in the same order (for upstream ObjectSet::setReprList). */
+function objectsOfReprs(set: ObjectSet, reprs: readonly Node[]): SPObject[] {
+  const document = set.document();
+  if (!document) return [];
+  return reprs.map((r) => document.getObjectByRepr(r)).filter((o): o is SPObject => o !== null);
+}
+
+/**
+ * Combine the paths of the set (shapes are converted, groups entered) into
+ * one path with the id, style, transform and z-position of the topmost one,
+ * with the undo step "Combine" unless skip_undo.
+ * TODO: unlink clones (the action calls unlinkRecursive), LPE (inkscape:original-d),
+ * the messages in the status bar, the busy cursor.
+ */
+export function combine(set: ObjectSet, skip_undo = false, _silent = false): void {
+  const doc = set.document();
+  let items_copy = set.items();
+  if (items_copy.length === 0 || !doc) {
+    // TODO: flash "Select <b>object(s)</b> to combine."
+    return;
+  }
+
+  items_copy = sp_degroup_list(items_copy); // descend into any groups in selection
+
+  const to_paths: SPItem[] = [];
+  for (const item of [...items_copy].reverse()) {
+    if (!(item instanceof SPPath) && !(item instanceof SPGroup)) to_paths.push(item);
+  }
+  const converted: Node[] = [];
+  let did = sp_item_list_to_curves(to_paths, items_copy, converted);
+  for (const node of converted) {
+    const object = doc.getObjectByRepr(node);
+    if (object instanceof SPItem) items_copy.push(object);
+  }
+
+  items_copy = sp_degroup_list(items_copy); // converting to path may have added more groups, descend again
+
+  items_copy.sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+
+  // remember the position, id, transform and style of the topmost path, they will be assigned to the combined one
+  let position = 0;
+  let transform: string | null = null;
+  let path_effect: string | null = null;
+
+  let curve: PathVector = [];
+  let first: SPItem | null = null;
+  let parent: Node | null = null;
+
+  if (did) set.clear();
+
+  for (const item of [...items_copy].reverse()) {
+    if (!(item instanceof SPPath)) continue;
+
+    if (!did) {
+      set.clear();
+      did = true;
+    }
+
+    const c = item.curve() ?? [];
+    if (!first) {
+      // this is the topmost path
+      first = item;
+      parent = first.getRepr().parent();
+      position = first.getRepr().position();
+      transform = first.getRepr().attribute('transform');
+      // FIXME: merge styles of combined objects instead of using the first one's style
+      path_effect = first.getRepr().attribute('inkscape:path-effect');
+      curve = [...c];
+    } else {
+      pathvector_append(curve, PathVector.transformed(c, item.getRelativeTransform(first)));
+
+      // reduce position only if the same parent
+      if (item.getRepr().parent() === parent) position--;
+      // delete the object for real, so that its clones can take appropriate action
+      item.deleteObject();
+    }
+  }
+
+  if (did && first && parent) {
+    const repr = doc.getReprDoc().createElement('svg:path');
+    copy_object_properties(repr, first.getRepr());
+
+    // delete the topmost.
+    first.deleteObject(false);
+
+    // restore id, transform, path effect, and style
+    if (transform) repr.setAttribute('transform', transform);
+    repr.setAttribute('inkscape:path-effect', path_effect);
+
+    // set path data corresponding to new curve
+    const dstring = sp_svg_write_path(curve);
+    if (path_effect) repr.setAttribute('inkscape:original-d', dstring);
+    else repr.setAttribute('d', dstring);
+
+    // add the new group to the parent of the topmost
+    // move to the position of the topmost, reduced by the number of deleted items
+    parent.addChildAtPos(repr, Math.max(position, 0));
+
+    if (!skip_undo) DocumentUndo.done(doc, C_('Undo', 'Combine'), 'path-combine');
+    const object = doc.getObjectByRepr(repr);
+    if (object) set.set(object);
+  }
+  // TODO: else flash "<b>No path(s)</b> to combine in the selection."
+}
+
+/**
+ * Break the paths of the set into pieces, with the undo step "Break apart"
+ * unless skip_undo. With overlapping (Path > Break Apart) each subpath becomes
+ * a path; without it (Path > Split Apart) the parts that do not touch when
+ * filled. The first piece keeps the id. Needs the path boolop backend.
+ * TODO: LPE (forkPathEffectsIfNecessary), the messages in the status bar.
+ */
+export function breakApart(set: ObjectSet, skip_undo = false, overlapping = true, _silent = false): void {
+  if (set.isEmpty()) {
+    // TODO: flash "Select <b>path(s)</b> to break apart."
+    return;
+  }
+  let did = false;
+
+  for (const item of set.items()) {
+    if (!(item instanceof SPPath)) continue;
+    const pathv = item.curve();
+    if (!pathv) continue;
+
+    did = true;
+
+    const repr_item = item.getRepr();
+    const parent = repr_item.parent();
+    const pos = repr_item.position();
+    const id = repr_item.attribute('id');
+    const fill_rule = item.style.fill_rule.computed;
+
+    // XML Tree being used directly here while it shouldn't be...
+    const style = repr_item.attribute('style');
+    // XML Tree being used directly here while it shouldn't be...
+    const path_effect = repr_item.attribute('inkscape:path-effect');
+    const transform = item.transform;
+    // it's going to resurrect as one of the pieces, so we delete without advertisement
+    item.deleteObject(false);
+    if (!parent) continue;
+
+    const list = pathBoolopBackend().splitNonIntersectingPaths(
+      sp_svg_write_path(pathv),
+      overlapping ? FillRule.fill_justDont : to_livarot(fill_rule),
+    );
+
+    const reprs: Node[] = [];
+    list.forEach((d, i) => {
+      const repr = parent.document().createElement('svg:path');
+      repr.setAttribute('style', style);
+      repr.setAttribute('inkscape:path-effect', path_effect);
+
+      const str = sp_svg_write_path(sp_svg_read_pathv(d));
+      if (path_effect) repr.setAttribute('inkscape:original-d', str);
+      else repr.setAttribute('d', str);
+      repr.setAttributeOrRemoveIfEmpty('transform', sp_svg_transform_write(transform));
+
+      // add the new repr to the parent
+      // move to the saved position
+      parent.addChildAtPos(repr, pos);
+
+      // if it's the first one, restore id
+      if (i === 0) repr.setAttribute('id', id);
+
+      reprs.push(repr);
+    });
+    set.setList(objectsOfReprs(set, reprs));
+  }
+
+  const document = set.document();
+  if (did && !skip_undo && document) {
+    DocumentUndo.done(document, C_('Undo', 'Break apart'), 'path-break-apart');
+  }
+  // TODO: else flash "<b>No path(s)</b> to break apart in the selection."
+}
+
+/** Upstream to_livarot() (SPWindRule to livarot FillRule). */
+function to_livarot(fill_rule: SPWindRule): FillRule {
+  return fill_rule === SPWindRule.SP_WIND_RULE_EVENODD ? FillRule.fill_oddEven : FillRule.fill_nonZero;
+}
 
 /**
  * Convert the items of set to paths, with the undo step "Object to path"
@@ -42,10 +246,7 @@ export function toCurves(set: ObjectSet, skip_undo = false): void {
   const document = set.document();
   if (did && document) {
     // upstream setReprList(to_select); addList(selected)
-    const objects = to_select
-      .map((repr) => document.getObjectByRepr(repr))
-      .filter((o): o is SPObject => o !== null);
-    set.setList([...objects, ...selected]);
+    set.setList([...objectsOfReprs(set, to_select), ...selected]);
   }
   if (did && !skip_undo && document) {
     DocumentUndo.done(document, C_('Undo', 'Object to path'), 'object-to-path');

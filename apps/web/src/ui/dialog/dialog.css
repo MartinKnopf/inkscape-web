@@ -285,3 +285,62 @@
 .dash-list button {
   padding: 2px 4px;
 }
+
+/* Align and Distribute */
+.align-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 6px;
+  background: #fff;
+}
+
+.align-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.align-relative {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.align-frame {
+  margin: 0;
+  padding: 4px;
+  border: 1px solid #ddd;
+}
+
+.align-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  gap: 2px;
+}
+
+.align-grid.distribute {
+  grid-template-columns: repeat(4, 28px);
+}
+
+.align-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+}
+
+.align-button:hover {
+  background: #e8e8e8;
+}
+
+.align-button[aria-pressed="true"] {
+  background: #d4d4d4;
+  border-color: #b8b8b8;
+}

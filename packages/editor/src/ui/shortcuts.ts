@@ -83,6 +83,26 @@ export const ACTION_KEYS: Record<string, Accelerator[]> = {
   "win.dialog-open('FillStroke')": [{ key: 'f', primary: true, shift: true }],
   "win.dialog-open('Objects')": [{ key: 'l', primary: true, shift: true }],
   "win.dialog-open('XMLEditor')": [{ key: 'x', primary: true, shift: true }],
+  "win.dialog-open('AlignDistribute')": [{ key: 'a', primary: true, shift: true }],
+  // Path booleans: symbol keys match with or without Shift; keypad keys give the same key.
+  'app.path-union': [{ key: '+', primary: true }],
+  'app.path-difference': [
+    { key: '-', primary: true },
+    { key: '_', primary: true },
+  ],
+  'app.path-intersection': [{ key: '*', primary: true }],
+  'app.path-exclusion': [{ key: '^', primary: true }],
+  'app.path-division': [{ key: '/', primary: true }],
+  'app.path-cut': [{ key: '/', primary: true, alt: true }],
+  'app.path-combine': [{ key: 'k', primary: true }],
+  'app.path-break-apart': [{ key: 'k', primary: true, shift: true }],
+  "app.object-align('vcenter pref')": [{ key: '1', primary: true, alt: true }],
+  "app.object-align('bottom pref')": [{ key: '2', primary: true, alt: true }],
+  "app.object-align('left pref')": [{ key: '4', primary: true, alt: true }],
+  "app.object-align('hcenter vcenter pref')": [{ key: '5', primary: true, alt: true }],
+  "app.object-align('right pref')": [{ key: '6', primary: true, alt: true }],
+  "app.object-align('hcenter pref')": [{ key: '7', primary: true, alt: true }],
+  "app.object-align('top pref')": [{ key: '8', primary: true, alt: true }],
 };
 
 /** The first key of an action as shown in menus and tooltips ("Ctrl+Shift+Z", "R"), or null. */

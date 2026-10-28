@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Build upstream lib2geom + livarot + path operations to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp
+# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -65,6 +65,8 @@ SRCS=""
 for f in $GEOM svg-path-parser.cpp; do SRCS="$SRCS $G/src/2geom/$f"; done
 SRCS="$SRCS $(ls "$INK"/src/livarot/*.cpp)"
 SRCS="$SRCS $INK/src/path/path-boolop.cpp $INK/src/svg/stringstream.cpp $INK/src/svg/strip-trailing-zeros.cpp"
+# split_non_intersecting_paths() for Path > Break Apart.
+SRCS="$SRCS $INK/src/helper/geom-pathstroke.cpp $INK/src/helper/geom.cpp $INK/src/util/treeify.cpp"
 
 # WASM has no FP rounding-mode control, so Boost.Interval gets its default (no-op)
 # rounding: we skip its hw_rounding.hpp (only used by 2geom/geometric-intersection.cpp).
@@ -86,6 +88,7 @@ em++ $FLAGS -lembind bindings/geom.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcbl
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit
+scripts/inputs-hash.sh > dist/inputs-hash
 # License files of everything linked into the module (see THIRD-PARTY.md).
 mkdir -p dist/licenses
 cp "$INK/COPYING" dist/licenses/inkscape-COPYING
