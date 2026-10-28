@@ -412,3 +412,36 @@
 .docprops-number {
   width: 64px;
 }
+
+.docprops-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+.docprops-tabbar {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid #ccc;
+}
+
+.docprops-tabbar button {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+}
+
+.docprops-tabbar button[aria-selected="true"] {
+  border-color: #ccc;
+  background: #f4f4f4;
+}
+
+.docprops-tabs .docprops {
+  flex: 1;
+  height: auto;
+}

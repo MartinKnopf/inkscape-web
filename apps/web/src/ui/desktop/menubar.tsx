@@ -92,18 +92,25 @@ function Entry({ entry }: { entry: MenuEntry }) {
           </Menubar.Portal>
         </Menubar.Sub>
       );
-    case 'item':
+    case 'item': {
+      // Boolean actions show their state as a check mark (upstream: GTK check menu items).
+      const state = app.actions.lookup_action(entry.action)?.get_state();
       return (
         <Menubar.Item
           className="menu-item"
           disabled={!app.actions.is_enabled(entry.action)}
           data-action={entry.action}
+          data-state-checked={state}
           onSelect={() => app.activate_action(entry.action)}
         >
-          <span>{label(entry.label)}</span>
+          <span>
+            {state !== undefined && <span className="menu-check">{state ? '✓' : ''}</span>}
+            {label(entry.label)}
+          </span>
           <span className="menu-shortcut">{Shortcuts.getInstance().get_shortcut_label(entry.action)}</span>
         </Menubar.Item>
       );
+    }
   }
 }
 

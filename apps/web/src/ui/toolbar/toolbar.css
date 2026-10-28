@@ -69,3 +69,49 @@
   width: 72px;
   font: inherit;
 }
+
+/* The snap controls (snap-toolbar). */
+.snap-toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.snap-popover-button {
+  width: 16px;
+  font-size: 10px;
+}
+
+.snap-popover {
+  position: absolute;
+  top: 100%;
+  right: 4px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
+}
+
+.snap-popover hr {
+  width: 100%;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid #ddd;
+}
+
+.snap-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.snap-option[aria-disabled="true"] {
+  color: #999;
+}

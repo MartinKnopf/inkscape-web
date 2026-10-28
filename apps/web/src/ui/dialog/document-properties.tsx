@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/dialog/document-properties.cpp, src/ui/widget/page-properties.cpp
-import { _, Colors, convertUnit, formatNumber, PAGE_SIZES } from '@inkscape-web/core';
+import { _, C_, Colors, convertUnit, formatNumber, PAGE_SIZES, type SPGrid } from '@inkscape-web/core';
 import {
   get_document_scale,
   getPageSize,
+  grid_get_origin,
+  grid_get_spacing,
+  grid_new,
+  grid_remove,
+  grid_set_color,
+  grid_set_flag,
+  grid_set_major_line_interval,
+  grid_set_origin,
+  grid_set_spacing,
+  grid_set_unit,
   isLandscape,
   matchingPaperSize,
   PAGE_UNITS,
@@ -21,6 +31,7 @@ import {
   set_viewbox_pos,
   set_viewbox_size,
 } from '@inkscape-web/editor';
+import { Point } from '@inkscape-web/geom';
 import { useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { objectKey, useReprVersion } from './use-repr.ts';
@@ -71,9 +82,11 @@ function ColorField(props: { label: string; value: Colors.Color; onChange: (colo
 
 /**
  * The Document Properties dialog (dialog key "DocumentProperties"): the page tab
- * (page size, scale, viewBox, display units, colors, border, checkerboard).
- * TODO: the other tabs (guides, grids, color management, scripting, metadata, license),
- * margins and bleed, multiple pages, content scaling when the scale changes.
+ * (page size, scale, viewBox, display units, colors, border, checkerboard)
+ * and the grids tab (rectangular grids).
+ * TODO: the other tabs (guides, color management, scripting, metadata, license),
+ * margins and bleed, multiple pages, content scaling when the scale changes,
+ * axonometric and modular grids.
  */
 export function DocumentPropertiesDialog() {
   const desktop = useActiveDesktop();
@@ -82,8 +95,141 @@ export function DocumentPropertiesDialog() {
 }
 
 function DocumentProperties({ desktop }: { desktop: SPDesktop }) {
+  const [tab, setTab] = useState<'page' | 'grids'>('page');
+  useReprVersion(desktop.doc.rroot);
+  return (
+    <div className="docprops-tabs">
+      <div className="docprops-tabbar" role="tablist">
+        {(
+          [
+            ['page', _('Page')],
+            ['grids', _('Grids')],
+          ] as const
+        ).map(([key, text]) => (
+          <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}>
+            {text}
+          </button>
+        ))}
+      </div>
+      {tab === 'page' ? <PageTab desktop={desktop} /> : <GridsTab desktop={desktop} />}
+    </div>
+  );
+}
+
+/** The grids of the namedview, each with its settings, and a button to add a rectangular grid. */
+function GridsTab({ desktop }: { desktop: SPDesktop }) {
   const doc = desktop.doc;
-  useReprVersion(doc.rroot);
+  const grids = doc.getNamedView().grids;
+  return (
+    <div className="docprops">
+      {grids.map((grid) => (
+        <GridSettings key={objectKey(grid)} grid={grid} />
+      ))}
+      <button type="button" onClick={() => grid_new(doc)}>
+        {`${_('Add grid')}: ${C_('Grid', 'Rectangular')}`}
+      </button>
+    </div>
+  );
+}
+
+/** The settings of a grid (upstream GridWidget). */
+function GridSettings({ grid }: { grid: SPGrid }) {
+  const origin = grid_get_origin(grid);
+  const spacing = grid_get_spacing(grid);
+  const unit = grid.getUnit();
+  const flag = (text: string, f: Parameters<typeof grid_set_flag>[1], value: boolean) => (
+    <label className="docprops-row">
+      <span>{text}</span>
+      <input type="checkbox" checked={value} onChange={(e) => grid_set_flag(grid, f, e.target.checked)} />
+    </label>
+  );
+  return (
+    <fieldset>
+      <legend>{grid.displayName()}</legend>
+      {flag(_('Enabled'), 'enabled', grid.isEnabled())}
+      {flag(_('Visible'), 'visible', grid._visible.value)}
+      {flag(
+        _('Snap to visible _grid lines only').replace('_', ''),
+        'snapvisiblegridlinesonly',
+        grid.getSnapToVisibleOnly(),
+      )}
+      {flag(_('_Show dots instead of lines').replace('_', ''), 'dotted', grid.getDotted())}
+      <label className="docprops-row">
+        <span>{_('Grid _units:').replace('_', '')}</span>
+        <select
+          aria-label={_('Grid units')}
+          value={unit}
+          onChange={(e) => grid_set_unit(grid, e.target.value)}
+        >
+          {PAGE_UNITS.map((u) => (
+            <option key={u} value={u}>
+              {u}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="docprops-row">
+        <span>{_('_Origin X:').replace('_', '')}</span>
+        <NumberField
+          label={_('X coordinate of grid origin')}
+          value={origin.x}
+          onCommit={(x) => grid_set_origin(grid, new Point(x, origin.y))}
+        />
+        <span>{_('O_rigin Y:').replace('_', '')}</span>
+        <NumberField
+          label={_('Y coordinate of grid origin')}
+          value={origin.y}
+          onCommit={(y) => grid_set_origin(grid, new Point(origin.x, y))}
+        />
+      </div>
+      <div className="docprops-row">
+        <span>{_('Spacing _X:').replace('_', '')}</span>
+        <NumberField
+          label={_('Distance between vertical grid lines')}
+          value={spacing.x}
+          onCommit={(x) => grid_set_spacing(grid, new Point(x, spacing.y))}
+        />
+        <span>{_('Spacing _Y:').replace('_', '')}</span>
+        <NumberField
+          label={_('Distance between horizontal grid lines')}
+          value={spacing.y}
+          onCommit={(y) => grid_set_spacing(grid, new Point(spacing.x, y))}
+        />
+      </div>
+      <ColorField
+        label={_('Minor grid line color:')}
+        value={grid.getMinorColor()}
+        onChange={(c) => grid_set_color(grid, keepOpacity(c, grid.getMinorColor()), false)}
+      />
+      <ColorField
+        label={_('Major grid line color:')}
+        value={grid.getMajorColor()}
+        onChange={(c) => grid_set_color(grid, keepOpacity(c, grid.getMajorColor()), true)}
+      />
+      <div className="docprops-row">
+        <span>{_('Major grid line e_very:').replace('_', '')}</span>
+        <NumberField
+          label={_('Number of lines')}
+          value={grid.getMajorLineInterval()}
+          onCommit={(n) => grid_set_major_line_interval(grid, Math.round(n))}
+        />
+      </div>
+      <button type="button" title={_('Delete this grid')} onClick={() => grid_remove(grid)}>
+        {_('Remove')}
+      </button>
+    </fieldset>
+  );
+}
+
+/** color with the opacity of old (input[type=color] has no alpha). */
+function keepOpacity(color: Colors.Color, old: Colors.Color): Colors.Color {
+  color.setOpacity(old.getOpacity());
+  return color;
+}
+
+/** The page tab. */
+function PageTab({ desktop }: { desktop: SPDesktop }) {
+  const doc = desktop.doc;
   const nv = doc.getNamedView();
   const size = getPageSize(doc);
   const paper = matchingPaperSize(size);

@@ -8,9 +8,9 @@
  */
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
-import { SPImage } from './sp-image.ts';
 import { SPGrid } from './sp-grid.ts';
 import { SPGuide } from './sp-guide.ts';
+import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
 import { SPLinearGradient } from './sp-linear-gradient.ts';
