@@ -6,14 +6,20 @@
  *
  * Copyright (C) 2013 Authors
  */
+import { SPGaussianBlur } from './filters/gaussian-blur.ts';
+import { SPFilterPrimitive } from './filters/sp-filter-primitive.ts';
+import { SPClipPath } from './sp-clippath.ts';
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
+import { SPFilter } from './sp-filter.ts';
 import { SPGrid } from './sp-grid.ts';
 import { SPGuide } from './sp-guide.ts';
 import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
 import { SPLinearGradient } from './sp-linear-gradient.ts';
+import { SPMarker } from './sp-marker.ts';
+import { SPMask } from './sp-mask.ts';
 import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
@@ -35,6 +41,7 @@ function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
 
 /** Constructors by type string (element name or sodipodi:type). null: known, but no object. */
 const map = new Map<string, (() => SPObject) | null>([
+  ['svg:clipPath', () => new SPClipPath()],
   ['svg:defs', () => new SPDefs()],
   ['svg:ellipse', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE)],
   ['svg:circle', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_CIRCLE)],
@@ -42,7 +49,10 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:g', () => new SPGroup()],
   ['svg:image', () => new SPImage()],
   ['svg:line', () => new SPLine()],
+  ['svg:filter', () => new SPFilter()],
   ['svg:linearGradient', () => new SPLinearGradient()],
+  ['svg:marker', () => new SPMarker()],
+  ['svg:mask', () => new SPMask()],
   ['svg:path', () => new SPPath()],
   ['svg:polygon', () => new SPPolygon()],
   ['svg:polyline', () => new SPPolyLine()],
@@ -57,6 +67,38 @@ const map = new Map<string, (() => SPObject) | null>([
   ['sodipodi:namedview', () => new SPNamedView()],
   ['sodipodi:guide', () => new SPGuide()],
   ['inkscape:grid', () => new SPGrid()],
+
+  // Filter primitives. TODO: the subclasses of SPFilterPrimitive (SPFeBlend, ...) and the
+  // objects inside primitives (feFuncR, feMergeNode, lights); the drawing copies them as they are.
+  ['svg:feGaussianBlur', () => new SPGaussianBlur()],
+  ...[
+    'feBlend',
+    'feColorMatrix',
+    'feComponentTransfer',
+    'feComposite',
+    'feConvolveMatrix',
+    'feDiffuseLighting',
+    'feDisplacementMap',
+    'feDropShadow',
+    'feFlood',
+    'feImage',
+    'feMerge',
+    'feMorphology',
+    'feOffset',
+    'feSpecularLighting',
+    'feTile',
+    'feTurbulence',
+  ].map((name): [string, () => SPObject] => [`svg:${name}`, () => new SPFilterPrimitive()]),
+  ...[
+    'feFuncR',
+    'feFuncG',
+    'feFuncB',
+    'feFuncA',
+    'feMergeNode',
+    'feDistantLight',
+    'fePointLight',
+    'feSpotLight',
+  ].map((name): [string, null] => [`svg:${name}`, null]),
 
   // ignore
   ['rdf:RDF', null], // no SP node yet

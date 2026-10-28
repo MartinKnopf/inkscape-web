@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/dialog/fill-and-stroke.h, src/ui/widget/stroke-style.cpp, src/ui/widget/paint-switch.cpp, src/ui/widget/color-notebook.cpp, src/ui/widget/gradient-editor.cpp
+// Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/dialog/fill-and-stroke.h, src/ui/widget/stroke-style.cpp, src/ui/widget/paint-switch.cpp, src/ui/widget/color-notebook.cpp, src/ui/widget/gradient-editor.cpp, src/ui/widget/style/marker-combo-box.cpp, src/ui/widget/object-composite-settings.cpp, src/ui/widget/filter-effect-chooser.cpp
 import {
   _,
   C_,
   type Colors,
+  type SPBlendMode,
+  type SPDocument,
   type SPGradient,
   SPGradientSpread,
   SPGradientType,
+  SPMarkerLoc,
   SPRadialGradient,
   SPStrokeCapType,
   SPStrokeJoinType,
@@ -14,6 +17,7 @@ import {
 } from '@inkscape-web/core';
 import {
   addGradientStop,
+  BLEND_MODES,
   CAP_NAMES,
   colorFromHsva,
   colorFromRgba8,
@@ -25,10 +29,15 @@ import {
   gradientStops,
   type Hsva,
   JOIN_NAMES,
+  loadStockMarkers,
+  type MarkerSelectorLoc,
   type PaintInfo,
   PaintMode,
   parseHexColor,
   QUERY_STYLE_MULTIPLE_AVERAGED,
+  queryBlendMode,
+  queryBlur,
+  queryMarker,
   queryOpacity,
   queryPaint,
   queryStrokeStyle,
@@ -37,10 +46,12 @@ import {
   STROKE_UNITS,
   type StrokeStyleInfo,
   type StrokeUnit,
+  setBlendBlur,
   setFillRule,
   setFlatColor,
   setGradient,
   setGradientRepeat,
+  setMarker,
   setOpacity,
   setPaintMode,
   setStopColor,
@@ -51,7 +62,7 @@ import {
   setStrokeWidth,
   sliderBackground,
 } from '@inkscape-web/editor';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { iconFallback, iconUrl } from '../icon-loader.ts';
 import { SpinButton } from '../widget/spinbutton.tsx';
@@ -65,8 +76,8 @@ const label = (s: string) => s.replace('_', '');
 /**
  * The Fill and Stroke dialog (dialog key "FillStroke"): the tabs Fill, Stroke paint and Stroke
  * style for the selection, and the opacity.
- * TODO: mesh, pattern and swatch paints, the gradient library, the Advanced tab, markers, paint order,
- * hairline strokes, blur, blend mode and isolation, icons.
+ * TODO: mesh, pattern and swatch paints, the gradient library, the Advanced tab, paint order,
+ * hairline strokes, isolation, the marker editing options (size, orient, recolor), icons.
  */
 export function FillAndStrokeDialog() {
   const desktop = useActiveDesktop();
@@ -96,6 +107,7 @@ export function FillAndStrokeDialog() {
         {tab === 1 && <PaintPage desktop={desktop} isFill={false} />}
         {tab === 2 && <StrokeStylePage desktop={desktop} />}
       </div>
+      <BlendBlurRows desktop={desktop} />
       <OpacityRow desktop={desktop} />
     </div>
   );
@@ -610,13 +622,220 @@ function StrokeStylePage({ desktop }: { desktop: SPDesktop }) {
           </button>
         ))}
       </div>
+
+      <MarkerRow desktop={desktop} />
     </div>
+  );
+}
+
+// Markers ---------------------------------------------------------------------------------------
+
+/** A marker of the stock library: id, label and preview images per location (data: URLs). */
+interface StockMarker {
+  id: string;
+  label: string;
+  previews: Record<MarkerSelectorLoc, string>;
+}
+
+interface StockMarkerLibrary {
+  doc: SPDocument;
+  markers: StockMarker[];
+}
+
+let stockLibrary: Promise<StockMarkerLibrary | null> | null = null;
+
+/** The preview path of each location: the marker sits at the start, the middle or the end. */
+const PREVIEW_PATHS: Record<MarkerSelectorLoc, string> = {
+  [SPMarkerLoc.SP_MARKER_LOC_START]: 'marker-start="url(#m)" d="M 14,10 H 44"',
+  [SPMarkerLoc.SP_MARKER_LOC_MID]: 'marker-mid="url(#m)" d="M 2,10 H 24 H 46"',
+  [SPMarkerLoc.SP_MARKER_LOC_END]: 'marker-end="url(#m)" d="M 4,10 H 34"',
+};
+
+/** A small image of the marker on a line, drawn by the browser from the markers.svg element. */
+function markerPreview(marker: Element, loc: MarkerSelectorLoc): string {
+  const copy = marker.cloneNode(true) as Element;
+  copy.setAttribute('id', 'm');
+  const xml = new XMLSerializer()
+    .serializeToString(copy)
+    .replaceAll('context-stroke', '#000')
+    .replaceAll('context-fill', '#000');
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="20" viewBox="0 0 48 20">' +
+    `<defs>${xml}</defs><path ${PREVIEW_PATHS[loc]} style="fill:none;stroke:#000;stroke-width:1.5"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** Load share/markers/markers.svg once (upstream: the stock part of MarkerComboBox). */
+function loadStockLibrary(): Promise<StockMarkerLibrary | null> {
+  stockLibrary ??= fetch('/share/markers/markers.svg')
+    .then((r) => r.text())
+    .then((text) => {
+      const doc = loadStockMarkers(text);
+      if (!doc) return null;
+      const dom = new DOMParser().parseFromString(text, 'image/svg+xml');
+      const markers = [...dom.querySelectorAll('marker')].map((m) => ({
+        id: m.id,
+        label: m.getAttribute('inkscape:stockid') ?? m.id,
+        previews: {
+          [SPMarkerLoc.SP_MARKER_LOC_START]: markerPreview(m, SPMarkerLoc.SP_MARKER_LOC_START),
+          [SPMarkerLoc.SP_MARKER_LOC_MID]: markerPreview(m, SPMarkerLoc.SP_MARKER_LOC_MID),
+          [SPMarkerLoc.SP_MARKER_LOC_END]: markerPreview(m, SPMarkerLoc.SP_MARKER_LOC_END),
+        },
+      }));
+      return { doc, markers };
+    })
+    .catch(() => null);
+  return stockLibrary;
+}
+
+const MARKER_COMBOS: { loc: MarkerSelectorLoc; tip: string }[] = [
+  {
+    loc: SPMarkerLoc.SP_MARKER_LOC_START,
+    tip: _('Start Markers are drawn on the first node of a path or shape'),
+  },
+  {
+    loc: SPMarkerLoc.SP_MARKER_LOC_MID,
+    tip: _('Mid Markers are drawn on every node of a path or shape except the first and last nodes'),
+  },
+  { loc: SPMarkerLoc.SP_MARKER_LOC_END, tip: _('End Markers are drawn on the last node of a path or shape') },
+];
+
+/** The start, mid and end marker selectors (upstream StrokeStyle markers row). */
+function MarkerRow({ desktop }: { desktop: SPDesktop }) {
+  const [library, setLibrary] = useState<StockMarkerLibrary | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadStockLibrary().then((l) => {
+      if (live) setLibrary(l);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <div className="fillstroke-row marker-row">
+      <span>{_('Markers')}</span>
+      {MARKER_COMBOS.map(({ loc, tip }) => (
+        <MarkerComboBox key={loc} desktop={desktop} loc={loc} tip={tip} library={library} />
+      ))}
+    </div>
+  );
+}
+
+/** A dropdown with marker previews (upstream MarkerComboBox, without the editing options). */
+function MarkerComboBox(props: {
+  desktop: SPDesktop;
+  loc: MarkerSelectorLoc;
+  tip: string;
+  library: StockMarkerLibrary | null;
+}) {
+  const { desktop, loc, tip, library } = props;
+  const [open, setOpen] = useState(false);
+  const current = queryMarker(desktop, loc);
+  const active = library?.markers.find((m) => m.id === current || m.label === current);
+  const choose = (id: string | null) => {
+    setOpen(false);
+    if (library) setMarker(desktop, loc, library.doc, id);
+  };
+  return (
+    <div className="marker-combo">
+      <button
+        type="button"
+        title={tip}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={current === undefined || !library}
+        onClick={() => setOpen(!open)}
+      >
+        {active ? <img src={active.previews[loc]} alt={active.label} /> : current ? current : _('None')}
+      </button>
+      {open && library && (
+        <div className="marker-list" role="listbox" aria-label={tip}>
+          <button type="button" role="option" aria-selected={current === null} onClick={() => choose(null)}>
+            {_('None')}
+          </button>
+          {library.markers.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="option"
+              aria-selected={m === active}
+              title={m.label}
+              onClick={() => choose(m.id)}
+            >
+              <img src={m.previews[loc]} alt={m.label} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Blend and blur --------------------------------------------------------------------------------
+
+/** The blend mode and the blur slider (upstream SimpleFilterModifier of ObjectCompositeSettings). */
+function BlendBlurRows({ desktop }: { desktop: SPDesktop }) {
+  const blur = queryBlur(desktop);
+  const blend = queryBlendMode(desktop);
+  const disabled = blur === null || blend === null;
+  const percent = Math.round((blur ?? 0) * 10) / 10;
+  const setBlur = (v: number) => setBlendBlur(desktop, v, blend ?? (0 as SPBlendMode));
+  return (
+    <>
+      <div className="fillstroke-opacity channel-row">
+        <label htmlFor="fillstroke-blend">{_('Blend mode')}</label>
+        <select
+          id="fillstroke-blend"
+          value={blend ?? 0}
+          disabled={disabled}
+          onChange={(e) => setBlendBlur(desktop, blur ?? 0, Number(e.target.value) as SPBlendMode)}
+        >
+          {BLEND_MODES.map((m, i) =>
+            m ? (
+              <option key={m.mode} value={m.mode}>
+                {C_('BlendMode', m.label)}
+              </option>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: separators have no other key
+              <option key={`sep${i}`} disabled>
+                ──────
+              </option>
+            ),
+          )}
+        </select>
+      </div>
+      <div className="fillstroke-opacity channel-row">
+        <label htmlFor="fillstroke-blur">{_('Blur (%)')}</label>
+        <input
+          id="fillstroke-blur"
+          type="range"
+          min={0}
+          max={100}
+          step={0.1}
+          value={percent}
+          disabled={disabled}
+          onChange={(e) => setBlur(Number(e.target.value))}
+        />
+        <SpinButton
+          label=""
+          tooltip={_('Blur (%)')}
+          value={percent}
+          min={0}
+          max={100}
+          step={1}
+          digits={1}
+          disabled={disabled}
+          onChange={setBlur}
+        />
+      </div>
+    </>
   );
 }
 
 // Opacity ---------------------------------------------------------------------------------------
 
-/** The opacity slider at the bottom (upstream ObjectCompositeSettings). TODO: blur, blend mode, isolation. */
+/** The opacity slider at the bottom (upstream ObjectCompositeSettings). TODO: isolation. */
 function OpacityRow({ desktop }: { desktop: SPDesktop }) {
   const opacity = queryOpacity(desktop);
   const percent = Math.round((opacity ?? 1) * 1000) / 10;

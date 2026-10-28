@@ -25,6 +25,7 @@ import { Affine, type OptRect, type Point, Rotate, Scale, Translate, unify } fro
 import { SPAttr } from '../attributes.ts';
 import { SPDocument } from '../document.ts';
 import { DocumentUndo } from '../document-undo.ts';
+import { PrefsMaskobjectGrouping } from '../enums.ts';
 import { C_ } from '../i18n.ts';
 import { Preferences } from '../preferences.ts';
 import { sp_svg_transform_read, sp_svg_transform_write } from '../svg/svg-affine.ts';
@@ -33,9 +34,12 @@ import type { Node } from '../xml/node.ts';
 import { spReprCssAttrInherited, spReprCssSet } from '../xml/repr-css.ts';
 import { sp_repr_compare_position } from '../xml/repr-sorting.ts';
 import { sp_repr_is_def } from '../xml/repr-util.ts';
+import { SPClipPath } from './sp-clippath.ts';
 import { BBoxType, SPItem } from './sp-item.ts';
-import { SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
+import { LayerMode, SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
+import { SPMask } from './sp-mask.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
+import { SPPath } from './sp-path.ts';
 import { SPRoot } from './sp-root.ts';
 import { SPCloneCompensation, SPUse } from './sp-use.ts';
 
@@ -70,7 +74,7 @@ export enum CompareSize {
  * too (deleteItems, duplicate, group, ungroup, raise, lower, applyAffine, move, …).
  * TODO: 3D boxes, sibling state (text on path, offsets, flowed text),
  * connectors, transform centers, LPE items, the operations not ported yet
- * (popFromGroup, stackUp/Down, relink, masks, layers, …).
+ * (popFromGroup, stackUp/Down, relink, setClipGroup, layers, …).
  */
 export class ObjectSet {
   protected _desktop: ObjectSetDesktop | null;
@@ -950,6 +954,257 @@ export class ObjectSet {
   /** Selection overrides these to follow the objects' modified signals. */
   protected _connectSignals(_object: SPObject): void {}
   protected _releaseSignals(_object: SPObject): void {}
+
+  /**
+   * Creates a mask or clipPath from selection.
+   * Two different modes:
+   *  if applyToLayer, all selection is moved to DEFS as mask/clippath
+   *       and is applied to current layer
+   *  otherwise, topmost object is used as mask for other objects
+   * If apply_clip_path parameter is true, clipPath is created, otherwise mask
+   */
+  setMask(apply_clip_path: boolean, apply_to_layer: boolean, remove_original: boolean): void {
+    const desktop = this.desktop();
+    if (!desktop && apply_to_layer) return;
+    const doc = this.document();
+    if (!doc) return;
+    const xml_doc = doc.getReprDoc();
+
+    // check if something is selected
+    const is_empty = this.isEmpty();
+    if (apply_to_layer && is_empty) {
+      // TODO: flash "Select <b>object(s)</b> to create clippath or mask from."
+      return;
+    } else if (!apply_to_layer && (is_empty || this.items().length === 1)) {
+      // TODO: flash "Select mask object and <b>object(s)</b> to apply clippath or mask to."
+      return;
+    }
+
+    // FIXME: temporary patch to prevent crash!
+    // Remove this when bboxes are fixed to not blow up on an item clipped/masked with its own clone
+    if (this.items().some((item) => item instanceof SPUse && object_set_contains_original(item, this))) {
+      console.warn('Unable to clip/mask an object with its own clone');
+      return; // in this version, you cannot clip/mask an object with its own clone
+    }
+    // /END FIXME
+
+    doc.ensureUpToDate();
+
+    const items_vec = [...this.items()].sort(sp_object_compare_position);
+
+    // See lp bug #542004
+    this.clear();
+
+    // create a list of duplicates
+    const mask_items: [Node, Affine][] = [];
+    let apply_to_items: SPItem[] = [];
+    const items_to_delete: SPItem[] = [];
+    let items_to_select: SPItem[] = [];
+
+    const prefs = Preferences.get();
+    const topmost = prefs.getBool('/options/maskobject/topmost', true);
+    const grouping = prefs.getInt(
+      '/options/maskobject/grouping',
+      PrefsMaskobjectGrouping.PREFS_MASKOBJECT_GROUPING_NONE,
+    );
+
+    if (apply_to_layer) {
+      // all selected items are used for mask, which is applied to a layer
+      const layer = desktop?.layerManager().currentLayer();
+      if (layer) apply_to_items.push(layer);
+    }
+
+    for (const i of items_vec) {
+      if (
+        (!topmost && !apply_to_layer && i === items_vec[0]) ||
+        (topmost && !apply_to_layer && i === items_vec[items_vec.length - 1]) ||
+        apply_to_layer
+      ) {
+        const dup = i.getRepr().duplicate(xml_doc);
+        mask_items.push([dup, i.i2docAffine()]);
+        if (remove_original) items_to_delete.push(i);
+        else items_to_select.push(i);
+      } else {
+        apply_to_items.push(i);
+        items_to_select.push(i);
+      }
+    }
+
+    if (grouping === PrefsMaskobjectGrouping.PREFS_MASKOBJECT_GROUPING_ALL) {
+      // group all those objects into one group
+      // and apply mask to that
+      const set = new ObjectSet(doc);
+      set.addList(apply_to_items);
+      items_to_select = [];
+      const group = set.group();
+      if (group) {
+        group.setAttribute('inkscape:groupmode', 'maskhelper');
+        // apply clip/mask only to newly created group
+        const group_item = doc.getObjectByRepr(group);
+        apply_to_items = group_item instanceof SPItem ? [group_item] : [];
+        items_to_select.push(...apply_to_items);
+      }
+    }
+    if (grouping === PrefsMaskobjectGrouping.PREFS_MASKOBJECT_GROUPING_SEPARATE) items_to_select = [];
+
+    const attributeName = apply_clip_path ? 'clip-path' : 'mask';
+    for (let item of [...apply_to_items].reverse()) {
+      const mask_items_dup: Node[] = [];
+      const dup_transf = new Map<Node, Affine>();
+      for (const [repr, transform] of mask_items) {
+        const dup = repr.duplicate(xml_doc);
+        mask_items_dup.push(dup);
+        dup_transf.set(dup, transform);
+      }
+
+      const current = item.getRepr();
+      // Node to apply mask to
+      let apply_mask_to = current;
+
+      if (grouping === PrefsMaskobjectGrouping.PREFS_MASKOBJECT_GROUPING_SEPARATE) {
+        // enclose current node in group, and apply crop/mask on that
+        const group = xml_doc.createElement('svg:g');
+        // make a note we should ungroup this when unsetting mask
+        group.setAttribute('inkscape:groupmode', 'maskhelper');
+        const spnew = current.duplicate(xml_doc);
+        current.parent()?.addChild(group, current);
+        current.parent()?.removeChild(current);
+        group.appendChild(spnew);
+        // Apply clip/mask to group instead
+        apply_mask_to = group;
+        const group_item = doc.getObjectByRepr(group);
+        if (!(group_item instanceof SPItem)) continue;
+        item = group_item;
+        items_to_select.push(item);
+      }
+
+      const mask_id = apply_clip_path
+        ? SPClipPath.create(mask_items_dup, doc)
+        : SPMask.create(mask_items_dup, doc);
+
+      // inverted object transform should be applied to a mask object,
+      // as mask is calculated in user space (after applying transform)
+      for (const it of mask_items_dup) {
+        const clip_item = doc.getObjectByRepr(it);
+        if (!(clip_item instanceof SPItem)) continue;
+        clip_item.doWriteTransform(dup_transf.get(it) ?? Affine.identity());
+        clip_item.doWriteTransform(clip_item.transform.multiply(item.i2docAffine().inverse()));
+      }
+
+      apply_mask_to.setAttribute(attributeName, `url(#${mask_id})`);
+    }
+
+    for (const item of items_to_delete) {
+      item.deleteObject(false);
+      items_to_select = items_to_select.filter((i) => i !== item);
+    }
+
+    this.addList(items_to_select);
+  }
+
+  /**
+   * Remove the clip path (apply_clip_path) or mask from the selected items. With
+   * remove_original, the clip or mask objects come back into the document; with
+   * delete_helper_group, the groups that setMask() made (maskhelper) are ungrouped.
+   */
+  unsetMask(apply_clip_path: boolean, delete_helper_group: boolean, remove_original: boolean): void {
+    const doc = this.document();
+    if (!doc) return;
+    const xml_doc = doc.getReprDoc();
+
+    // check if something is selected
+    if (this.isEmpty()) {
+      // TODO: flash "Select <b>object(s)</b> to remove clippath or mask from."
+      return;
+    }
+
+    const ungroup_masked = Preferences.get().getBool('/options/maskobject/ungrouping', true);
+    doc.ensureUpToDate();
+
+    const attributeName = apply_clip_path ? 'clip-path' : 'mask';
+    const referenced_objects = new Map<SPObject, SPItem>();
+
+    const items_vec = this.items();
+    this.clear();
+
+    const items_to_ungroup: SPGroup[] = [];
+    let items_to_select: SPItem[] = [...items_vec];
+
+    // SPObject refers to a group containing the clipped path or mask itself,
+    // whereas SPItem refers to the item being clipped or masked
+    for (const i of items_vec) {
+      if (remove_original) {
+        // remember referenced mask/clippath, so orphaned masks can be moved back to document
+        const obj_ref = apply_clip_path ? i.getClipObject() : i.getMaskObject();
+        // collect distinct mask object (and associate with item to apply transform)
+        if (obj_ref) referenced_objects.set(obj_ref, i);
+      }
+
+      i.setAttribute(attributeName, 'none');
+
+      // if we had previously enclosed masked object in group,
+      // add it to list so we can ungroup it later
+      // ungroup only groups we created when setting clip/mask
+      if (
+        ungroup_masked &&
+        i instanceof SPGroup &&
+        delete_helper_group &&
+        i.layerMode() === LayerMode.MASK_HELPER
+      ) {
+        items_to_ungroup.push(i);
+      }
+    }
+
+    // restore mask objects into a document
+    for (const [obj, item] of referenced_objects) {
+      // obj: Group containing the clipped paths or masks
+      const items_to_move: Node[] = [];
+      for (const child of obj.children) {
+        // Collect all clipped paths and masks within a single group
+        const copy = child.getRepr().duplicate(xml_doc);
+        const original_d = copy.attribute('inkscape:original-d');
+        if (original_d && copy.attribute('inkscape:path-effect')) {
+          copy.setAttribute('d', original_d);
+        } else if (original_d) {
+          copy.setAttribute('d', original_d);
+          copy.removeAttribute('inkscape:original-d');
+        } else if (!copy.attribute('inkscape:path-effect') && !(child instanceof SPPath)) {
+          copy.removeAttribute('d');
+          copy.removeAttribute('inkscape:original-d');
+        }
+        items_to_move.push(copy);
+      }
+
+      // delete from defs if no other object references this mask
+      if (!obj.isReferenced()) obj.deleteObject(false);
+
+      // remember parent and position of the item to which the clippath/mask was applied
+      const parent = item.getRepr().parent();
+      const ref_repr = item.getRepr();
+
+      // Iterate through all clipped paths / masks
+      for (const repr of [...items_to_move].reverse()) {
+        // insert into parent, restore pos
+        parent?.addChild(repr, ref_repr);
+        const mask_item = doc.getObjectByRepr(repr);
+        if (!(mask_item instanceof SPItem)) continue;
+        items_to_select.push(mask_item);
+        // transform mask, so it is moved the same spot where mask was applied
+        mask_item.doWriteTransform(mask_item.transform.multiply(item.transform));
+      }
+    }
+
+    // ungroup marked groups added when setting mask
+    for (const group of [...items_to_ungroup].reverse()) {
+      items_to_select = items_to_select.filter((i) => i !== group);
+      const children: SPItem[] = [];
+      sp_item_group_ungroup(group, children);
+      items_to_select.push(...[...children].reverse());
+    }
+
+    // rebuild selection
+    this.addList(items_to_select);
+  }
 
   protected _add(object: SPObject): void {
     this.#releaseConnections.set(

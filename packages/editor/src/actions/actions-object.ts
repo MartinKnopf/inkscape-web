@@ -5,12 +5,15 @@
  *
  * Copyright (C) 2020 Tavmjong Bah
  */
-import { C_, DocumentUndo, N_, NC_, type Selection, toCurves } from '@inkscape-web/core';
+import { C_, DocumentUndo, N_, NC_, Preferences, type Selection, toCurves } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 
 const SECTION = NC_('Action Section', 'Object');
 
-/** Action id, label, section and tooltip (untranslated). TODO: attributes, clip, mask, … */
+/**
+ * Action id, label, section and tooltip (untranslated).
+ * TODO: attributes, inverse clip and mask (Power Clip/Mask LPE), clip group, …
+ */
 export const raw_data_object: readonly (readonly [string, string, string, string])[] = [
   ['app.object-to-path', N_('Object to Path'), SECTION, N_('Convert shapes to paths')],
   ['app.object-rotate-90-cw', N_('Rotate Object 90°'), SECTION, N_('Rotate selected objects 90° clockwise')],
@@ -27,7 +30,44 @@ export const raw_data_object: readonly (readonly [string, string, string, string
     N_('Flip selected objects horizontally'),
   ],
   ['app.object-flip-vertical', N_('Flip Object Vertically'), SECTION, N_('Flip selected objects vertically')],
+  [
+    'app.object-set-clip',
+    N_('Set Object Clipping'),
+    SECTION,
+    N_('Apply clipping path to selection (using the topmost object as clipping path)'),
+  ],
+  [
+    'app.object-release-clip',
+    N_('Release Object Clipping'),
+    SECTION,
+    N_('Remove clipping path from selection'),
+  ],
+  [
+    'app.object-set-mask',
+    N_('Set Object Mask'),
+    SECTION,
+    N_('Apply mask to selection (using the topmost object as mask)'),
+  ],
+  ['app.object-release-mask', N_('Release Object Mask'), SECTION, N_('Remove mask from selection')],
 ];
+
+function should_remove_original(): boolean {
+  return Preferences.get().getBool('/options/maskobject/remove', true);
+}
+
+/** Set or release a clip path (clip) or mask, with an undo step (upstream object_clip_set etc.). */
+function object_mask(selection: Selection, clip: boolean, set: boolean): void {
+  const doc = selection.document();
+  if (!doc) return;
+  if (set) {
+    selection.setMask(clip, false, should_remove_original());
+    DocumentUndo.done(doc, clip ? C_('Undo', 'Set clipping path') : C_('Undo', 'Set mask'), '');
+  } else {
+    // TODO: sp_remove_powerclip / sp_remove_powermask (LPE).
+    selection.unsetMask(clip, true, should_remove_original());
+    DocumentUndo.done(doc, clip ? C_('Undo', 'Release clipping path') : C_('Undo', 'Release mask'), '');
+  }
+}
 
 function yaxisdown(selection: Selection): boolean {
   const doc = selection.document();
@@ -61,5 +101,9 @@ export function add_actions_object(app: InkscapeApplication): void {
   add('object-flip-vertical', (s) =>
     object_flip(s, 1, -1, C_('Undo', 'Flip vertically'), 'object-flip-vertical'),
   );
+  add('object-set-clip', (s) => object_mask(s, true, true));
+  add('object-release-clip', (s) => object_mask(s, true, false));
+  add('object-set-mask', (s) => object_mask(s, false, true));
+  add('object-release-mask', (s) => object_mask(s, false, false));
   app.get_action_extra_data().add_data(raw_data_object);
 }

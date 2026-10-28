@@ -2,6 +2,7 @@
 // Test helper: an in-memory Drawing that records what SPItem.show() and update() set.
 // Not used in production code.
 import type { Affine, OptRect, PathVector, Point, Rect } from '@inkscape-web/geom';
+import type { SPFilter } from '../object/sp-filter.ts';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
 import type { Pixbuf } from './cairo-utils.ts';
@@ -23,6 +24,10 @@ export class FakeDrawingItem implements DrawingItem {
   contextStyle: SPStyle | null = null;
   itemBounds: OptRect = null;
   unlinked = false;
+  clip: FakeDrawingItem | null = null;
+  mask: FakeDrawingItem | null = null;
+  filter: SPFilter | null = null;
+  childrenContextStyle: SPStyle | null = null;
 
   constructor(readonly kind: 'group' | 'shape' | 'image') {}
 
@@ -81,6 +86,18 @@ export class FakeDrawingItem implements DrawingItem {
   }
   setItemBounds(bounds: OptRect): void {
     this.itemBounds = bounds;
+  }
+  setChildrenStyle(contextStyle: SPStyle | null): void {
+    this.childrenContextStyle = contextStyle;
+  }
+  setClip(item: DrawingItem | null): void {
+    this.clip = item as FakeDrawingItem | null;
+  }
+  setMask(item: DrawingItem | null): void {
+    this.mask = item as FakeDrawingItem | null;
+  }
+  setFilterRenderer(filter: SPFilter | null): void {
+    this.filter = filter;
   }
   unlink(): void {
     this.clearChildren();

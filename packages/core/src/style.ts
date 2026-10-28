@@ -26,6 +26,7 @@
 import { parseDeclarationList } from './3rdparty/libcroco/cr-declaration.ts';
 import { attributeLookup, SPAttr } from './attributes.ts';
 import type { SPDocument } from './document.ts';
+import type { SPFilter } from './object/sp-filter.ts';
 import {
   SP_OBJECT_CHILD_MODIFIED_FLAG,
   SP_OBJECT_MODIFIED_FLAG,
@@ -180,7 +181,6 @@ function warnOnce(message: string): void {
 }
 
 // Reference callbacks ---------------------------------------------------------------------------
-// TODO: SPFilter is not ported; a filter reference never resolves yet.
 
 /** Emit style modified signal on style's object if the filter changed. */
 function spStyleFilterRefModified(_obj: SPObject | null, flags: number, style: SPStyle): void {
@@ -203,7 +203,7 @@ export function spStyleFilterRefChanged(oldRef: SPObject | null, ref: SPObject |
     style.filter_modified_connection = null;
   }
   if (ref) {
-    // TODO: is<SPFilter>(ref) and ref._refcount++
+    // The reference accepts only filters. TODO: ref._refcount++ (SPFilter.getRefCount).
     style.filter_modified_connection = ref.modifiedSignal.connect((obj, flags) =>
       spStyleFilterRefModified(obj, flags, style),
     );
@@ -1196,9 +1196,10 @@ export class SPStyle {
     return features.length === 0 ? 'normal' : features.join(', ');
   }
 
-  // The references. TODO: getFilter() returns SPFilter when it is ported.
-  getFilter(): SPObject | null {
-    return this.filter.href ? this.filter.href.getObject() : null;
+  // The references.
+  getFilter(): SPFilter | null {
+    // The reference accepts only filters (SPFilterReference._acceptObject).
+    return this.filter.href ? (this.filter.href.getObject() as SPFilter | null) : null;
   }
   getFilterURI(): string | null {
     return this.filter.href ? this.filter.href.getURI() : null;

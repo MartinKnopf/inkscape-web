@@ -7,6 +7,7 @@
  * Copyright (C) 2011 Authors
  */
 import type { Affine, OptRect, PathVector, Point, Rect } from '@inkscape-web/geom';
+import type { SPFilter } from '../object/sp-filter.ts';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
 import type { Pixbuf } from './cairo-utils.ts';
@@ -44,6 +45,17 @@ export interface DrawingItem {
   /** Set the style; contextStyle resolves context-fill/context-stroke (markers). */
   setStyle(style: SPStyle | null, contextStyle?: SPStyle | null): void;
   setItemBounds(bounds: OptRect): void;
+  /** Resolve context-fill and context-stroke in the children (markers) with contextStyle. */
+  setChildrenStyle(contextStyle: SPStyle | null): void;
+  /** Clip this item with item (a group shown by SPClipPath), or remove the clip. */
+  setClip(item: DrawingItem | null): void;
+  /** Mask this item with item (a group shown by SPMask), or remove the mask. */
+  setMask(item: DrawingItem | null): void;
+  /**
+   * Filter this item with filter, or remove the filter. Upstream passes a renderer that
+   * SPFilter.build_renderer() made; here the drawing renders the SPFilter itself.
+   */
+  setFilterRenderer(filter: SPFilter | null): void;
   /** Remove from the parent and release. */
   unlink(): void;
 }

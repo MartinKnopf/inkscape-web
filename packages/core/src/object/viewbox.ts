@@ -11,6 +11,7 @@
  * Copyright (C) 2013-2014 Tavmjong Bah, authors
  */
 import { Affine, are_near, EPSILON, Rect, Translate } from '@inkscape-web/geom';
+import { svgNumber } from '../svg/stringstream.ts';
 import type { Node } from '../xml/node.ts';
 import type { SPItemCtx } from './sp-item.ts';
 
@@ -82,6 +83,16 @@ export class SPViewBox {
     this.aspect_set = true;
     this.aspect_align = a;
     this.aspect_clip = clip === 'slice' ? SP_ASPECT_SLICE : SP_ASPECT_MEET;
+  }
+
+  /** Write the viewBox attribute to repr, if set. */
+  write_viewBox(repr: Node): void {
+    if (!this.viewBox_set) return;
+    const b = this.viewBox;
+    repr.setAttribute(
+      'viewBox',
+      [b.left(), b.top(), b.width(), b.height()].map((v) => svgNumber(v)).join(' '),
+    );
   }
 
   /** Write the preserveAspectRatio attribute to repr, if set. */

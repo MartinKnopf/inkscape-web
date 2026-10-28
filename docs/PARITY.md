@@ -7,7 +7,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 9 | 26 | 35 |
 | Dialogs | 9 | 29 | 31 |
-| Actions | 73 | 409 | 18 |
+| Actions | 113 | 409 | 28 |
 | Live path effects | 3 | 56 | 5 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (73/409)</summary>
+<details><summary>Actions (113/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -156,19 +156,19 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.object-get-attribute`
 - [ ] `app.object-get-property`
 - [ ] `app.object-rearrange`
-- [ ] `app.object-release-clip`
-- [ ] `app.object-release-mask`
+- [x] `app.object-release-clip`
+- [x] `app.object-release-mask`
 - [ ] `app.object-remove-attribute`
 - [ ] `app.object-remove-overlaps`
 - [ ] `app.object-remove-property`
 - [x] `app.object-rotate-90-ccw`
 - [x] `app.object-rotate-90-cw`
 - [ ] `app.object-set-attribute`
-- [ ] `app.object-set-clip`
+- [x] `app.object-set-clip`
 - [ ] `app.object-set-clip-group`
 - [x] `app.object-set-inverse-clip`
 - [ ] `app.object-set-inverse-mask`
-- [ ] `app.object-set-mask`
+- [x] `app.object-set-mask`
 - [ ] `app.object-set-property`
 - [ ] `app.object-star-turn-upright`
 - [ ] `app.object-stroke-to-path`
@@ -286,15 +286,15 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `doc.all-clones-to-objects`
 - [ ] `doc.all-objects-to-paths`
 - [ ] `doc.clip-to-page`
-- [ ] `doc.create-guides-around-page`
-- [ ] `doc.delete-all-guides`
+- [x] `doc.create-guides-around-page`
+- [x] `doc.delete-all-guides`
 - [ ] `doc.fit-canvas-to-drawing`
 - [ ] `doc.insert-bounding-boxes`
 - [ ] `doc.insert-hatch-polyfill`
 - [ ] `doc.insert-mesh-polyfill`
 - [ ] `doc.insert-path-data`
 - [ ] `doc.insert-text-fallback`
-- [ ] `doc.lock-all-guides`
+- [x] `doc.lock-all-guides`
 - [ ] `doc.normalize-all-paths`
 - [ ] `doc.page-delete`
 - [ ] `doc.page-duplicate`
@@ -311,8 +311,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `doc.set-inkscape-version`
 - [ ] `doc.set-svg-version-1`
 - [ ] `doc.set-svg-version-2`
-- [ ] `doc.show-all-guides`
-- [ ] `doc.show-grids`
+- [x] `doc.show-all-guides`
+- [x] `doc.show-grids`
 - [x] `doc.undo`
 - [ ] `doc.vacuum-defs`
 - [ ] `win.canvas-color-manage`
@@ -442,37 +442,37 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.selection-move-to-layer-below`
 - [ ] `win.shape-builder-mode`
 - [ ] `win.shape-builder-replace`
-- [ ] `win.simple-snap-alignment`
-- [ ] `win.simple-snap-bbox`
-- [ ] `win.simple-snap-nodes`
-- [ ] `win.snap-alignment`
-- [ ] `win.snap-alignment-self`
-- [ ] `win.snap-bbox`
-- [ ] `win.snap-bbox-center`
-- [ ] `win.snap-bbox-corner`
-- [ ] `win.snap-bbox-edge`
-- [ ] `win.snap-bbox-edge-midpoint`
-- [ ] `win.snap-distribution`
-- [ ] `win.snap-global-toggle`
-- [ ] `win.snap-grid`
-- [ ] `win.snap-grid-line`
-- [ ] `win.snap-guide`
-- [ ] `win.snap-line-midpoint`
-- [ ] `win.snap-line-perpendicular`
-- [ ] `win.snap-line-tangential`
-- [ ] `win.snap-node-category`
-- [ ] `win.snap-node-cusp`
-- [ ] `win.snap-node-smooth`
-- [ ] `win.snap-object-midpoint`
-- [ ] `win.snap-others`
-- [ ] `win.snap-page-border`
-- [ ] `win.snap-page-margin`
-- [ ] `win.snap-path`
-- [ ] `win.snap-path-clip`
-- [ ] `win.snap-path-intersection`
-- [ ] `win.snap-path-mask`
-- [ ] `win.snap-rotation-center`
-- [ ] `win.snap-text-baseline`
+- [x] `win.simple-snap-alignment`
+- [x] `win.simple-snap-bbox`
+- [x] `win.simple-snap-nodes`
+- [x] `win.snap-alignment`
+- [x] `win.snap-alignment-self`
+- [x] `win.snap-bbox`
+- [x] `win.snap-bbox-center`
+- [x] `win.snap-bbox-corner`
+- [x] `win.snap-bbox-edge`
+- [x] `win.snap-bbox-edge-midpoint`
+- [x] `win.snap-distribution`
+- [x] `win.snap-global-toggle`
+- [x] `win.snap-grid`
+- [x] `win.snap-grid-line`
+- [x] `win.snap-guide`
+- [x] `win.snap-line-midpoint`
+- [x] `win.snap-line-perpendicular`
+- [x] `win.snap-line-tangential`
+- [x] `win.snap-node-category`
+- [x] `win.snap-node-cusp`
+- [x] `win.snap-node-smooth`
+- [x] `win.snap-object-midpoint`
+- [x] `win.snap-others`
+- [x] `win.snap-page-border`
+- [x] `win.snap-page-margin`
+- [x] `win.snap-path`
+- [x] `win.snap-path-clip`
+- [x] `win.snap-path-intersection`
+- [x] `win.snap-path-mask`
+- [x] `win.snap-rotation-center`
+- [x] `win.snap-text-baseline`
 - [ ] `win.tab-next`
 - [ ] `win.tab-previous`
 - [ ] `win.text-decoration-line-line-through`

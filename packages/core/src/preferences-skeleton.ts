@@ -17,6 +17,8 @@ export const preferences_skeleton: Readonly<Record<string, string>> = {
   '/options/dragtolerance/value': '4.0',
   '/options/clonecompensation/value': '1',
   '/options/cloneorphans/value': '0',
+  '/options/maskobject/topmost': '1',
+  '/options/maskobject/remove': '1',
 
   '/tools/bounding_box': '0',
 

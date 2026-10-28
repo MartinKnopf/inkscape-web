@@ -251,7 +251,7 @@ export class SPGroup extends SPItem {
     return ngettext('of <b>%d</b> object', 'of <b>%d</b> objects', len).replace('%d', String(len));
   }
 
-  protected override show(drawing: Drawing, key: number, flags: number): DrawingItem {
+  protected override show(drawing: Drawing, key: number, flags: number): DrawingItem | null {
     const ai = drawing.createGroup();
     ai.setPickChildren(this.effectiveLayerMode(key) === LayerMode.LAYER);
     if (this.parent) this.context_style = this.parent.context_style;
