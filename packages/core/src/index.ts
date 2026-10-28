@@ -10,6 +10,7 @@ export type * from './display/drawing.ts';
 export * from './document.ts';
 export * from './document-undo.ts';
 export * from './extension/internal/gdkpixbuf-input.ts';
+export * from './gradient-chemistry.ts';
 export * from './helper/geom.ts';
 export * from './i18n.ts';
 export * from './id-clash.ts';
