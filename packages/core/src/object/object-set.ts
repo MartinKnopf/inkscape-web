@@ -277,8 +277,10 @@ export class ObjectSet {
       : this.documentBounds(BBoxType.GEOMETRIC_BBOX);
   }
 
-  /** The rotation and skew center. TODO: the center set on the items (isCenterSet). */
+  /** The rotation and skew center: the one set on the first selected item, else the middle of the bounds. */
   center(): Point | null {
+    const first = this.items()[0];
+    if (first?.isCenterSet()) return first.getCenter();
     return this.preferredBounds()?.midpoint() ?? null;
   }
 
@@ -318,7 +320,7 @@ export class ObjectSet {
    * live drag, when the items already show the new transform and only the
    * reprs need the update.
    */
-  applyAffine(affine: Affine, set_i2d = true, compensate = true, _adjust_transf_center = true): void {
+  applyAffine(affine: Affine, set_i2d = true, compensate = true, adjust_transf_center = true): void {
     if (this.isEmpty()) return;
     this.#lastAffine = affine;
     for (const item of this.items()) {
@@ -329,9 +331,16 @@ export class ObjectSet {
         break;
       }
       // TODO: connectors, clones with originals, offsets, text on path, flowed text,
-      // the transform center (adjust_transf_center), 3D box perspectives.
+      // 3D box perspectives.
+      const old_center = item.isCenterSet() ? item.getCenter() : null;
       if (set_i2d) item.setI2dAffine(item.i2dtAffine().multiply(affine));
       item.doWriteTransform(item.transform, null, compensate);
+      // The transformation center follows the object, unless the transformation is a translation
+      // (then the center is relative to the bounding box anyway).
+      if (adjust_transf_center && set_i2d && old_center && !(affine.isTranslation() || affine.isIdentity())) {
+        item.setCenter(old_center.transformed(affine));
+        item.updateRepr();
+      }
     }
   }
 

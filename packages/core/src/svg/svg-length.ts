@@ -204,7 +204,7 @@ export enum SVGLengthUnit {
 const SVG_LENGTH_ABBR = ['', 'px', 'pt', 'pc', 'mm', 'cm', 'in', 'em', 'ex', '%'] as const;
 
 /** Upstream: Unit::svgUnit. Units without an SVG length unit (ft, m, ...) give NONE. */
-function svgUnitOf(abbr: string): SVGLengthUnit {
+export function svgUnitOf(abbr: string): SVGLengthUnit {
   const i = SVG_LENGTH_ABBR.indexOf(abbr as (typeof SVG_LENGTH_ABBR)[number]);
   return i === -1 ? SVGLengthUnit.NONE : i;
 }

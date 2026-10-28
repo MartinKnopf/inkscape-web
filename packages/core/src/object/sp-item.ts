@@ -12,7 +12,7 @@
  * Copyright (C) 2001 Ximian, Inc.
  * Copyright (C) 2004 Monash University
  */
-import { Affine, are_near, type OptRect, type Point, Rect } from '@inkscape-web/geom';
+import { Affine, are_near, type OptRect, Point, Rect } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { Drawing, DrawingItem } from '../display/drawing.ts';
@@ -421,6 +421,37 @@ export class SPItem extends SPObject {
 
   // Transforms
 
+  /** Reset the rotation center to the middle of the bounding box. */
+  unsetCenter(): void {
+    this.transform_center_x = 0;
+    this.transform_center_y = 0;
+  }
+
+  /** True if the rotation center was moved away from the middle of the bounding box. */
+  isCenterSet(): boolean {
+    return this.transform_center_x !== 0 || this.transform_center_y !== 0;
+  }
+
+  /** Scale of user units to px, for the rotation center (the smaller of the viewBox scales). */
+  #centerViewscale(): number {
+    const vb = this.document.getRoot().viewBox;
+    if (vb.hasZeroArea()) return 1.0;
+    const size = this.document.getDimensions();
+    return Math.min(size.y / vb.height(), size.x / vb.width());
+  }
+
+  /** The rotation center in desktop coordinates (px). */
+  getCenter(ensure_uptodate = true): Point {
+    if (ensure_uptodate) this.document.ensureUpToDate();
+    const viewscale = this.#centerViewscale();
+    const bbox = this.desktopGeometricBounds();
+    if (!bbox) return new Point(0, 0); // something's wrong!
+    // transform_center_x/y are stored in user units, so we have to take the viewbox into account
+    return bbox
+      .midpoint()
+      .add(new Point(this.transform_center_x * viewscale, this.transform_center_y * viewscale));
+  }
+
   /**
    * Set the rotation center to object_centre (in desktop coordinates), as an
    * offset from the center of the desktop bounding box.
@@ -428,15 +459,7 @@ export class SPItem extends SPObject {
   setCenter(object_centre: Point): void {
     this.document.ensureUpToDate();
 
-    // Copied from DocumentProperties::onDocUnitChange()
-    let viewscale = 1.0;
-    const vb = this.document.getRoot().viewBox;
-    if (!vb.hasZeroArea()) {
-      const size = this.document.getDimensions();
-      const viewscale_w = size.x / vb.width();
-      const viewscale_h = size.y / vb.height();
-      viewscale = Math.min(viewscale_h, viewscale_w);
-    }
+    const viewscale = this.#centerViewscale();
 
     // FIXME this is seriously wrong
     const bbox = this.desktopGeometricBounds();

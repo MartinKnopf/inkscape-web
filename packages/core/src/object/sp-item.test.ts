@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import { Affine, Scale, Translate } from '@inkscape-web/geom';
+import { Affine, Point, Scale, Translate } from '@inkscape-web/geom';
 import { describe, expect, it } from 'vitest';
 import { SPDocument } from '../document.ts';
 import { SPItem } from './sp-item.ts';
@@ -85,5 +85,22 @@ describe('SPItem state', () => {
     expect([a.transform_center_x, a.transform_center_y]).toEqual([3, 4]);
     a.updateRepr();
     expect(a.getAttribute('inkscape:transform-center-y')).toBe('-4');
+  });
+});
+
+describe('SPItem rotation center', () => {
+  it('stores the center relative to the bounding box middle and writes it with the y axis flipped', () => {
+    const doc = open('<rect id="a" x="10" y="10" width="20" height="20"/>');
+    const a = item(doc, 'a');
+    expect(a.isCenterSet()).toBe(false);
+    expect(a.getCenter().equals(new Point(20, 20))).toBe(true);
+    a.setCenter(new Point(30, 25));
+    expect(a.isCenterSet()).toBe(true);
+    a.updateRepr();
+    expect(a.getAttribute('inkscape:transform-center-x')).toBe('10');
+    expect(a.getAttribute('inkscape:transform-center-y')).toBe('-5');
+    a.unsetCenter();
+    a.updateRepr();
+    expect(a.getAttribute('inkscape:transform-center-x')).toBeNull();
   });
 });

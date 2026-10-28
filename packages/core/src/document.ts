@@ -20,9 +20,10 @@ import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { createObject } from './object/sp-factory.ts';
 import { SPItem, type SPItemCtx } from './object/sp-item.ts';
 import { LayerMode, SPGroup } from './object/sp-item-group.ts';
+import { SPNamedView } from './object/sp-namedview.ts';
 import { getTypeString, type SPObject } from './object/sp-object.ts';
 import { SPRoot } from './object/sp-root.ts';
-import { convertUnit, type SVGLength, SVGLengthUnit } from './svg/svg-length.ts';
+import { convertUnit, type SVGLength, SVGLengthUnit, svgUnitOf } from './svg/svg-length.ts';
 import { Signal } from './util/signal.ts';
 import type { XmlDocument } from './xml/document.ts';
 import type { Node } from './xml/node.ts';
@@ -111,6 +112,17 @@ export class SPDocument {
   }
   getRoot(): SPRoot {
     return this.root;
+  }
+  /** The sodipodi:namedview object; the element is created if the document has none. */
+  getNamedView(): SPNamedView {
+    let repr = [...this.rroot.children()].find((c) => c.name() === 'sodipodi:namedview');
+    if (!repr) {
+      repr = this.rdoc.createElement('sodipodi:namedview');
+      this.rroot.addChild(repr, null);
+    }
+    const nv = this.getObjectByRepr(repr);
+    if (!(nv instanceof SPNamedView)) throw new Error('namedview object missing');
+    return nv;
   }
   getDefs(): SPObject | null {
     return this.root.defs;
@@ -235,6 +247,65 @@ export class SPDocument {
     }
     // computed is the value in px (no unit is px).
     return length.computed;
+  }
+
+  /** The viewBox, or the page area if the root has none (upstream getViewBox). */
+  getViewBox(): Rect {
+    return this.root.viewBox_set ? this.root.viewBox : this.preferredBounds();
+  }
+
+  /** Set the viewBox and write it to the repr (upstream setViewBox). */
+  setViewBox(viewBox: Rect): void {
+    this.root.vb.viewBox_set = true;
+    this.root.vb.viewBox = viewBox;
+    this.root.updateRepr();
+  }
+
+  /**
+   * Document scale: user units to SVG length value (computed false) or to px (computed true),
+   * for x and y; (1, 1) without a viewBox (upstream getDocumentScale).
+   */
+  getDocumentScale(computed = true): Point {
+    const { root } = this;
+    if (!root.viewBox_set) return new Point(1, 1);
+    const vb = root.viewBox;
+    const w = computed ? root.width.computed : root.width.value;
+    const h = computed ? root.height.computed : root.height.value;
+    return new Point(vb.width() > 0 ? w / vb.width() : 1, vb.height() > 0 ? h / vb.height() : 1);
+  }
+
+  /**
+   * Set the root size in the units of width_unit and height_unit (SVG units: px, pt, pc, mm,
+   * cm, in). With changeSize the viewBox changes by the relative size change, which keeps the
+   * document scale (upstream setWidthAndHeight).
+   */
+  setWidthAndHeight(
+    width: number,
+    width_unit: string,
+    height: number,
+    height_unit: string,
+    changeSize = true,
+  ): void {
+    const { root } = this;
+    const old = (len: SVGLength, to: string) =>
+      len.unit === SVGLengthUnit.PERCENT
+        ? convertUnit(len.computed, 'px', to)
+        : convertUnit(len.value, len.unit ? len.getUnit().abbr : 'px', to);
+    const old_width = old(root.width, width_unit);
+    const old_height = old(root.height, height_unit);
+    root.width.set(svgUnitOf(width_unit), width, convertUnit(width, width_unit, 'px'));
+    root.height.set(svgUnitOf(height_unit), height, convertUnit(height, height_unit, 'px'));
+    // viewBox scaled by relative change in page size (maintains document scale).
+    if (root.viewBox_set && changeSize) {
+      const vb = root.viewBox;
+      root.vb.viewBox = Rect.fromXywh(
+        vb.left(),
+        vb.top(),
+        (width / old_width) * vb.width(),
+        (height / old_height) * vb.height(),
+      );
+    }
+    root.updateRepr();
   }
 
   /** The page area in document coordinates: (0,0) to getDimensions(). */

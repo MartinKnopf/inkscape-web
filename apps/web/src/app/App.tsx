@@ -47,6 +47,7 @@ interface MenuItem {
   action: string;
 }
 
+const DIALOG_DOCUMENT_PROPERTIES = "win.dialog-open('DocumentProperties')";
 const DIALOG_XML = "win.dialog-open('XMLEditor')";
 const DIALOG_OBJECTS = "win.dialog-open('Objects')";
 const DIALOG_FILL_STROKE = "win.dialog-open('FillStroke')";
@@ -59,6 +60,7 @@ const MENU_ITEMS: Record<string, MenuItem[]> = {
     { label: '_Open...', action: 'app.document-open' },
     { label: '_Save', action: 'win.document-save' },
     { label: 'Save _As...', action: 'win.document-save-as' },
+    { label: '_Document Properties...', action: DIALOG_DOCUMENT_PROPERTIES },
   ],
   _Edit: [
     { label: '_Undo', action: 'doc.undo' },

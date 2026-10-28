@@ -288,7 +288,12 @@ export class SPDesktop {
     this.#layerManager._setDocument(doc);
     this.#updateLayersFromDocument();
     this.#updatePage();
-    this.#disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
+    const disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
+    const disconnectNamedView = doc.getNamedView().changedSignal.connect(() => this.#updatePage());
+    this.#disconnectModified = () => {
+      disconnectModified();
+      disconnectNamedView();
+    };
   }
 
   /**
@@ -315,7 +320,21 @@ export class SPDesktop {
     this.doc.getRoot().invokeHide(this.dkey);
   }
 
+  /** Show the page with the colors of the namedview and set the desk color (upstream set_desk_color). */
   #updatePage(): void {
+    const nv = this.doc.getNamedView();
+    // Page background has no configurable transparency; the checkerboard shows through when it is on.
+    // TODO: draw the checkerboard pattern.
+    const bg = nv.getBackgroundColor();
+    bg.setOpacity(nv.checkerboard.value ? 0 : 1);
+    const border = nv.getBorderColor();
+    if (!nv.border_show.value) border.setOpacity(0);
+    this.#page._background_color = bg.toRGBA();
+    this.#page._border_color = border.toRGBA();
+    this.#page._border_on_top = nv.border_on_top.value;
+    const desk = nv.getDeskColor();
+    desk.setOpacity(nv.checkerboard.value ? 0 : 1);
+    this.canvas.set_desk(desk.toRGBA());
     this.#page.update(this.doc.preferredBounds().transformed(this.doc2dt()));
   }
 
