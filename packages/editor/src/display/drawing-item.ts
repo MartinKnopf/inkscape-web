@@ -280,7 +280,7 @@ export abstract class SvgDrawingItem implements DrawingItem {
     for (const name of this.#appliedStyle) element.style.removeProperty(name);
     this.#appliedStyle = [];
     if (!style) return;
-    for (const declaration of style.write().split(';')) {
+    for (const declaration of this._styleText(style).split(';')) {
       const colon = declaration.indexOf(':');
       if (colon < 0) continue;
       const name = declaration.slice(0, colon).trim();
@@ -316,6 +316,11 @@ export abstract class SvgDrawingItem implements DrawingItem {
       return this.#paintValue(contextStyle, from, contextPaint.getValue() || 'black', null);
     }
     return value.startsWith('url(') ? this.#paintUrl(style, name, value) : value;
+  }
+
+  /** The CSS text that setStyle() copies from; text items use the complete cascaded style. */
+  protected _styleText(style: SPStyle): string {
+    return style.write();
   }
 
   /** The CSS value of a url() fill or stroke: the mirrored paint server, else the fallback. */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/display/drawing.h, src/display/drawing-item.h, src/display/drawing-group.h, src/display/drawing-shape.h, src/display/drawing-image.h
+// Upstream: src/display/drawing.h, src/display/drawing-item.h, src/display/drawing-group.h, src/display/drawing-shape.h, src/display/drawing-image.h, src/display/drawing-text.h
 /*
  * Authors:
  *   Krzysztof Kosiński <tweenk.pl@gmail.com>
@@ -22,6 +22,7 @@ export interface Drawing {
   createGroup(): DrawingGroup;
   createShape(): DrawingShape;
   createImage(): DrawingImage;
+  createText(): DrawingText;
 }
 
 export interface DrawingItem {
@@ -78,4 +79,15 @@ export interface DrawingImage extends DrawingItem {
   setScale(sx: number, sy: number): void;
   setOrigin(origin: Point): void;
   setClipbox(box: Rect): void;
+}
+
+/**
+ * The glyphs of a text span (upstream DrawingText). The style gives the font
+ * and the paint. Upstream adds glyph ids of a font with a transform; here a
+ * component is the text of a cluster with its position, because the browser
+ * draws the glyphs (see Layout.show()).
+ */
+export interface DrawingText extends DrawingItem {
+  /** Add a cluster at (x, y) on the baseline, rotated by rotation (radians) around that point; width is its advance. */
+  addComponent(text: string, x: number, y: number, rotation: number, width: number): boolean;
 }

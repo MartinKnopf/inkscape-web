@@ -37,6 +37,12 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
   ],
   ["win.dialog-open('Objects')", N_('Open Objects'), SECTION_DIALOG, N_('View Objects')],
   [
+    "win.dialog-open('Text')",
+    N_('Open Text'),
+    SECTION_DIALOG,
+    N_('View and select font family, font size and other text properties'),
+  ],
+  [
     "win.dialog-open('AlignDistribute')",
     N_('Open Align and Distribute'),
     SECTION_DIALOG,

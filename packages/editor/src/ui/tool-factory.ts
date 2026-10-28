@@ -20,6 +20,7 @@ import { RectTool } from './tools/rect-tool.ts';
 import { SelectTool } from './tools/select-tool.ts';
 import { SpiralTool } from './tools/spiral-tool.ts';
 import { StarTool } from './tools/star-tool.ts';
+import { TextTool } from './tools/text-tool.ts';
 import type { ToolBase } from './tools/tool-base.ts';
 import { ZoomTool } from './tools/zoom-tool.ts';
 
@@ -37,6 +38,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/select': SelectTool,
   '/tools/shapes/spiral': SpiralTool,
   '/tools/shapes/star': StarTool,
+  '/tools/text': TextTool,
 };
 
 /** Whether createTool() knows the tool with the preferences path id. */

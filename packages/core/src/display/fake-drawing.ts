@@ -6,7 +6,14 @@ import type { SPFilter } from '../object/sp-filter.ts';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
 import type { Pixbuf } from './cairo-utils.ts';
-import type { Drawing, DrawingGroup, DrawingImage, DrawingItem, DrawingShape } from './drawing.ts';
+import type {
+  Drawing,
+  DrawingGroup,
+  DrawingImage,
+  DrawingItem,
+  DrawingShape,
+  DrawingText,
+} from './drawing.ts';
 
 export class FakeDrawingItem implements DrawingItem {
   parent: FakeDrawingItem | null = null;
@@ -29,7 +36,7 @@ export class FakeDrawingItem implements DrawingItem {
   filter: SPFilter | null = null;
   childrenContextStyle: SPStyle | null = null;
 
-  constructor(readonly kind: 'group' | 'shape' | 'image') {}
+  constructor(readonly kind: 'group' | 'shape' | 'image' | 'text') {}
 
   key(): number {
     return this.keyValue;
@@ -159,6 +166,17 @@ export class FakeDrawingImage extends FakeDrawingItem implements DrawingImage {
   }
 }
 
+export class FakeDrawingText extends FakeDrawingItem implements DrawingText {
+  components: { text: string; x: number; y: number; rotation: number; width: number }[] = [];
+  constructor() {
+    super('text');
+  }
+  addComponent(text: string, x: number, y: number, rotation: number, width: number): boolean {
+    this.components.push({ text, x, y, rotation, width });
+    return true;
+  }
+}
+
 export class FakeDrawing implements Drawing {
   createGroup(): FakeDrawingGroup {
     return new FakeDrawingGroup();
@@ -168,5 +186,8 @@ export class FakeDrawing implements Drawing {
   }
   createImage(): FakeDrawingImage {
     return new FakeDrawingImage();
+  }
+  createText(): FakeDrawingText {
+    return new FakeDrawingText();
   }
 }

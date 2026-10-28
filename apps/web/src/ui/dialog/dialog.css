@@ -545,3 +545,45 @@
   min-width: 0;
   font: inherit;
 }
+
+/* Text and Font dialog */
+.text-edit-font {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+}
+
+.text-edit-families {
+  flex: 1;
+  min-height: 120px;
+}
+
+.text-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-edit-row input {
+  width: 64px;
+}
+
+.text-edit-preview {
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid #ccc;
+  white-space: nowrap;
+}
+
+.text-edit-text {
+  flex: 1;
+  margin: 8px;
+  resize: none;
+}
+
+.text-edit-buttons {
+  justify-content: flex-end;
+}

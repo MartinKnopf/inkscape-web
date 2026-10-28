@@ -314,7 +314,8 @@ export class SelectTool extends ToolBase {
         this.dragging = false;
       } else {
         // switch tool
-        set_active_tool_for_item(this._desktop, clicked_item);
+        const w = this._desktop.getCanvas().get_last_mouse();
+        set_active_tool_for_item(this._desktop, clicked_item, w ? this._desktopPoint(w) : null);
       }
     } else {
       sp_select_context_up_one_layer(this._desktop);

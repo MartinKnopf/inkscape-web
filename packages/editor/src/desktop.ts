@@ -542,7 +542,10 @@ export class SPDesktop {
     const result: SPItem[] = [];
     for (const el of svg.ownerDocument.elementsFromPoint(r.left + p.x, r.top + p.y)) {
       if (!this._canvas_group_drawing.contains(el)) continue;
-      const hit = SvgDrawingItem.itemFromElement(el)?.item();
+      // Display items without item (the spans of a text) give the item of their parent.
+      let di = SvgDrawingItem.itemFromElement(el);
+      while (di && !di.item()) di = SvgDrawingItem.itemFromElement(di.element.parentElement);
+      const hit = di?.item();
       const item = hit ? this.#flatListItem(hit, into_groups) : null;
       if (item && !result.includes(item) && item.isVisibleAndUnlocked()) result.push(item);
     }

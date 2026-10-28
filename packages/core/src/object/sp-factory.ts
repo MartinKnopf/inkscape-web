@@ -12,6 +12,9 @@ import { SPClipPath } from './sp-clippath.ts';
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
 import { SPFilter } from './sp-filter.ts';
+import { SPFlowdiv, SPFlowline, SPFlowpara, SPFlowregionbreak, SPFlowtspan } from './sp-flowdiv.ts';
+import { SPFlowregion, SPFlowregionExclude } from './sp-flowregion.ts';
+import { SPFlowtext } from './sp-flowtext.ts';
 import { SPGrid } from './sp-grid.ts';
 import { SPGuide } from './sp-guide.ts';
 import { SPImage } from './sp-image.ts';
@@ -31,6 +34,9 @@ import { SPRoot } from './sp-root.ts';
 import { SPSpiral } from './sp-spiral.ts';
 import { SPStar } from './sp-star.ts';
 import { SPStop } from './sp-stop.ts';
+import { SPString } from './sp-string.ts';
+import { SPText } from './sp-text.ts';
+import { SPTSpan } from './sp-tspan.ts';
 import { SPUse } from './sp-use.ts';
 
 function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
@@ -63,6 +69,17 @@ const map = new Map<string, (() => SPObject) | null>([
   ['star', () => new SPStar()],
   ['svg:use', () => new SPUse()],
   ['svg:stop', () => new SPStop()],
+  ['svg:text', () => new SPText()],
+  ['svg:tspan', () => new SPTSpan()],
+  ['svg:flowDiv', () => new SPFlowdiv()],
+  ['svg:flowSpan', () => new SPFlowtspan()],
+  ['svg:flowPara', () => new SPFlowpara()],
+  ['svg:flowLine', () => new SPFlowline()],
+  ['svg:flowRegionBreak', () => new SPFlowregionbreak()],
+  ['svg:flowRegion', () => new SPFlowregion()],
+  ['svg:flowRegionExclude', () => new SPFlowregionExclude()],
+  ['svg:flowRoot', () => new SPFlowtext()],
+  ['string', () => new SPString()],
   ['svg:svg', () => new SPRoot()],
   ['sodipodi:namedview', () => new SPNamedView()],
   ['sodipodi:guide', () => new SPGuide()],
