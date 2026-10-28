@@ -89,6 +89,8 @@ export class SPDocument {
     virgin: true,
   };
   modifiedSinceSave = false;
+  /** Upstream modified_since_autosave: set with modifiedSinceSave, cleared by the autosave. */
+  modifiedSinceAutoSave = false;
 
   readonly modifiedSignal = new Signal<[number]>();
   readonly commitSignal = new Signal<[]>();
@@ -619,6 +621,7 @@ export class SPDocument {
 
   setModifiedSinceSave(modified = true): void {
     this.modifiedSinceSave = modified;
+    this.modifiedSinceAutoSave = modified;
     this.modifiedSinceSaveSignal.emit(modified);
   }
 }

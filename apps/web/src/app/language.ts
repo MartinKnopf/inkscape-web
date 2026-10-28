@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Pick and load the UI language. Catalogs come from @inkscape-web/assets (po/<lang>.json).
-import { type Catalog, setCatalog } from '@inkscape-web/core';
+import { type Catalog, Preferences, setCatalog } from '@inkscape-web/core';
 
 interface Manifest {
   upstreamCommit: string;
@@ -17,11 +17,22 @@ export function matchLanguage(tag: string, available: string[]): string | null {
   return candidates.find((c) => available.includes(c)) ?? null;
 }
 
-/** Load the catalog for ?lang=xx or the browser language. Returns the active language. */
-export async function loadLanguage(): Promise<string> {
+/** The catalog names (upstream po file names) that exist. */
+export async function availableLanguages(): Promise<string[]> {
   const manifest: Manifest = await (await fetch('/manifest.json')).json();
-  const wanted = new URLSearchParams(location.search).get('lang') ?? navigator.language;
-  const lang = matchLanguage(wanted, manifest.languages);
+  return manifest.languages;
+}
+
+/**
+ * Load the catalog for ?lang=xx, else the preference /ui/language (an upstream
+ * catalog name like "pt_BR"; empty is the system default), else the browser
+ * language. Returns the active language.
+ */
+export async function loadLanguage(): Promise<string> {
+  const available = await availableLanguages();
+  const pref = Preferences.get().getString('/ui/language');
+  const wanted = new URLSearchParams(location.search).get('lang') ?? (pref || navigator.language);
+  const lang = available.includes(wanted) ? wanted : matchLanguage(wanted.replace('_', '-'), available);
   if (!lang) return 'en';
   const catalog: Catalog = await (await fetch(`/po/${lang}.json`)).json();
   setCatalog(catalog);

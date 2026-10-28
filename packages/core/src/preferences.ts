@@ -17,20 +17,45 @@ import {
 } from './xml/repr-css.ts';
 
 /**
+ * Where the changed preferences persist (upstream: preferences.xml). The web
+ * app attaches localStorage; the entries are path -> value.
+ */
+export interface PreferencesStorage {
+  /** All stored entries. */
+  load(): Iterable<readonly [path: string, value: string]>;
+  save(path: string, value: string): void;
+  remove(path: string): void;
+}
+
+/**
  * Preferences by path ("/options/transform/stroke"), as upstream.
  * Values the user has not set come from preferences-skeleton.ts; for paths
  * not in the skeleton, callers pass the upstream default, like upstream code does.
- * TODO: persistence (the editor stores them).
+ * The values the user set are kept by a PreferencesStorage, if one is attached.
  */
 export class Preferences {
   static #instance: Preferences | null = null;
   readonly #values = new Map<string, string>();
+  #storage: PreferencesStorage | null = null;
   /** Emitted with the path when a value changes. */
   readonly changedSignal = new Signal<[string]>();
 
   static get(): Preferences {
     Preferences.#instance ??= new Preferences();
     return Preferences.#instance;
+  }
+
+  /**
+   * Load the stored values and store later changes (upstream Preferences::load).
+   * Call before anything reads preferences.
+   */
+  attachStorage(storage: PreferencesStorage): void {
+    this.#storage = storage;
+    for (const [path, value] of storage.load()) {
+      if (this.#values.get(path) === value) continue;
+      this.#values.set(path, value);
+      this.changedSignal.emit(path);
+    }
   }
 
   /** The value set by the user, else the skeleton value. */
@@ -88,10 +113,11 @@ export class Preferences {
   setString(path: string, value: string): void {
     if (this.#values.get(path) === value) return;
     this.#values.set(path, value);
+    this.#storage?.save(path, value);
     this.changedSignal.emit(path);
   }
   setBool(path: string, value: boolean): void {
-    this.setString(path, value ? 'true' : 'false');
+    this.setString(path, value ? '1' : '0');
   }
   setInt(path: string, value: number): void {
     this.setString(path, String(Math.trunc(value)));
@@ -100,6 +126,8 @@ export class Preferences {
     this.setString(path, String(value));
   }
   remove(path: string): void {
-    if (this.#values.delete(path)) this.changedSignal.emit(path);
+    if (!this.#values.delete(path)) return;
+    this.#storage?.remove(path);
+    this.changedSignal.emit(path);
   }
 }
