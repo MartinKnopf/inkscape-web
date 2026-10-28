@@ -5,14 +5,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 5 | 26 | 19 |
-| Dialogs | 1 | 29 | 3 |
-| Actions | 6 | 409 | 1 |
-| Live path effects | 2 | 56 | 4 |
+| Tools | 6 | 26 | 23 |
+| Dialogs | 3 | 29 | 10 |
+| Actions | 20 | 409 | 5 |
+| Live path effects | 3 | 56 | 5 |
 | Internal import/export modules | 1 | 35 | 3 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (5/26)</summary>
+<details><summary>Tools (6/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
@@ -27,7 +27,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `marker-tool.cpp`
 - [ ] `measure-tool.cpp`
 - [ ] `mesh-tool.cpp`
-- [ ] `node-tool.cpp`
+- [x] `node-tool.cpp`
 - [ ] `object-picker-tool.cpp`
 - [ ] `pages-tool.cpp`
 - [ ] `pen-tool.cpp`
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (1/29)</summary>
+<details><summary>Dialogs (3/29)</summary>
 
 - [ ] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -61,7 +61,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `IconPreview`
 - [ ] `LivePathEffect`
 - [ ] `ObjectProperties`
-- [ ] `Objects`
+- [x] `Objects`
 - [x] `Preferences`
 - [ ] `Prototype`
 - [ ] `SVGFonts`
@@ -73,11 +73,11 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `Trace`
 - [ ] `Transform`
 - [ ] `UndoHistory`
-- [ ] `XMLEditor`
+- [x] `XMLEditor`
 
 </details>
 
-<details><summary>Actions (6/409)</summary>
+<details><summary>Actions (20/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -174,7 +174,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.object-stroke-to-path`
 - [ ] `app.object-to-guides`
 - [ ] `app.object-to-marker`
-- [ ] `app.object-to-path`
+- [x] `app.object-to-path`
 - [ ] `app.object-to-pattern`
 - [ ] `app.object-unlink-clones`
 - [ ] `app.open-page`
@@ -400,19 +400,19 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.node-align-vertical`
 - [ ] `win.node-distribute-horizontal`
 - [ ] `win.node-distribute-vertical`
-- [ ] `win.node-nodes-break`
-- [ ] `win.node-nodes-delete`
-- [ ] `win.node-nodes-insert`
-- [ ] `win.node-nodes-join`
-- [ ] `win.node-nodes-to-auto`
-- [ ] `win.node-nodes-to-cusp`
-- [ ] `win.node-nodes-to-smooth`
-- [ ] `win.node-nodes-to-symmetric`
-- [ ] `win.node-segments-delete`
-- [ ] `win.node-segments-join`
-- [ ] `win.node-segments-to-curves`
-- [ ] `win.node-segments-to-lines`
-- [ ] `win.node-simplify`
+- [x] `win.node-nodes-break`
+- [x] `win.node-nodes-delete`
+- [x] `win.node-nodes-insert`
+- [x] `win.node-nodes-join`
+- [x] `win.node-nodes-to-auto`
+- [x] `win.node-nodes-to-cusp`
+- [x] `win.node-nodes-to-smooth`
+- [x] `win.node-nodes-to-symmetric`
+- [x] `win.node-segments-delete`
+- [x] `win.node-segments-join`
+- [x] `win.node-segments-to-curves`
+- [x] `win.node-segments-to-lines`
+- [x] `win.node-simplify`
 - [ ] `win.page-delete`
 - [ ] `win.page-duplicate`
 - [ ] `win.page-new`
@@ -491,7 +491,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (2/56)</summary>
+<details><summary>Live path effects (3/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
@@ -537,7 +537,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `rough_hatches`
 - [ ] `roughen`
 - [ ] `ruler`
-- [ ] `show_handles`
+- [x] `show_handles`
 - [ ] `simplify`
 - [ ] `skeletal`
 - [ ] `sketch`

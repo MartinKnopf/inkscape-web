@@ -16,6 +16,7 @@ import type { SPDesktop } from '@inkscape-web/editor';
 import type { FunctionComponent } from 'react';
 import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts';
 import { ArcToolbar } from './arc-toolbar.tsx';
+import { NodeToolbar } from './node-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
 import { SpiralToolbar } from './spiral-toolbar.tsx';
 import { StarToolbar } from './star-toolbar.tsx';
@@ -23,6 +24,7 @@ import { useActiveTool } from './tool-toolbar.tsx';
 
 /** The controls bar of each tool, by tool name. TODO: the other tools (the select toolbar first). */
 const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = {
+  Node: NodeToolbar,
   Rect: RectToolbar,
   Arc: ArcToolbar,
   Star: StarToolbar,
