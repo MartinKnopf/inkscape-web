@@ -23,6 +23,8 @@ import {
   pathvector_append,
   pathvector_append_continuous,
   type Selection,
+  SnapCandidatePoint,
+  SnapSourceType,
   SPItem,
   SPPath,
   sp_svg_write_path,
@@ -31,7 +33,7 @@ import {
   spReprCssSet,
   spReprCssSetProperty,
 } from '@inkscape-web/core';
-import { distance, type Path, type PathVector, Point } from '@inkscape-web/geom';
+import { distance, type Path, type PathVector, type Point } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
 import { CanvasItemBpath } from '../../display/control/canvas-item-bpath.ts';
 import { SPDrawAnchor } from '../draw-anchor.ts';
@@ -217,28 +219,49 @@ export function set_pathvector(to: PathVector, curve: PathVector): void {
 
 /**
  * Snaps node or handle to PI/rotationsnapsperpi degree increments: p is
- * moved onto the nearest line through o at such an angle.
- * TODO: snapping to objects along these lines (SnapManager::constrainedAngularSnap).
+ * moved onto the nearest line through o at such an angle, and snapped to
+ * objects along these lines (SnapManager.constrainedAngularSnap).
+ * MOVE_NO_SNAPPING (no modifier in share/keys) would disable all but the angular snapping.
  */
 export function spdc_endpoint_snap_rotation(
-  _tool: ToolBase,
+  tool: ToolBase,
   p: Point,
   o: Point,
   _state: ModifierState,
 ): Point {
   const prefs = Preferences.get();
-  const snaps = Math.min(Math.max(prefs.getDouble('/options/rotationsnapsperpi/value', 12.0), 0.1), 1800.0);
-  const d = p.sub(o);
-  if (d.isZero()) return p;
-  const angle_incr = Math.PI / Math.trunc(snaps || 1);
-  const angle = Math.round(Math.atan2(d.y, d.x) / angle_incr) * angle_incr;
-  const dir = new Point(Math.cos(angle), Math.sin(angle));
-  return o.add(dir.mul(d.dot(dir)));
+  const snaps = Math.trunc(
+    Math.min(Math.max(prefs.getDouble('/options/rotationsnapsperpi/value', 12.0), 0.1), 1800.0),
+  );
+  const dt = tool._desktop;
+  const m = dt.getSnapManager();
+  m.setup(dt);
+  const dummy = m.constrainedAngularSnap(
+    new SnapCandidatePoint(p, SnapSourceType.SNAPSOURCE_NODE_HANDLE),
+    null,
+    o,
+    snaps,
+  );
+  m.unSetup();
+  return dummy.getPoint();
 }
 
-/** Snap p freely. TODO: the snap manager (freeSnap); p is returned unchanged. */
-export function spdc_endpoint_snap_free(_tool: ToolBase, p: Point, _start_of_line: Point | null): Point {
-  return p;
+/**
+ * Snap p freely. start_of_line is the start of the segment that ends at p
+ * (for perpendicular and tangential snapping). The item being drawn (the
+ * single selected item) is not snapped to.
+ * TODO: Allow snapping to the stationary parts of the item, and only ignore the last segment
+ */
+export function spdc_endpoint_snap_free(tool: ToolBase, p: Point, start_of_line: Point | null): Point {
+  const dt = tool._desktop;
+  const m = dt.getSnapManager();
+  // selection.singleItem() is the item that is currently being drawn. This item will not be snapped to (to avoid self-snapping)
+  m.setup(dt, true, dt.getSelection().singleItem());
+  const scp = new SnapCandidatePoint(p, SnapSourceType.SNAPSOURCE_NODE_HANDLE);
+  if (start_of_line) scp.addOrigin(start_of_line);
+  const sp = m.freeSnap(scp);
+  m.unSetup();
+  return sp.getPoint();
 }
 
 /**

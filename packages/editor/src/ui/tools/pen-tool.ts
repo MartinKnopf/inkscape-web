@@ -79,7 +79,7 @@ const NO_MODIFIERS: ModifierState = { shiftKey: false, ctrlKey: false, metaKey: 
  * path to the selected path as a subpath. Arrow keys move the last node,
  * Shift+L makes the last segment a line, Shift+U a curve.
  * TODO: the spiro, bspline, polyline and paraxial modes (freehand-mode 1–4),
- * waiting LPEs, snapping, status bar messages, cursor, Shift+G (to guides).
+ * waiting LPEs, status bar messages, cursor, Shift+G (to guides).
  */
 export class PenTool extends FreehandBase {
   p_array: Point[] = Array.from({ length: 5 }, () => new Point(0, 0));
@@ -285,8 +285,8 @@ export class PenTool extends FreehandBase {
             case PenState.POINT:
               if (this.npoints === 0) {
                 if (mod_freehand_dot(event) && (this.polylines_only || this.polylines_paraxial)) {
-                  // TODO: snap the dot.
-                  spdc_create_single_dot(this, event_dt, '/tools/freehand/pen', event);
+                  const dot = mod_move_no_snapping(event) ? event_dt : this._freeSnap(event_dt);
+                  spdc_create_single_dot(this, dot, '/tools/freehand/pen', event);
                   ret = true;
                   break;
                 }

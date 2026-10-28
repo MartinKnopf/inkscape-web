@@ -23,7 +23,7 @@ import { type ModifierState, mod_freehand_angle_snapping, mod_select_add_to, Too
  * The star tool (upstream StarTool): drag from the center to create a star
  * or polygon with the corners, spoke ratio, rounding and randomization of
  * the tool preferences; Ctrl snaps the angle.
- * TODO: ShapeEditor (knots), snapping, status bar messages, gradient drag, cursor.
+ * TODO: ShapeEditor (knots), status bar messages, gradient drag, cursor.
  */
 export class StarTool extends ToolBase {
   star: SPStar | null = null;
@@ -84,8 +84,8 @@ export class StarTool extends ToolBase {
         if (e.button === 0) {
           this.dragging = true;
           this.setup_for_drag_start(e);
-          // TODO: snap center.
-          this.center = this._desktopPoint(this._windowPoint(e));
+          // Snap center.
+          this.center = this._freeSnap(this._desktopPoint(this._windowPoint(e)));
           this.grabCanvasEvents(e);
           ret = true;
         }
@@ -96,8 +96,10 @@ export class StarTool extends ToolBase {
         if (this.dragging && e.buttons & 1) {
           const w = this._windowPoint(e);
           if (!this.checkDragMoved(w)) break;
-          this.drag(this._desktopPoint(w), e);
+          this.drag(this._desktopPoint(w), e); // This will also handle the snapping.
           ret = true;
+        } else if (!this.dragging) {
+          this._preSnap(this._desktopPoint(this._windowPoint(e)));
         }
         break;
       }
@@ -165,7 +167,8 @@ export class StarTool extends ToolBase {
       this.star.adjustStrokeWidthRecursive(this.#tr.descrim());
     }
 
-    // TODO: snap the corner point.
+    /* Snap corner point with no constraints */
+    p = this._freeSnap(p, this.star);
     const dt2doc = this._desktop.dt2doc();
     const p0 = this.center.transformed(dt2doc).transformed(this.#tr);
     const p1 = p.transformed(dt2doc).transformed(this.#tr);

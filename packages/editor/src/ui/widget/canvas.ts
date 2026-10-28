@@ -38,6 +38,7 @@ export class Canvas {
   #affine = Affine.identity();
   readonly #signalResize = new Signal<[]>();
   readonly #signalAffine = new Signal<[Affine]>();
+  readonly #signalPos = new Signal<[]>();
   readonly #resizeObserver: ResizeObserver | null = null;
   /** The last pointer position over the canvas (window coordinates), null after it left. */
   #last_mouse: Point | null = null;
@@ -84,6 +85,7 @@ export class Canvas {
     if (p.equals(this.#pos)) return;
     this.#pos = p;
     this.#update();
+    this.#signalPos.emit();
   }
   get_pos(): Point {
     return this.#pos;
@@ -133,6 +135,11 @@ export class Canvas {
   /** Called with the new desktop to world transform when it changes. Returns the disconnect function. */
   connectAffine(slot: (affine: Affine) => void): () => void {
     return this.#signalAffine.connect(slot);
+  }
+
+  /** Called when the canvas scrolls (the world position of the window changes). Returns the disconnect function. */
+  connectPos(slot: () => void): () => void {
+    return this.#signalPos.connect(slot);
   }
 
   /** The window point of a pointer event (upstream: event positions are in widget coordinates). */

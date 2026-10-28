@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2009 Authors
  */
-import { _, Preferences } from '@inkscape-web/core';
+import { _, Preferences, SnapCandidatePoint, SnapSourceType, SnapTargetType } from '@inkscape-web/core';
 import {
   type Affine,
   angle_between,
@@ -30,6 +30,7 @@ import type { CanvasItemGroup } from '../../display/control/canvas-item.ts';
 import { CanvasItemCtrlType, HandleSize } from '../../display/control/canvas-item-ctrl.ts';
 import { CanvasItemCurve } from '../../display/control/canvas-item-curve.ts';
 import { SPAnchorType } from '../../enums.ts';
+import { SnapConstraint } from '../../snapper.ts';
 import { type ModifierState, mod_alt, mod_ctrl, mod_shift } from '../tools/tool-base.ts';
 import { type ButtonReleaseEvent, ControlPoint, type MotionEvent, type State } from './control-point.ts';
 import type { ControlPointSelection } from './control-point-selection.ts';
@@ -50,6 +51,8 @@ const node_drag_handle = (s: ModifierState) => mod_shift(s);
 const node_link_handles = (s: ModifierState) => mod_shift(s);
 /** node-preserve-length: Alt */
 const node_preserve_length = (s: ModifierState) => mod_alt(s);
+/** move-snapping ("No Move Snapping"): no modifier in share/keys/inkscape.xml. */
+const move_no_snapping = (_s: ModifierState) => false;
 
 function nodeTypeToCtrlType(type: NodeType): CanvasItemCtrlType {
   switch (type) {
@@ -361,7 +364,29 @@ export class Handle extends ControlPoint {
       if (distance(perp_pos, new_pos) < distance(result, new_pos)) result = perp_pos;
       new_pos = result;
     }
-    // TODO: snapping.
+
+    // Snap the handle to the stationary path segments and other targets (not with Alt).
+    // TODO: the constraint along the line segment of smooth nodes, B-splines.
+    const sm = this._desktop.getSnapManager();
+    sm.setup(this._desktop);
+    const snap = !move_no_snapping(event) && !preserve_length && sm.someSnapperMightSnap();
+    sm.unSetup();
+    if (snap) {
+      // We will only snap this handle to stationary path segments; some path segments may move as we move the
+      // handle; those path segments are connected to the parent node of this handle.
+      const unselected: SnapCandidatePoint[] = [];
+      for (const n of this.#parent._selection.allPoints()) {
+        if (n !== this.#parent && n instanceof Node) {
+          unselected.push(new SnapCandidatePoint(n.position(), n._snapSourceType(), n._snapTargetType()));
+        }
+      }
+      sm.setupIgnoreSelection(this._desktop, true, unselected);
+      const candidate = new SnapCandidatePoint(new_pos, SnapSourceType.SNAPSOURCE_NODE_HANDLE);
+      new_pos = confine
+        ? sm.constrainedSnap(candidate, SnapConstraint.line(parent_pos, parent_pos.sub(new_pos))).getPoint()
+        : sm.freeSnap(candidate).getPoint();
+      sm.unSetup();
+    }
 
     if (this.#parent.type() === NodeType.NODE_CUSP && !Handle._drag_out) {
       if (link_handles) {
@@ -426,7 +451,7 @@ export class Handle extends ControlPoint {
  * Curve endpoint in an editable path (upstream Node).
  *
  * The method move() keeps node type invariants during translations.
- * TODO: linear and spatial grow (scroll, Page Up/Down), tips, snapping, BSpline paths.
+ * TODO: linear and spatial grow (scroll, Page Up/Down), tips, BSpline paths.
  */
 export class Node extends SelectableControlPoint implements ListNode {
   ln_next!: ListNode;
@@ -904,12 +929,53 @@ export class Node extends SelectableControlPoint implements ListNode {
     return true;
   }
 
+  /** The snap source type of this node: smooth or cusp. */
+  _snapSourceType(): SnapSourceType {
+    return this._type === NodeType.NODE_SMOOTH || this._type === NodeType.NODE_AUTO
+      ? SnapSourceType.SNAPSOURCE_NODE_SMOOTH
+      : SnapSourceType.SNAPSOURCE_NODE_CUSP;
+  }
+  /** The snap target type of this node: smooth or cusp. */
+  _snapTargetType(): SnapTargetType {
+    return this._type === NodeType.NODE_SMOOTH || this._type === NodeType.NODE_AUTO
+      ? SnapTargetType.SNAPTARGET_NODE_SMOOTH
+      : SnapTargetType.SNAPTARGET_NODE_CUSP;
+  }
+
+  /**
+   * Move the node to new_pos, snapped to the snap targets and the unselected
+   * nodes; Ctrl confines to the axes, Ctrl+Alt to the handle lines (with snapping
+   * along these lines), Alt to the path.
+   */
   override dragged(new_pos: Point, event: MotionEvent): Point {
     const confine = move_confine(event);
     const confine_handles = node_confine_handles(event);
     const confine_to_path = node_confine_to_path(event);
+    const no_snap = move_no_snapping(event);
 
-    // TODO: snapping (and the snap candidate vectors of upstream).
+    // even if we won't really snap, we might still call the one of the
+    // constrainedSnap() methods to enforce the constraints, so we need
+    // to setup the snapmanager anyway; this is also required for someSnapperMightSnap()
+    const sm = this._desktop.getSnapManager();
+    sm.setup(this._desktop);
+    const snap = !no_snap && sm.someSnapperMightSnap();
+    if (snap) {
+      // Build the list of unselected nodes.
+      const unselected: SnapCandidatePoint[] = [];
+      for (const node of this._selection.allPoints()) {
+        if (node.selected() || !(node instanceof Node)) continue;
+        unselected.push(
+          new SnapCandidatePoint(node.position(), node._snapSourceType(), node._snapTargetType()),
+        );
+      }
+      sm.unSetup();
+      sm.setupIgnoreSelection(this._desktop, true, unselected);
+    }
+
+    // Snap candidate point for free snapping; this will consider snapping tangentially
+    // and perpendicularly and therefore the origin or direction vector must be set
+    const scp_free = new SnapCandidatePoint(new_pos, this._snapSourceType());
+
     let front_direction: Point | null = null;
     let back_direction: Point | null = null;
     const origin = this._last_drag_origin();
@@ -917,25 +983,39 @@ export class Node extends SelectableControlPoint implements ListNode {
     const prev = this._prev();
     if (this._front.isDegenerate()) {
       // If there is no handle for the path segment towards the next node, then this segment may be straight
-      if (next && Node._is_line_segment(this, next)) front_direction = next.position().sub(origin);
+      if (next && Node._is_line_segment(this, next)) {
+        front_direction = next.position().sub(origin);
+        if (next.selected()) scp_free.addVector(next.position().sub(this.position()));
+        else scp_free.addOrigin(next.position());
+      }
     } else {
       // .. this path segment is curved
       front_direction = this._front.relativePos();
+      scp_free.addVector(front_direction);
     }
     if (this._back.isDegenerate()) {
       // If there is no handle for the path segment towards the previous node, then this segment may be straight
-      if (prev && Node._is_line_segment(prev, this)) back_direction = prev.position().sub(origin);
+      if (prev && Node._is_line_segment(prev, this)) {
+        back_direction = prev.position().sub(origin);
+        if (prev.selected()) scp_free.addVector(prev.position().sub(this.position()));
+        else scp_free.addOrigin(prev.position());
+      }
     } else {
       // .. this path segment is curved
       back_direction = this._back.relativePos();
+      scp_free.addVector(back_direction);
     }
 
     if (confine_to_path && this.#short_segment_path && !confine_handles && !confine) {
-      // Move from the cursor/drag position onto the line
+      // 1. Move from the cursor/drag position onto the line
+      new_pos = nearestOnPath(this.#short_segment_path, new_pos);
+      // 2. Free snap to move the line point to a grid or guide
+      new_pos = sm.freeSnap(new SnapCandidatePoint(new_pos, this._snapSourceType())).getPoint();
+      // 3. And finally move it back to the segment line to aproximate a constrained snap
       new_pos = nearestOnPath(this.#short_segment_path, new_pos);
     } else if (confine || confine_handles) {
-      // Constrain to lines through the origin; the nearest projection wins.
-      const constraints: Point[] = [];
+      // We're about to consider a constrained snap, which is already limited to 1D
+      const constraints: SnapConstraint[] = [];
       if (confine_handles) {
         // constrain to handle lines
         const snaps = Math.min(
@@ -943,8 +1023,8 @@ export class Node extends SelectableControlPoint implements ListNode {
           1800.0,
         );
         const min_angle = Math.PI / snaps;
-        if (front_direction) constraints.push(front_direction);
-        if (back_direction) constraints.push(back_direction);
+        if (front_direction) constraints.push(SnapConstraint.line(origin, front_direction));
+        if (back_direction) constraints.push(SnapConstraint.line(origin, back_direction));
         // For smooth nodes, we will also snap to normals of handle lines. For cusp nodes this would be unintuitive
         // and confusing Only snap to the normals when they are further than snap increment away from the second
         // handle constraint
@@ -955,24 +1035,29 @@ export class Node extends SelectableControlPoint implements ListNode {
             return a > min_angle && a < Math.PI - min_angle;
           };
           if (front_direction && far_from(rot90(front_direction), back_direction)) {
-            constraints.push(rot90(front_direction));
+            constraints.push(SnapConstraint.line(origin, rot90(front_direction)));
           }
           if (back_direction && far_from(rot90(back_direction), front_direction)) {
-            constraints.push(rot90(back_direction));
+            constraints.push(SnapConstraint.line(origin, rot90(back_direction)));
           }
         }
       } else {
         // with Ctrl and no Alt: constrain to axes
-        constraints.push(new Point(1, 0), new Point(0, 1));
+        constraints.push(
+          SnapConstraint.line(origin, new Point(1, 0)),
+          SnapConstraint.line(origin, new Point(0, 1)),
+        );
       }
-      let best: Point | null = null;
-      for (const dir of constraints) {
-        if (dir.isZero()) continue;
-        const p = project_on_line(origin, origin.add(dir), new_pos);
-        if (!best || distance(p, new_pos) < distance(best, new_pos)) best = p;
+      const valid = constraints.filter((c) => !c.getDirection().isZero());
+      if (valid.length) {
+        new_pos = sm
+          .multipleConstrainedSnaps(new SnapCandidatePoint(new_pos, this._snapSourceType()), valid, no_snap)
+          .getPoint();
       }
-      if (best) new_pos = best;
+    } else if (snap) {
+      new_pos = sm.freeSnap(scp_free).getPoint();
     }
+    sm.unSetup();
     return super.dragged(new_pos, event);
   }
 

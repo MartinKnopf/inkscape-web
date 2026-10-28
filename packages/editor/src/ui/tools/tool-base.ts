@@ -12,7 +12,14 @@
  *
  * Copyright (C) 1999-2012 authors
  */
-import { Preferences, type SPGroup, type SPItem } from '@inkscape-web/core';
+import {
+  Preferences,
+  SnapCandidatePoint,
+  SnapSourceType,
+  type SPGroup,
+  type SPItem,
+  type SPObject,
+} from '@inkscape-web/core';
 import { Point } from '@inkscape-web/geom';
 import { getDoubleLimited } from '../../actions/actions-canvas-transform.ts';
 import { get_active_tool, set_active_tool } from '../../actions/actions-tools.ts';
@@ -226,6 +233,26 @@ export class ToolBase {
       default:
         return false;
     }
+  }
+
+  /**
+   * Snap p (desktop coordinates) freely as a node handle, not to ignore
+   * (upstream: m.setup(desktop, true, ignore); m.freeSnapReturnByRef(p, SNAPSOURCE_NODE_HANDLE); m.unSetup()).
+   */
+  protected _freeSnap(p: Point, ignore: SPObject | null = null): Point {
+    const m = this._desktop.getSnapManager();
+    m.setup(this._desktop, true, ignore);
+    const r = m.freeSnapReturnByRef(p, SnapSourceType.SNAPSOURCE_NODE_HANDLE);
+    m.unSetup();
+    return r;
+  }
+
+  /** Show where p would snap to while the pointer hovers (upstream m.preSnap()). */
+  protected _preSnap(p: Point, source = SnapSourceType.SNAPSOURCE_NODE_HANDLE): void {
+    const m = this._desktop.getSnapManager();
+    m.setup(this._desktop);
+    m.preSnap(new SnapCandidatePoint(p, source));
+    m.unSetup();
   }
 
   /** Pointer position in window coordinates. */

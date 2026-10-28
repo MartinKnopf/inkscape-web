@@ -32,7 +32,7 @@ import {
  * of the tool preferences start, end and arc_type) in the box from the press
  * point; Ctrl for a circle or integer-ratio ellipse, Shift to draw around
  * the start point, Alt to let the ellipse pass through the pointer.
- * TODO: ShapeEditor (knots), snapping, status bar messages, gradient drag, cursor.
+ * TODO: ShapeEditor (knots), status bar messages, gradient drag, cursor.
  */
 export class ArcTool extends ToolBase {
   arc: SPGenericEllipse | null = null;
@@ -60,8 +60,8 @@ export class ArcTool extends ToolBase {
         if (e.button === 0) {
           this.dragging = true;
           this.setup_for_drag_start(e);
-          // TODO: snap center.
-          this.center = this._desktopPoint(this._windowPoint(e));
+          // Snap center.
+          this.center = this._freeSnap(this._desktopPoint(this._windowPoint(e)));
           this.grabCanvasEvents(e);
           ret = true;
         }
@@ -72,8 +72,10 @@ export class ArcTool extends ToolBase {
         if (this.dragging && e.buttons & 1) {
           const w = this._windowPoint(e);
           if (!this.checkDragMoved(w)) break;
-          this.drag(this._desktopPoint(w), e);
+          this.drag(this._desktopPoint(w), e); // This will also handle the snapping.
           ret = true;
+        } else if (!this.dragging) {
+          this._preSnap(this._desktopPoint(this._windowPoint(e)));
         }
         break;
       }
@@ -141,7 +143,7 @@ export class ArcTool extends ToolBase {
     const circle_edge = mod_trans_increment(state);
     const off_center = mod_trans_off_center(state);
 
-    let r = snap_rectangular_box(this._desktop, pt, this.center, state);
+    let r = snap_rectangular_box(this._desktop, pt, this.center, state, this.arc);
     let dir = r.dimensions().div(2);
 
     if (circle_edge) {

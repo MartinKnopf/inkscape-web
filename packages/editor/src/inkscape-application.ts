@@ -7,9 +7,11 @@
  */
 import { type Selection, Signal, type SPDocument } from '@inkscape-web/core';
 import { ActionRegistry } from './actions/action-map.ts';
+import { add_actions_canvas_snapping } from './actions/actions-canvas-snapping.ts';
 import { add_actions_canvas_transform } from './actions/actions-canvas-transform.ts';
 import { add_actions_edit } from './actions/actions-edit.ts';
 import { add_actions_edit_window } from './actions/actions-edit-window.ts';
+import { add_actions_edit_document } from './actions/actions-edit-document.ts';
 import { InkActionExtraData } from './actions/actions-extra-data.ts';
 import { add_actions_node_tool } from './actions/actions-node-tool.ts';
 import { add_actions_object } from './actions/actions-object.ts';
@@ -56,12 +58,14 @@ export class InkscapeApplication {
     add_actions_selection_object(this); // actions for selected objects
     add_actions_transform(this); // actions for transforming selected objects
     // Window actions (upstream InkscapeWindow)
+    add_actions_canvas_snapping(this); // Actions to toggle snapping.
     add_actions_canvas_transform(this); // Actions to transform canvas view.
     add_actions_edit_window(this); // Actions to edit.
     add_actions_node_tool(this); // Actions to add, delete, etc. nodes (requiring Node tool).
     add_actions_select_window(this); // Actions with desktop selection
     add_actions_tools(this, toolIsPorted); // Actions to switch between tools.
     // Document actions (upstream SPDocument)
+    add_actions_edit_document(this); // Guides and grids.
     add_actions_undo_document(this);
   }
 
