@@ -544,6 +544,8 @@
   flex: 1;
   min-width: 0;
   font: inherit;
+}
+
 /* Text and Font dialog */
 .text-edit-font {
   display: flex;

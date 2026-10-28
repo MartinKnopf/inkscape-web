@@ -12,8 +12,8 @@ import { SvgDrawingImage } from './drawing-image.ts';
 import { CLIP_MASK_CLASS, type SvgDrawingItem } from './drawing-item.ts';
 import { DrawingPaintServers } from './drawing-paintserver.ts';
 import { SvgDrawingShape } from './drawing-shape.ts';
-import { DrawingFilters } from './nr-filter.ts';
 import { SvgDrawingText } from './drawing-text.ts';
+import { DrawingFilters } from './nr-filter.ts';
 
 let drawingCount = 0;
 
