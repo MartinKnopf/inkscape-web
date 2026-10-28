@@ -21,7 +21,20 @@
  * Copyright (C) 1999-2016 authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { Preferences, SPItem, type SPObject } from '@inkscape-web/core';
+import {
+  Preferences,
+  SP_STYLE_FLAG_IFSET,
+  type SPCSSAttr,
+  SPGroup,
+  SPItem,
+  type SPObject,
+  spCssAttrScale,
+  spCssAttrUnsetBlacklist,
+  spCssAttrUnsetText,
+  spReprCssAttrAddFromString,
+  spReprCssAttrNew,
+  spReprCssMerge,
+} from '@inkscape-web/core';
 import { set_active_tool } from './actions/actions-tools.ts';
 import type { SPDesktop } from './desktop.ts';
 import { NodeTool } from './ui/tools/node-tool.ts';
@@ -183,4 +196,44 @@ export function sp_edit_invert(desktop: SPDesktop): void {
 
 export function sp_edit_invert_in_all_layers(desktop: SPDesktop): void {
   sp_edit_select_all_full(desktop, true, true);
+}
+
+/** The style of object as CSS (upstream sp_css_attr_from_object in style.cpp). */
+function sp_css_attr_from_object(object: SPObject, flags: number): SPCSSAttr {
+  const css = spReprCssAttrNew();
+  spReprCssAttrAddFromString(css, object.style.write(flags));
+  return css;
+}
+
+/**
+ * The complete cascaded style of object, for Paste Style and the style of
+ * new objects: without text properties (TODO: except for text objects) and
+ * the properties that should not be used in a default style, with the stroke
+ * width and similar values scaled to document units.
+ */
+export function take_style_from_item(object: SPObject): SPCSSAttr {
+  // write the complete cascaded style, context-free
+  let css = sp_css_attr_from_object(object, SP_STYLE_FLAG_IFSET);
+
+  if (object instanceof SPGroup && object.firstChild()) {
+    // If this is a group, merge the style of its topmost (last) child with style
+    // TODO: a text with exactly one tspan child.
+    for (const element of [...object.children].reverse()) {
+      spReprCssMerge(css, sp_css_attr_from_object(element, SP_STYLE_FLAG_IFSET));
+      break;
+    }
+  }
+
+  // Remove black-listed properties (those that should not be used in a default style)
+  css = spCssAttrUnsetBlacklist(css);
+
+  // do not copy text properties from non-text objects, it's confusing
+  css = spCssAttrUnsetText(css);
+
+  if (object instanceof SPItem) {
+    // FIXME: also transform gradient/pattern fills, by forking? NO, this must be nondestructive
+    const ex = object.i2docAffine().descrim();
+    if (ex !== 1.0) css = spCssAttrScale(css, ex);
+  }
+  return css;
 }
