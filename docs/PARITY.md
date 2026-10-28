@@ -7,9 +7,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 8 | 26 | 31 |
 | Dialogs | 9 | 29 | 31 |
-| Actions | 57 | 409 | 14 |
+| Actions | 73 | 409 | 18 |
 | Live path effects | 3 | 56 | 5 |
-| Internal import/export modules | 1 | 35 | 3 |
+| Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
 <details><summary>Tools (8/26)</summary>
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (57/409)</summary>
+<details><summary>Actions (73/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -85,14 +85,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.active-window-end`
 - [ ] `app.active-window-start`
 - [ ] `app.chameleon-fill`
-- [ ] `app.clone`
+- [x] `app.clone`
 - [ ] `app.clone-link`
 - [ ] `app.clone-link-lpe`
-- [ ] `app.clone-unlink`
-- [ ] `app.clone-unlink-recursively`
+- [x] `app.clone-unlink`
+- [x] `app.clone-unlink-recursively`
 - [ ] `app.convert-dpi-method`
-- [ ] `app.copy`
-- [ ] `app.cut`
+- [x] `app.copy`
+- [x] `app.cut`
 - [ ] `app.debug-info`
 - [x] `app.delete`
 - [x] `app.delete-selection`
@@ -180,14 +180,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.open-page`
 - [ ] `app.page-fit-to-selection`
 - [ ] `app.page-rotate`
-- [ ] `app.paste-height`
-- [ ] `app.paste-height-separately`
+- [x] `app.paste-height`
+- [x] `app.paste-height-separately`
 - [ ] `app.paste-path-effect`
-- [ ] `app.paste-size`
-- [ ] `app.paste-size-separately`
-- [ ] `app.paste-style`
-- [ ] `app.paste-width`
-- [ ] `app.paste-width-separately`
+- [x] `app.paste-size`
+- [x] `app.paste-size-separately`
+- [x] `app.paste-style`
+- [x] `app.paste-width`
+- [x] `app.paste-width-separately`
 - [x] `app.path-break-apart`
 - [x] `app.path-combine`
 - [x] `app.path-cut`
@@ -224,7 +224,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.select-by-selector`
 - [ ] `app.select-clear`
 - [ ] `app.select-list`
-- [ ] `app.select-original`
+- [x] `app.select-original`
 - [x] `app.selection-bottom`
 - [x] `app.selection-group`
 - [ ] `app.selection-hide`
@@ -362,7 +362,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.dialog-toggle`
 - [ ] `win.document-cleanup`
 - [ ] `win.document-close`
-- [ ] `win.document-import`
+- [x] `win.document-import`
 - [ ] `win.document-print`
 - [ ] `win.document-revert`
 - [x] `win.document-save`
@@ -416,8 +416,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.page-delete`
 - [ ] `win.page-duplicate`
 - [ ] `win.page-new`
-- [ ] `win.paste`
-- [ ] `win.paste-in-place`
+- [x] `win.paste`
+- [x] `win.paste-in-place`
 - [ ] `win.paste-on-page`
 - [ ] `win.path-effect-parameter-next`
 - [ ] `win.path-inset-screen`
@@ -552,7 +552,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Internal import/export modules (1/35)</summary>
+<details><summary>Internal import/export modules (2/35)</summary>
 
 - [ ] `bluredge.cpp`
 - [ ] `cairo-ps-out.cpp`
@@ -562,7 +562,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `cdr-input.cpp`
 - [ ] `emf-inout.cpp`
 - [ ] `emf-print.cpp`
-- [ ] `gdkpixbuf-input.cpp`
+- [x] `gdkpixbuf-input.cpp`
 - [ ] `gif.cpp`
 - [ ] `gimpgrad.cpp`
 - [ ] `grid.cpp`
