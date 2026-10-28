@@ -29,6 +29,7 @@ import {
   SPDocument,
   SPGroup,
   SPItem,
+  type SPStop,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
   spCssAttrUnsetUris,
@@ -111,6 +112,8 @@ export class SPDesktop {
   readonly #event_context_changed_signal = new Signal<[SPDesktop, ToolBase | null]>();
   /** Emitted after setDocument() showed another document. */
   readonly #document_replaced_signal = new Signal<[SPDesktop, SPDocument]>();
+  /** Emitted when a gradient stop is selected on the canvas or in a dialog (null: none). */
+  readonly #gradient_stop_selected_signal = new Signal<[SPStop | null]>();
   /** The slots of connectSetStyle(); the first that returns true intercepts the style. */
   readonly #setStyleSlots = new Set<(css: SPCSSAttr, switchStyle: boolean) => boolean>();
   /** The last used style (upstream SPDesktop::current), from "/desktop/style". */
@@ -234,6 +237,14 @@ export class SPDesktop {
   emitSetStyle(css: SPCSSAttr, switchStyle: boolean): boolean {
     for (const slot of [...this.#setStyleSlots]) if (slot(css, switchStyle)) return true;
     return false;
+  }
+
+  emit_gradient_stop_selected(stop: SPStop | null): void {
+    this.#gradient_stop_selected_signal.emit(stop);
+  }
+
+  connect_gradient_stop_selected(slot: (stop: SPStop | null) => void): () => void {
+    return this.#gradient_stop_selected_signal.connect(slot);
   }
 
   /** Set the style attribute of repr to the style for new objects of a tool, see getCurrentOrToolStyle(). */
