@@ -74,7 +74,7 @@ const in_svg_plane = (p: Point): boolean => Math.max(Math.abs(p.x), Math.abs(p.y
  * dot; Ctrl snaps the angle of straight lines. Esc cancels. A path started or
  * ended at an end anchor of the selected path continues that path.
  * TODO: pressure (power pencil), sketch mode (Alt), the spiro and bspline
- * modes, simplify and shape LPEs, snapping, status bar messages, cursor.
+ * modes, simplify and shape LPEs, status bar messages, cursor.
  */
 export class PencilTool extends FreehandBase {
   p_array: Point[] = Array.from({ length: 16 }, () => new Point(0, 0));
@@ -155,7 +155,7 @@ export class PencilTool extends FreehandBase {
         default:
           /* Set first point of sequence */
           if (mod_freehand_dot(event)) {
-            // TODO: snap the dot.
+            if (!mod_move_no_snapping(event)) p = this._freeSnap(p);
             spdc_create_single_dot(this, p, '/tools/freehand/pencil', event);
             ret = true;
             break;
@@ -172,6 +172,7 @@ export class PencilTool extends FreehandBase {
             // this curve is not combined with it (unless it is drawn from its
             // anchor, which is handled by the sibling branch above)
             this.selection.clear();
+            p = this._freeSnap(p);
           }
           this.sa = anchor;
           this._setStartpoint(p);

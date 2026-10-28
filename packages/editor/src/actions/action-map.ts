@@ -37,7 +37,9 @@ export class SimpleAction {
   readonly #activate: (value: Variant | undefined) => void;
   readonly #accepts: ((value: Variant) => boolean) | null;
   #enabled = true;
-  /** Emitted when the enabled state changes. */
+  /** The state of a stateful (boolean) action, undefined for stateless actions. */
+  #state: boolean | undefined;
+  /** Emitted when the enabled state or the state changes. */
   readonly signal_changed = new Signal<[]>();
 
   /** accepts limits the parameter values (e.g. to the known dialog keys); by default all values of the type. */
@@ -55,6 +57,17 @@ export class SimpleAction {
 
   get_enabled(): boolean {
     return this.#enabled;
+  }
+
+  /** The state of a boolean action (shown as a check mark), undefined if the action has no state. */
+  get_state(): boolean | undefined {
+    return this.#state;
+  }
+  /** Set the state (upstream change_state/set_state); does not run the action. */
+  change_state(state: boolean): void {
+    if (this.#state === state) return;
+    this.#state = state;
+    this.signal_changed.emit();
   }
   set_enabled(enabled: boolean): void {
     if (this.#enabled === enabled) return;
@@ -102,6 +115,16 @@ export class ActionMap {
   /** Add an action without parameter. Replaces an action with the same name. */
   add_action(name: string, activate: () => void): SimpleAction {
     return this.#add(new SimpleAction(name, null, () => activate()));
+  }
+
+  /**
+   * Add a boolean (toggle) action with an initial state (upstream add_action_bool).
+   * activate toggles the setting; it keeps the state up to date with change_state().
+   */
+  add_action_bool(name: string, activate: () => void, state = false): SimpleAction {
+    const action = this.#add(new SimpleAction(name, null, () => activate()));
+    action.change_state(state);
+    return action;
   }
 
   /**

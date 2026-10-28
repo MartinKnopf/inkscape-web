@@ -20,15 +20,37 @@ import {
   DocumentUndo,
   Preferences,
   type Selection,
+  type SnapCandidatePoint,
   type SPItem,
   SPRoot,
+  SnapTargetType as T,
 } from '@inkscape-web/core';
-import { Affine, dot, L2, type OptRect, Point, Rotate, rot90, Scale, Translate } from '@inkscape-web/geom';
+import {
+  Affine,
+  dot,
+  L2,
+  type OptRect,
+  Point,
+  Rect,
+  Rotate,
+  rot90,
+  Scale,
+  Translate,
+} from '@inkscape-web/geom';
 import type { SPDesktop } from './desktop.ts';
 import { CanvasItemCtrlType } from './display/control/canvas-item-ctrl.ts';
 import { SPAnchorType } from './enums.ts';
+import { getBBoxPointsDefault } from './object-snapper.ts';
+import {
+  PureScale,
+  PureScaleConstrained,
+  PureStretchConstrained,
+  PureTranslate,
+  PureTranslateConstrained,
+} from './pure-transform.ts';
 import { SelCue } from './selcue.ts';
 import { hands, type SPSelTransHandle, SPSelTransType } from './seltrans-handles.ts';
+import type { SnappedPoint } from './snapped-point.ts';
 import { SPKnot } from './ui/knot/knot.ts';
 import { type ModifierState, mod_alt, mod_ctrl, mod_shift } from './ui/tools/tool-base.ts';
 
@@ -48,7 +70,9 @@ export enum SelTransShow {
  * SelTrans): drags of the selected items (grab, moveTo, ungrab), the
  * scale and stretch handles around the selection bounding box, and in
  * STATE_ROTATE the rotate and skew handles and the rotation center.
- * TODO: align handles, snapping, outline mode, stamping, sticky keys,
+ * Moves and scales snap the bounding box points and the snap points of the
+ * selected items (see grab()).
+ * TODO: align handles, snapping of skew, rotate and the center, outline mode, stamping, sticky keys,
  * stroke compensation of scale handles (get_scale_transform_for_uniform_stroke),
  * the _norm and _grip indicators, status bar messages.
  */
@@ -69,9 +93,25 @@ export class SelTrans {
   /** The rotation centers (desktop coordinates) of the items that have one set, at grab. */
   #items_centers: (Point | null)[] = [];
   #bbox: OptRect = null;
+  #geometric_bbox: OptRect = null;
   #point = new Point(0, 0);
+  /** The grab point on the geometric bbox. */
+  #point_geom = new Point(0, 0);
   #origin = new Point(0, 0);
   #opposite = new Point(0, 0);
+  // There are two separate "opposites" (i.e. opposite w.r.t. the handle being dragged):
+  //  - one for snapping the boundingbox, which can be either visual or geometric
+  //  - one for snapping the special points
+  #opposite_for_bboxpoints = new Point(0, 0);
+  #opposite_for_specpoints = new Point(0, 0);
+  #origin_for_bboxpoints = new Point(0, 0);
+  #origin_for_specpoints = new Point(0, 0);
+  /** The handle position relative to the bbox (x, y in 0..1), see grab(). */
+  #handle_x = 0;
+  #handle_y = 0;
+  /** The snap sources: the snap points of the items and the bbox points. */
+  #snap_points: SnapCandidatePoint[] = [];
+  #bbox_points: SnapCandidatePoint[] = [];
   #center: Point | null = null;
   #center_is_set = false;
   #current_relative_affine = Affine.identity();
@@ -141,7 +181,7 @@ export class SelTrans {
    * Start a transformation at desktop point p. x and y are the handle
    * position relative to the bounding box (-1 for a move).
    */
-  grab(p: Point, x: number, y: number, show_handles: boolean, _translating: boolean): void {
+  grab(p: Point, x: number, y: number, show_handles: boolean, translating: boolean): void {
     if (this.#grabbed) return;
     this.#grabbed = true;
     this.#show_handles = show_handles;
@@ -155,13 +195,62 @@ export class SelTrans {
     this.#items_centers = this.#items.map((item) => (item.isCenterSet() ? item.getCenter() : null));
 
     if (y !== -1 && this.#desktop.yaxisdir() > 0) y = 1 - y;
+    this.#handle_x = x;
+    this.#handle_y = y;
 
+    // The selector tool should snap the bbox, special snappoints, and path nodes
     // First, determine the bounding box
     this.#bbox = this.#selection.bounds(this.#snap_bbox_type);
+    this.#geometric_bbox = this.#selection.geometricBounds();
     this.#point = p;
-    // TODO: snap points and bbox points.
+    this.#point_geom = this.#geometric_bbox
+      ? this.#geometric_bbox.min().add(this.#geometric_bbox.dimensions().scaled(new Point(x, y)))
+      : p;
+
+    // Next, get all points to consider for snapping
+    const m = this.#desktop.getSnapManager();
+    const prefs = Preferences.get();
+    this.#snap_points = [];
+    if (m.someSnapperMightSnap(false)) {
+      // Only search for snap sources when really needed, to avoid unnecessary delays
+      this.#snap_points = this.#selection.getSnapPoints(m.snapprefs);
+    }
+    if (this.#snap_points.length > 200 && !prefs.getBool('/options/snapclosestonly/value', false)) {
+      /* Snapping a huge number of nodes will take way too long, so limit the number of snappable nodes */
+      console.warn('Warning: limit of 200 snap sources reached, some will be ignored');
+      this.#snap_points.length = 200;
+    }
+    // Find bbox hulling all special points, which excludes stroke width.
+    const snap_points_bbox = this.#selection.bounds(BBoxType.GEOMETRIC_BBOX);
+    this.#bbox_points = [];
+    // Collect the bounding box's corners and midpoints for each selected item
+    if (m.snapprefs.isTargetSnappable(T.SNAPTARGET_BBOX_CATEGORY)) {
+      const c = m.snapprefs.isTargetSnappable(T.SNAPTARGET_BBOX_CORNER);
+      const mp = m.snapprefs.isTargetSnappable(T.SNAPTARGET_BBOX_MIDPOINT);
+      const emp = m.snapprefs.isTargetSnappable(T.SNAPTARGET_BBOX_EDGE_MIDPOINT);
+      // Preferably we'd use the bbox of each selected item, but for example 50 items will produce at least 200 bbox points.
+      // In that case we will use the bbox of the selection as a whole
+      const c1 = this.#items.length > 0 && this.#items.length < 50;
+      const c2 = prefs.getBool('/options/snapclosestonly/value', false);
+      if (translating && (c1 || c2)) {
+        // Get the bounding box points for each item in the selection
+        for (const item of this.#items) {
+          getBBoxPointsDefault(item.desktopBounds(this.#snap_bbox_type), this.#bbox_points, c, emp, mp);
+        }
+      } else {
+        // Only get the bounding box points of the selection as a whole
+        getBBoxPointsDefault(this.#bbox, this.#bbox_points, c, emp, mp);
+      }
+    }
+
     if (this.#bbox) {
-      this.#opposite = this.#bbox.min().add(this.#bbox.dimensions().scaled(new Point(1 - x, 1 - y)));
+      this.#opposite_for_bboxpoints = this.#bbox
+        .min()
+        .add(this.#bbox.dimensions().scaled(new Point(1 - x, 1 - y)));
+      this.#opposite_for_specpoints = snap_points_bbox
+        ? snap_points_bbox.min().add(snap_points_bbox.dimensions().scaled(new Point(1 - x, 1 - y)))
+        : this.#opposite_for_bboxpoints;
+      this.#opposite = this.#opposite_for_bboxpoints;
     }
     this.#updateHandles();
   }
@@ -197,6 +286,10 @@ export class SelTrans {
     this.#items = [];
     this.#items_affines = [];
     this.#items_centers = [];
+
+    this.#snap_points = [];
+    this.#bbox_points = [];
+    this.#desktop.getSnapIndicator().remove_snaptarget();
 
     const rel = this.#current_relative_affine;
     if (!this.#empty && this.#changed && !rel.isIdentity()) {
@@ -237,15 +330,62 @@ export class SelTrans {
     }
   }
 
-  /** Move the grabbed items so that the grab point is at xy. Ctrl restricts to horizontal or vertical. */
+  /**
+   * Move the grabbed items so that the grab point is at xy, snapping the bbox
+   * points and the snap points of the items. Ctrl restricts to horizontal or vertical.
+   * MOVE_INCREMENT (multiples of the grid pitch) and MOVE_NO_SNAPPING have no
+   * modifier in share/keys/inkscape.xml.
+   */
   moveTo(xy: Point, state: ModifierState): boolean {
+    const m = this.#desktop.getSnapManager();
     // The amount that we've moved by during this drag
     let dxy = xy.sub(this.#point);
     // MOVE_CONFINE (Ctrl)
-    if (mod_ctrl(state)) {
+    const confine = mod_ctrl(state);
+    const constrain = () => {
       dxy = Math.abs(dxy.x) > Math.abs(dxy.y) ? new Point(dxy.x, 0) : new Point(0, dxy.y);
+    };
+    if (confine) constrain();
+    /* We're snapping to things, possibly with a constraint to horizontal or
+     ** vertical movement.  Obtain a list of possible translations and then
+     ** pick the smallest.
+     */
+    m.setup(this.#desktop, false, this.#items);
+    let bb: PureTranslate;
+    let sn: PureTranslate;
+    if (confine) {
+      // constrained movement with snapping
+      const dim = Math.abs(dxy.x) > Math.abs(dxy.y) ? 0 : 1;
+      bb = new PureTranslateConstrained(dxy.at(dim), dim);
+      sn = new PureTranslateConstrained(dxy.at(dim), dim);
+    } else {
+      /* Snap to things with no constraint */
+      bb = new PureTranslate(dxy);
+      sn = new PureTranslate(dxy);
     }
-    // TODO: MOVE_INCREMENT (multiples of the grid pitch), snapping.
+    m.snapTransformed(this.#bbox_points, this.#point, bb);
+    m.snapTransformed(this.#snap_points, this.#point, sn);
+    m.unSetup();
+    /* Pick one */
+    let sn_is_best = sn.best_snapped_point.getSnapped();
+    let bb_is_best = bb.best_snapped_point.getSnapped();
+    if (bb_is_best && sn_is_best) {
+      sn_is_best = bb.best_snapped_point.isOtherSnapBetter(sn.best_snapped_point, true);
+      bb_is_best = !sn_is_best;
+    }
+    const indicator = this.#desktop.getSnapIndicator();
+    if (sn_is_best) {
+      indicator.set_new_snaptarget(sn.best_snapped_point);
+      dxy = sn.getTranslationSnapped();
+    } else if (bb_is_best) {
+      indicator.set_new_snaptarget(bb.best_snapped_point);
+      dxy = bb.getTranslationSnapped();
+    } else {
+      // We didn't snap, so remove any previous snap indicator
+      indicator.remove_snaptarget();
+      // If we didn't snap, then we should still constrain horizontally or vertically
+      if (confine) constrain();
+    }
     const move = Translate(dxy);
     this.transform(move, new Point(0, 0));
     return !move.isIdentity();
@@ -390,48 +530,180 @@ export class SelTrans {
     const off_center = mod_shift(state);
     if (off_center === (this.#state === SelTransState.STATE_ROTATE)) {
       this.#origin = this.#opposite;
+      this.#origin_for_bboxpoints = this.#opposite_for_bboxpoints;
+      this.#origin_for_specpoints = this.#opposite_for_specpoints;
     } else if (this.#center) {
       this.#origin = this.#center;
+      this.#origin_for_bboxpoints = this.#center;
+      this.#origin_for_specpoints = this.#center;
     }
   }
 
-  /** Scale for the dragged corner handle at pt; Ctrl keeps the aspect ratio, Alt scales by integer factors. Returns the handle position. */
+  /**
+   * Scale for the dragged corner handle at pt; Ctrl keeps the aspect ratio, Alt scales by
+   * integer factors, Shift (TRANS_NO_SNAPPING) does not snap. Returns the handle position.
+   */
   scaleRequest(pt: Point, state: ModifierState): Point {
     this.#originRequest(state);
+    // Calculate the scale factors, which can be either visual or geometric
+    // depending on which type of bbox is currently being used (see preferences -> selector tool)
     let [sx, sy] = calcScaleFactors(this.#point, pt, this.#origin);
+    // Find the scale factors for the geometric bbox
+    const pt_geom = this.#getGeomHandlePos(pt);
+    let [gx, gy] = calcScaleFactors(this.#point_geom, pt_geom, this.#origin_for_specpoints);
     if (mod_alt(state)) {
       // TRANS_INCREMENT: scale by an integer multiplier/divider
       sx = roundScale(sx);
       sy = roundScale(sy);
-      pt = this.#calcAbsAffineDefault(sx, sy);
-    } else {
-      if (mod_ctrl(state) || Preferences.get().getBool('/tools/select/lock_aspect_ratio', false)) {
-        // Scale is locked to a 1:1 aspect ratio, so that s[X] must be made to equal s[Y].
-        if (Math.abs(sx) > Math.abs(sy)) sx = Math.abs(sy) * sign(sx);
-        else sy = Math.abs(sx) * sign(sy);
-      }
-      // TODO: snapping. We didn't snap: don't update the handle position, just calculate the new transformation
-      this.#calcAbsAffineDefault(sx, sy);
+      // When scaling by an integer, snapping is not needed
+      return this.#calcAbsAffineDefault(sx, sy);
     }
+    // In all other cases we should try to snap now
+    let bb: PureScale;
+    let sn: PureScale;
+    if (mod_ctrl(state) || Preferences.get().getBool('/tools/select/lock_aspect_ratio', false)) {
+      // Scale is locked to a 1:1 aspect ratio, so that s[X] must be made to equal s[Y].
+      // The aspect-ratio must be locked before snapping
+      if (Math.abs(sx) > Math.abs(sy)) {
+        sx = Math.abs(sy) * sign(sx);
+        gx = Math.abs(gy) * sign(gx);
+      } else {
+        sy = Math.abs(sx) * sign(sy);
+        gy = Math.abs(gx) * sign(gy);
+      }
+      // Snap along a suitable constraint vector from the origin.
+      bb = new PureScaleConstrained(new Point(sx, sy), this.#origin_for_bboxpoints);
+      sn = new PureScaleConstrained(new Point(gx, gy), this.#origin_for_specpoints);
+    } else {
+      /* Scale aspect ratio is unlocked */
+      bb = new PureScale(new Point(sx, sy), this.#origin_for_bboxpoints, false);
+      sn = new PureScale(new Point(gx, gy), this.#origin_for_specpoints, false);
+    }
+    const m = this.#desktop.getSnapManager();
+    m.setup(this.#desktop, false, this.#items);
+    m.snapTransformed(this.#bbox_points, this.#point, bb);
+    m.snapTransformed(this.#snap_points, this.#point, sn);
+    m.unSetup();
+    return this.#applySnappedScale(
+      bb.best_snapped_point,
+      sn.best_snapped_point,
+      bb.getScaleSnapped(),
+      sn.getScaleSnapped(),
+      new Point(sx, sy),
+      mod_shift(state),
+      pt,
+    );
+  }
+
+  /**
+   * Use the better snap of the bbox points (bbs) and the snap points (sns) for
+   * the new transformation and return the new handle position; without snap
+   * (or with no_snap), use default_scale and keep pt.
+   */
+  #applySnappedScale(
+    bbs: SnappedPoint,
+    sns: SnappedPoint,
+    bb_scale: Point,
+    sn_scale: Point,
+    default_scale: Point,
+    no_snap: boolean,
+    pt: Point,
+  ): Point {
+    const indicator = this.#desktop.getSnapIndicator();
+    if (!no_snap && (bbs.getSnapped() || sns.getSnapped())) {
+      if (bbs.getSnapped() && !bbs.isOtherSnapBetter(sns, false)) {
+        // We snapped the bbox (which is either visual or geometric)
+        indicator.set_new_snaptarget(bbs);
+        // Calculate the new transformation and update the handle position
+        return this.#calcAbsAffineDefault(bb_scale.x, bb_scale.y);
+      }
+      if (sns.getSnapped()) {
+        indicator.set_new_snaptarget(sns);
+        // We snapped the special points (e.g. nodes), which are not at the visual bbox
+        return this.#calcAbsAffineGeom(sn_scale);
+      }
+    }
+    // We didn't snap at all! Don't update the handle position, just calculate the new transformation
+    this.#calcAbsAffineDefault(default_scale.x, default_scale.y);
+    indicator.remove_snaptarget();
     return pt;
   }
 
-  /** Scale along one axis for the dragged side handle at pt; Ctrl scales uniformly. Returns the handle position. */
+  /**
+   * Scale along one axis for the dragged side handle at pt; Ctrl scales uniformly, Shift
+   * (TRANS_NO_SNAPPING) does not snap. Returns the handle position.
+   */
   stretchRequest(pt: Point, state: ModifierState, is_horz: boolean): Point {
     this.#originRequest(state);
-    const scale = calcScaleFactors(this.#point, pt, this.#origin);
     const axis = is_horz ? 0 : 1;
     const perp = 1 - axis;
+    // Calculate the scale factors, which can be either visual or geometric
+    const scale = calcScaleFactors(this.#point, pt, this.#origin);
     scale[perp] = 1;
+    // Find the scale factors for the geometric bbox
+    const geom_scale = calcScaleFactors(
+      this.#point_geom,
+      this.#getGeomHandlePos(pt),
+      this.#origin_for_specpoints,
+    );
+    geom_scale[perp] = 1;
     if (mod_alt(state)) {
+      // stretch by an integer multiplier/divider; snapping is not needed
       scale[axis] = roundScale(scale[axis]);
       return this.#calcAbsAffineDefault(scale[0], scale[1]);
     }
+    const confine = mod_ctrl(state);
+    const m = this.#desktop.getSnapManager();
+    m.setup(this.#desktop, false, this.#items);
+    const bb = new PureStretchConstrained(scale[axis], this.#origin_for_bboxpoints, axis, confine);
+    const sn = new PureStretchConstrained(geom_scale[axis], this.#origin_for_specpoints, axis, confine);
+    m.snapTransformed(this.#bbox_points, this.#point, bb);
+    m.snapTransformed(this.#snap_points, this.#point, sn);
+    m.unSetup();
     // on scale_confine, apply symmetrical scaling instead of stretching
     // Preserve aspect ratio, but never flip in the dimension not being edited (by using fabs())
-    if (mod_ctrl(state)) scale[perp] = Math.abs(scale[axis]);
-    this.#calcAbsAffineDefault(scale[0], scale[1]);
-    return pt;
+    if (confine) scale[perp] = Math.abs(scale[axis]);
+    return this.#applySnappedScale(
+      bb.best_snapped_point,
+      sn.best_snapped_point,
+      bb.getStretchSnapped(),
+      sn.getStretchSnapped(),
+      new Point(scale[0], scale[1]),
+      mod_shift(state),
+      pt,
+    );
+  }
+
+  /**
+   * The handle position on the geometric bbox for the handle at
+   * visual_handle_pos on the visual bbox (upstream _getGeomHandlePos).
+   * TODO: stroke compensation (get_scale_transform_for_uniform_stroke).
+   */
+  #getGeomHandlePos(visual_handle_pos: Point): Point {
+    // When the selector tool is using geometric bboxes, then the handle is already
+    // located at one of the geometric bbox corners
+    if (this.#snap_bbox_type === BBoxType.GEOMETRIC_BBOX || !this.#geometric_bbox) return visual_handle_pos;
+    const [sx, sy] = calcScaleFactors(this.#point, visual_handle_pos, this.#origin_for_bboxpoints);
+    const abs_affine = Translate(this.#origin_for_bboxpoints.neg())
+      .multiply(Scale(sx, sy))
+      .multiply(Translate(this.#origin_for_bboxpoints));
+    // Calculate the scaled geometrical bbox, and find the location of the handle on it
+    const g = this.#geometric_bbox;
+    const new_geom_bbox = new Rect(g.min().transformed(abs_affine), g.max().transformed(abs_affine));
+    return new_geom_bbox
+      .min()
+      .add(new_geom_bbox.dimensions().scaled(new Point(this.#handle_x, this.#handle_y)));
+  }
+
+  /** Set the absolute affine for a scale of the snap points around their origin; returns the handle position. */
+  #calcAbsAffineGeom(geom_scale: Point): Point {
+    this.#absolute_affine = Translate(this.#origin_for_specpoints.neg())
+      .multiply(Scale(geom_scale.x, geom_scale.y))
+      .multiply(Translate(this.#origin_for_specpoints));
+    // return the new handle position on the transformed visual bbox
+    const bbox = this.#bbox?.transformed(this.#absolute_affine);
+    if (!bbox) return this.#point;
+    return bbox.min().add(bbox.dimensions().scaled(new Point(this.#handle_x, this.#handle_y)));
   }
 
   /**

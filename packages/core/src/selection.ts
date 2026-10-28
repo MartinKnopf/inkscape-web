@@ -21,13 +21,16 @@ import { DocumentUndo } from './document-undo.ts';
 import { C_ } from './i18n.ts';
 import { ObjectSet } from './object/object-set.ts';
 import type { SPObject } from './object/sp-object.ts';
+import { SnapCandidatePoint } from './snap-candidate.ts';
+import { SnapSourceType, SnapTargetType } from './snap-enums.ts';
+import type { SnapPreferences } from './snap-preferences.ts';
 import { Signal } from './util/signal.ts';
 
 /**
  * The selection of a desktop (upstream Inkscape::Selection): an ObjectSet
  * with signals. `changed` is emitted when the set changes; `modified` is
  * emitted once after the selected objects were modified (collected flags).
- * TODO: anchors (setAnchor, scaleAnchored), snap points,
+ * TODO: anchors (setAnchor, scaleAnchored),
  * the page manager, getState/setState, selectionDistinctLayerAndParentCounts.
  */
 export class Selection extends ObjectSet {
@@ -55,6 +58,26 @@ export class Selection extends ObjectSet {
 
   emitModified(): void {
     this.#emitModified(this.#flags);
+  }
+
+  /**
+   * The snap points of the selected items (desktop coordinates). The
+   * rotation center counts once per item, as a source only.
+   */
+  getSnapPoints(snapprefs: SnapPreferences | null): SnapCandidatePoint[] {
+    const p: SnapCandidatePoint[] = [];
+    if (!snapprefs) return p;
+    const snapprefs_dummy = snapprefs.clone(); // create a local copy of the snapping prefs
+    snapprefs_dummy.setTargetSnappable(SnapTargetType.SNAPTARGET_ROTATION_CENTER, false); // locally disable snapping to the item center
+    for (const this_item of this.items()) {
+      this_item.getSnappoints(p, snapprefs_dummy);
+      //Include the transformation origin for snapping
+      //For a selection or group only the overall center is considered, not for each item individually
+      if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_ROTATION_CENTER)) {
+        p.push(new SnapCandidatePoint(this_item.getCenter(), SnapSourceType.SNAPSOURCE_ROTATION_CENTER));
+      }
+    }
+    return p;
   }
 
   /**

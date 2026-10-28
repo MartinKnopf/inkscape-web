@@ -22,12 +22,16 @@ import { getUnit, UnitType } from '../svg/svg-length.ts';
 import { Signal } from '../util/signal.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
+import { GridType, SPGrid } from './sp-grid.ts';
+import { SPGuide } from './sp-guide.ts';
 import { SP_OBJECT_WRITE_EXT, SPObject } from './sp-object.ts';
 
 const DEFAULT_DESK_COLOR = new Color(0xd1d1d1ff, false);
 /** Upstream CanvasPage::DEFAULT_BACKGROUND_COLOR and DEFAULT_BORDER_COLOR. */
 const DEFAULT_BACKGROUND_COLOR = new Color(0xffffffff);
 const DEFAULT_BORDER_COLOR = new Color(0x0000001a);
+const DEFAULT_GUIDE_COLOR = new Color(0x0086e5ff, false);
+const DEFAULT_GUIDE_HI_COLOR = new Color(0xff0000ff, false);
 
 /**
  * Display unit from inkscape:document-units: absolute units only, else px
@@ -51,8 +55,9 @@ export function sp_parse_document_units(value: string | null): string {
  * The sodipodi:namedview element: per-document view settings. Upstream keeps
  * the page attributes (page color, border) in PageManager::subset(); they are
  * held here.
- * TODO: grids, guides, snapping, window geometry, clip to page, the
- * viewport canvas item and pages.
+ * The guides and grids are its children; the snap tolerances (in screen px)
+ * are read here and used by the SnapManager of the editor.
+ * TODO: window geometry, clip to page, the viewport canvas item and pages.
  */
 export class SPNamedView extends SPObject {
   editable = true;
@@ -73,9 +78,25 @@ export class SPNamedView extends SPObject {
   cx = Number.NaN;
   cy = Number.NaN;
   default_layer_id: string | null = null;
+  /** The sodipodi:guide children. */
+  guides: SPGuide[] = [];
+  /** The inkscape:grid children. */
+  grids: SPGrid[] = [];
+  /** Snap tolerances in screen px (gridtolerance, guidetolerance, objecttolerance, ...). */
+  grid_tolerance = 10;
+  guide_tolerance = 20;
+  object_tolerance = 20;
+  alignment_tolerance = 5;
+  distribution_tolerance = 5;
+  #guide_color: Color | undefined;
+  #guide_opacity = 0.6;
+  #guide_hi_color: Color | undefined;
+  #guide_hi_opacity = 0.5;
 
   /** Emitted when an attribute that affects the view changed. */
   readonly changedSignal = new Signal<[]>();
+  /** Emitted when a guide or grid was added or removed. */
+  readonly guidesAndGridsChangedSignal = new Signal<[]>();
 
   protected override build(document: SPDocument, repr: Node): void {
     super.build(document, repr);
@@ -83,6 +104,15 @@ export class SPNamedView extends SPObject {
       SPAttr.INKSCAPE_DOCUMENT_UNITS,
       SPAttr.VIEWONLY,
       SPAttr.SHOWGUIDES,
+      SPAttr.GRIDTOLERANCE,
+      SPAttr.GUIDETOLERANCE,
+      SPAttr.OBJECTTOLERANCE,
+      SPAttr.ALIGNMENTTOLERANCE,
+      SPAttr.DISTRIBUTIONTOLERANCE,
+      SPAttr.GUIDECOLOR,
+      SPAttr.GUIDEOPACITY,
+      SPAttr.GUIDEHICOLOR,
+      SPAttr.GUIDEHIOPACITY,
       SPAttr.SHOWBORDER,
       SPAttr.SHOWPAGESHADOW,
       SPAttr.BORDERLAYER,
@@ -95,9 +125,49 @@ export class SPNamedView extends SPObject {
       SPAttr.INKSCAPE_CX,
       SPAttr.INKSCAPE_CY,
       SPAttr.INKSCAPE_CURRENT_LAYER,
+      SPAttr.INKSCAPE_LOCKGUIDES,
     ]) {
       this.readAttr(key);
     }
+    /* Construct guideline list */
+    for (const child of this.children) {
+      if (child instanceof SPGuide) {
+        this.guides.push(child);
+        this.#setGuideColors(child);
+      }
+      if (child instanceof SPGrid) this.grids.push(child);
+    }
+  }
+
+  protected override release(): void {
+    this.guides = [];
+    this.grids = [];
+    super.release();
+  }
+
+  protected override childAdded(child: Node, ref: Node | null): void {
+    super.childAdded(child, ref);
+    const no = this.document.getObjectByRepr(child);
+    if (no instanceof SPGrid) this.grids.push(no);
+    else if (no instanceof SPGuide) {
+      this.guides.push(no);
+      this.#setGuideColors(no);
+    } else return;
+    this.guidesAndGridsChangedSignal.emit();
+  }
+
+  protected override removeChild(child: Node): void {
+    const n = this.grids.length + this.guides.length;
+    this.grids = this.grids.filter((g) => g.getRepr() !== child);
+    this.guides = this.guides.filter((g) => g.getRepr() !== child);
+    super.removeChild(child);
+    if (this.grids.length + this.guides.length !== n) this.guidesAndGridsChangedSignal.emit();
+  }
+
+  #setGuideColors(guide: SPGuide): void {
+    guide.setColor(this.getGuideColor().toRGBA());
+    guide.setHiColor(this.getGuideHiColor().toRGBA());
+    guide.readAttr(SPAttr.INKSCAPE_COLOR);
   }
 
   override set(key: SPAttr, value: string | null): void {
@@ -107,6 +177,41 @@ export class SPNamedView extends SPObject {
         break;
       case SPAttr.SHOWGUIDES:
         this.showguides.readOrUnset(value);
+        break;
+      case SPAttr.INKSCAPE_LOCKGUIDES:
+        this.lockguides.readOrUnset(value);
+        for (const guide of this.guides) guide.set_locked(this.lockguides.value, false);
+        break;
+      case SPAttr.GRIDTOLERANCE:
+        this.grid_tolerance = value ? Number.parseFloat(value) : 10;
+        break;
+      case SPAttr.GUIDETOLERANCE:
+        this.guide_tolerance = value ? Number.parseFloat(value) : 20;
+        break;
+      case SPAttr.OBJECTTOLERANCE:
+        this.object_tolerance = value ? Number.parseFloat(value) : 20;
+        break;
+      case SPAttr.ALIGNMENTTOLERANCE:
+        this.alignment_tolerance = value ? Number.parseFloat(value) : 5;
+        break;
+      case SPAttr.DISTRIBUTIONTOLERANCE:
+        this.distribution_tolerance = value ? Number.parseFloat(value) : 5;
+        break;
+      case SPAttr.GUIDECOLOR:
+        this.#guide_color = Color.parse(value);
+        for (const guide of this.guides) this.#setGuideColors(guide);
+        break;
+      case SPAttr.GUIDEOPACITY:
+        this.#guide_opacity = value ? Number.parseFloat(value) : 0.6;
+        for (const guide of this.guides) this.#setGuideColors(guide);
+        break;
+      case SPAttr.GUIDEHICOLOR:
+        this.#guide_hi_color = Color.parse(value);
+        for (const guide of this.guides) this.#setGuideColors(guide);
+        break;
+      case SPAttr.GUIDEHIOPACITY:
+        this.#guide_hi_opacity = value ? Number.parseFloat(value) : 0.5;
+        for (const guide of this.guides) this.#setGuideColors(guide);
         break;
       case SPAttr.SHOWBORDER:
         this.border_show.readOrUnset(value);
@@ -179,6 +284,60 @@ export class SPNamedView extends SPObject {
   /** Set showguides without an undo step (upstream SPNamedView::setShowGuides). */
   setShowGuides(v: boolean): void {
     DocumentUndo.scopedInsensitive(this.document, () => this.repr.setAttributeBoolean('showguides', v));
+  }
+  toggleShowGuides(): void {
+    this.setShowGuides(!this.getShowGuides());
+  }
+
+  getLockGuides(): boolean {
+    return this.lockguides.value;
+  }
+  /** Set inkscape:lockguides without an undo step. */
+  setLockGuides(v: boolean): void {
+    DocumentUndo.scopedInsensitive(this.document, () =>
+      this.repr.setAttributeBoolean('inkscape:lockguides', v),
+    );
+  }
+  toggleLockGuides(): void {
+    this.setLockGuides(!this.getLockGuides());
+  }
+
+  /** The guide color with guideopacity (default #0086e5, 0.6). */
+  getGuideColor(): Color {
+    const copy = (this.#guide_color ?? DEFAULT_GUIDE_COLOR).clone();
+    copy.addOpacity(this.#guide_opacity);
+    return copy;
+  }
+  /** The color of a guide under the pointer, with guidehiopacity (default #ff0000, 0.5). */
+  getGuideHiColor(): Color {
+    const copy = (this.#guide_hi_color ?? DEFAULT_GUIDE_HI_COLOR).clone();
+    copy.addOpacity(this.#guide_hi_opacity);
+    return copy;
+  }
+
+  /** True if any grid is enabled and visible. */
+  getShowGrids(): boolean {
+    return this.grids.some((grid) => grid.isEnabled() && grid.isVisible());
+  }
+  /**
+   * Show or hide all grids without an undo step. Showing grids without an
+   * enabled grid creates a rectangular grid (with an undo step, like upstream).
+   */
+  setShowGrids(v: boolean): void {
+    if (v && !this.grids.some((grid) => grid.isEnabled())) {
+      SPGrid.create_new(this.document, this.repr, GridType.RECTANGULAR);
+      return;
+    }
+    DocumentUndo.scopedInsensitive(this.document, () => {
+      for (const grid of this.grids) grid.setVisible(v);
+    });
+  }
+  toggleShowGrids(): void {
+    this.setShowGrids(!this.getShowGrids());
+  }
+  /** The first enabled grid, or null. */
+  getFirstEnabledGrid(): SPGrid | null {
+    return this.grids.find((grid) => grid.isEnabled()) ?? null;
   }
 
   // Page attribute writers, as the Document Properties dialog sets them. Each

@@ -11,8 +11,22 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * Copyright (C) 1999-2012 Authors
  */
-import { Affine, type OptRect, type Path, PathVector } from '@inkscape-web/geom';
+import {
+  Affine,
+  are_near,
+  type Curve,
+  L2,
+  LineSegment,
+  middle_point,
+  type OptRect,
+  type Path,
+  PathVector,
+  type Point,
+} from '@inkscape-web/geom';
 import type { Drawing, DrawingItem, DrawingShape } from '../display/drawing.ts';
+import { SnapCandidatePoint } from '../snap-candidate.ts';
+import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
+import type { SnapPreferences } from '../snap-preferences.ts';
 import { SPShapeRendering } from '../style-enums.ts';
 import { BBoxType, SPItem } from './sp-item.ts';
 import {
@@ -29,7 +43,7 @@ export const SP_SHAPE_WRITE_PATH = 1 << 2;
  * the curve, a PathVector that is never changed in place: setCurve() replaces it.
  *
  * TODO: markers, LPE (curveBeforeLPE, update_patheffect), relative stroke units
- * (em, ex, %) in update(), snap points, print, documentExactBounds.
+ * (em, ex, %) in update(), path intersections as snap points, print, documentExactBounds.
  */
 export class SPShape extends SPItem {
   // bbox cache
@@ -185,4 +199,107 @@ export class SPShape extends SPItem {
   }
 
   // hide(): upstream hides the marker views. TODO: markers.
+
+  /**
+   * The nodes of the curve as snap points (cusp or smooth), line midpoints
+   * and the object midpoint, as the snap preferences ask.
+   * TODO: the self-intersections of each path (SNAPTARGET_PATH_INTERSECTION).
+   */
+  override snappoints(p: SnapCandidatePoint[], snapprefs: SnapPreferences): void {
+    const pathv = this._curve;
+    if (!pathv?.length) return;
+    const i2dt = this.i2dtAffine();
+    const add = (pt: Point, s: SnapSourceType, t: SnapTargetType) =>
+      p.push(new SnapCandidatePoint(pt.transformed(i2dt), s, t));
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_OBJECT_MIDPOINT)) {
+      const bbox = this.desktopVisualBounds();
+      if (bbox) {
+        p.push(
+          new SnapCandidatePoint(
+            bbox.midpoint(),
+            SnapSourceType.SNAPSOURCE_OBJECT_MIDPOINT,
+            SnapTargetType.SNAPTARGET_OBJECT_MIDPOINT,
+          ),
+        );
+      }
+    }
+    const cusp = snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_NODE_CUSP);
+    const smooth = snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_NODE_SMOOTH);
+    const midpoints = snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_LINE_MIDPOINT);
+    for (const path_it of pathv) {
+      // Add the first point of the path
+      if (cusp)
+        add(path_it.initialPoint(), SnapSourceType.SNAPSOURCE_NODE_CUSP, SnapTargetType.SNAPTARGET_NODE_CUSP);
+      // Only the stroked part (end_default): the closing segment is included if it is not degenerate.
+      const curves = path_it.closed() ? path_it.curves() : path_it.openCurves();
+      curves.forEach((curve_it1, i) => {
+        // For each path: consider midpoints of line segments for snapping
+        if (midpoints && curve_it1 instanceof LineSegment) {
+          add(
+            middle_point(curve_it1.initialPoint(), curve_it1.finalPoint()),
+            SnapSourceType.SNAPSOURCE_LINE_MIDPOINT,
+            SnapTargetType.SNAPTARGET_LINE_MIDPOINT,
+          );
+        }
+        const curve_it2 = curves[i + 1];
+        if (!curve_it2) {
+          // Add the last point of the path, but only for open paths
+          // (for closed paths the first and last point will coincide)
+          if (cusp && !path_it.closed())
+            add(
+              curve_it1.finalPoint(),
+              SnapSourceType.SNAPSOURCE_NODE_CUSP,
+              SnapTargetType.SNAPTARGET_NODE_CUSP,
+            );
+          return;
+        }
+        const nodetype = get_nodetype(curve_it1, curve_it2);
+        if (nodetype === GeomNodeType.NODE_SMOOTH) {
+          if (smooth)
+            add(
+              curve_it1.finalPoint(),
+              SnapSourceType.SNAPSOURCE_NODE_SMOOTH,
+              SnapTargetType.SNAPTARGET_NODE_SMOOTH,
+            );
+        } else if (nodetype === GeomNodeType.NODE_CUSP) {
+          if (cusp)
+            add(
+              curve_it1.finalPoint(),
+              SnapSourceType.SNAPSOURCE_NODE_CUSP,
+              SnapTargetType.SNAPTARGET_NODE_CUSP,
+            );
+        }
+      });
+    }
+  }
+}
+
+/** The type of the node between two curves (upstream Geom::NodeType without NODE_SYMM; renamed: xml NodeType exists). */
+export enum GeomNodeType {
+  NODE_NONE,
+  NODE_CUSP,
+  NODE_SMOOTH,
+}
+
+/** Unit tangent of c at t = 0 (forward) or t = 1 (backward); numeric, for any curve type. */
+function unitTangentAt(c: Curve, t: 0 | 1): Point {
+  for (const eps of [1e-6, 1e-3, 0.1]) {
+    const d = t === 0 ? c.pointAt(eps).sub(c.pointAt(0)) : c.pointAt(1).sub(c.pointAt(1 - eps));
+    if (L2(d) > 1e-12) return d.normalized();
+  }
+  return c.finalPoint().sub(c.initialPoint());
+}
+
+/** Whether the node between c_incoming and c_outgoing is smooth or a cusp (upstream Geom::get_nodetype). */
+export function get_nodetype(c_incoming: Curve, c_outgoing: Curve): GeomNodeType {
+  if (!are_near(c_incoming.pointAt(1), c_outgoing.pointAt(0))) return GeomNodeType.NODE_NONE;
+  const deriv_1 = unitTangentAt(c_incoming, 1);
+  const deriv_2 = unitTangentAt(c_outgoing, 0);
+  const this_angle_L2 = L2(deriv_1);
+  const next_angle_L2 = L2(deriv_2);
+  const both_angles_L2 = L2(deriv_1.add(deriv_2));
+  if (this_angle_L2 > 1e-6 && next_angle_L2 > 1e-6 && this_angle_L2 + next_angle_L2 - both_angles_L2 < 1e-3) {
+    return GeomNodeType.NODE_SMOOTH;
+  }
+  return GeomNodeType.NODE_CUSP;
 }

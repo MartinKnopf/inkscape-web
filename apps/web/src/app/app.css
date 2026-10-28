@@ -83,6 +83,11 @@ body,
   color: #666;
 }
 
+.menu-check {
+  display: inline-block;
+  width: 1.2em;
+}
+
 .menubar [data-state="open"] {
   background: #e8e8e8;
 }
@@ -92,4 +97,65 @@ body,
   justify-content: flex-end;
   padding: 2px 8px;
   border-top: 1px solid #ccc;
+}
+
+.commandbar {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+}
+
+.commandbar .toolbars {
+  flex: 1;
+  border-bottom: 0;
+}
+
+.guide-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 15%);
+}
+
+.guide-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 280px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #bbb;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+}
+
+.guide-dialog h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.guide-dialog label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.guide-dialog label > span:first-child {
+  min-width: 48px;
+}
+
+.guide-dialog input:not([type="checkbox"]) {
+  width: 100px;
+}
+
+.guide-dialog-info {
+  color: #555;
+}
+
+.guide-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
 }

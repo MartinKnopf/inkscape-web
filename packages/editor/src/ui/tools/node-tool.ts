@@ -65,7 +65,7 @@ function create_control_group(desktop: SPDesktop, name: string): CanvasItemGroup
  *
  * TODO: shape editors (knotholders of rect, ellipse, star, spiral under the node tool),
  * transform handles, clipping paths and masks, LPE helper paths, path flash, touch path
- * selection (Alt), status bar tips, cursors, gradient drag, snapping.
+ * selection (Alt), status bar tips, cursors, gradient drag, snapping of segment drags.
  */
 export class NodeTool extends ToolBase {
   readonly _path_data: PathSharedData;

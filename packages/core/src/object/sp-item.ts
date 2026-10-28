@@ -19,6 +19,9 @@ import type { Drawing, DrawingItem } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
 import { _ } from '../i18n.ts';
 import { Preferences } from '../preferences.ts';
+import { SnapCandidatePoint } from '../snap-candidate.ts';
+import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
+import type { SnapPreferences } from '../snap-preferences.ts';
 import { SPCSSDisplay, SPIsolation, SPShapeRendering } from '../style-enums.ts';
 import { svgNumber } from '../svg/stringstream.ts';
 import { sp_svg_transform_read, sp_svg_transform_write } from '../svg/svg-affine.ts';
@@ -470,6 +473,33 @@ export class SPItem extends SPObject {
       if (are_near(this.transform_center_x, 0)) this.transform_center_x = 0; // rounding error
       this.transform_center_y = (object_centre.y - bbox.midpoint().y) / viewscale;
       if (are_near(this.transform_center_y, 0)) this.transform_center_y = 0; // rounding error
+    }
+  }
+
+  // Snapping
+
+  /**
+   * Add the snap points of this item (desktop coordinates) to p. Subclasses
+   * override it; the base class has none.
+   */
+  snappoints(_p: SnapCandidatePoint[], _snapprefs: SnapPreferences): void {}
+
+  /**
+   * Add the snap points of the item and its rotation center to p.
+   * TODO: the snap points of clipping paths and masks.
+   */
+  getSnappoints(p: SnapCandidatePoint[], snapprefs: SnapPreferences): void {
+    // Get the snappoints of the item
+    this.snappoints(p, snapprefs);
+    // Get the snappoints at the item's center
+    if (snapprefs.isTargetSnappable(SnapTargetType.SNAPTARGET_ROTATION_CENTER)) {
+      p.push(
+        new SnapCandidatePoint(
+          this.getCenter(),
+          SnapSourceType.SNAPSOURCE_ROTATION_CENTER,
+          SnapTargetType.SNAPTARGET_ROTATION_CENTER,
+        ),
+      );
     }
   }
 

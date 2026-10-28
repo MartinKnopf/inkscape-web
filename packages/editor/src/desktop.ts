@@ -27,8 +27,11 @@ import {
   SP_ITEM_SHOW_DISPLAY,
   type SPCSSAttr,
   SPDocument,
+  type SPGrid,
   SPGroup,
+  type SPGuide,
   SPItem,
+  type SPNamedView,
   type SPStop,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
@@ -39,11 +42,17 @@ import {
   type Node as XmlNode,
 } from '@inkscape-web/core';
 import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
+import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
+import { sp_dt_guide_event, sp_dt_guide_key_event } from './desktop-events.ts';
 import { CanvasItemGroup } from './display/control/canvas-item.ts';
+import { CanvasItemGridXY } from './display/control/canvas-item-grid.ts';
+import { CanvasItemGuideLine } from './display/control/canvas-item-guideline.ts';
 import { CanvasPage } from './display/control/canvas-page.ts';
+import { SnapIndicator } from './display/control/snap-indicator.ts';
 import { SvgDrawing } from './display/drawing.ts';
 import { SvgDrawingItem } from './display/drawing-item.ts';
 import { LayerManager } from './layer-manager.ts';
+import { SnapManager } from './snap.ts';
 import { createTool } from './ui/tool-factory.ts';
 import type { ToolBase } from './ui/tools/tool-base.ts';
 import type { Canvas } from './ui/widget/canvas.ts';
@@ -98,8 +107,9 @@ class DesktopAffine {
  * An editable view of a document on a canvas (upstream SPDesktop): shows the
  * document root in a Drawing, draws the page, owns zoom and scroll, the
  * selection, the current layer and the active tool.
- * TODO: namedview (zoom/center from the document, colors),
- * transform history, rotation, flip, guides, grids, message stack.
+ * Shows the guides and grids of the namedview and owns the snap manager.
+ * TODO: namedview (zoom/center from the document),
+ * transform history, rotation, flip, message stack.
  */
 export class SPDesktop {
   readonly canvas: Canvas;
@@ -123,11 +133,24 @@ export class SPDesktop {
   readonly _canvas_group_pages_bg: SVGGElement;
   readonly _canvas_group_drawing: SVGGElement;
   readonly _canvas_group_pages_fg: SVGGElement;
+  readonly _canvas_group_grids: SVGGElement;
+  readonly _canvas_group_guides: SVGGElement;
+  readonly _canvas_group_temp: SVGGElement;
   readonly _canvas_group_controls: SVGGElement;
 
   readonly #drawing: SvgDrawing;
   readonly #page = new CanvasPage();
   readonly #controls: CanvasItemGroup;
+  readonly #grids: CanvasItemGroup;
+  readonly #guides: CanvasItemGroup;
+  readonly #temp: CanvasItemGroup;
+  readonly #snap_indicator: SnapIndicator;
+  /** Upstream the namedview owns the snap manager; the snapping preferences are global. */
+  readonly #snap_manager = new SnapManager(get_snapping_preferences());
+  /** The canvas items of the guides and grids of the namedview, with their disconnect functions. */
+  #guide_views = new Map<SPGuide, { item: CanvasItemGuideLine; disconnect: () => void }>();
+  #grid_views = new Map<SPGrid, { item: CanvasItemGridXY; disconnect: () => void }>();
+  #disconnectNamedView: (() => void) | null = null;
   readonly #layerManager: LayerManager;
   readonly #selection: Selection;
   #tool: ToolBase | null = null;
@@ -150,8 +173,17 @@ export class SPDesktop {
     this._canvas_group_pages_bg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesBg');
     this._canvas_group_drawing = group(canvas.desktopLayer, 'CanvasItemGroup:Drawing');
     this._canvas_group_pages_fg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesFg');
+    this._canvas_group_grids = group(canvas.controlsLayer, 'CanvasItemGroup:Grids');
+    this._canvas_group_guides = group(canvas.controlsLayer, 'CanvasItemGroup:Guides');
+    this._canvas_group_temp = group(canvas.controlsLayer, 'CanvasItemGroup:Temp');
     this._canvas_group_controls = group(canvas.controlsLayer, 'CanvasItemGroup:Controls');
+    this.#grids = new CanvasItemGroup(this._canvas_group_grids, canvas);
+    this.#guides = new CanvasItemGroup(this._canvas_group_guides, canvas);
+    this.#temp = new CanvasItemGroup(this._canvas_group_temp, canvas);
     this.#controls = new CanvasItemGroup(this._canvas_group_controls, canvas);
+    this.#snap_indicator = new SnapIndicator(this);
+    // Delete the guide under the pointer (before the tools and the shortcuts see the key).
+    canvas.svg.addEventListener('keydown', this.#onKeyDown, true);
     canvas.set_desk(DEFAULT_DESK_COLOR);
     this.#layerManager = new LayerManager(this);
     this.#selection = new Selection(this);
@@ -170,14 +202,19 @@ export class SPDesktop {
     this.#tool?.destroy();
     this.#tool = null;
     this.#selection.clear();
-    this.#controls.destroy();
+    this.#snap_indicator.destroy();
+    this.canvas.svg.removeEventListener('keydown', this.#onKeyDown, true);
     this.#detachDocument();
+    for (const g of [this.#controls, this.#temp, this.#guides, this.#grids]) g.destroy();
     this.#disconnectZoomFromDocument?.();
     this.#page.remove();
     for (const g of [
       this._canvas_group_pages_bg,
       this._canvas_group_drawing,
       this._canvas_group_pages_fg,
+      this._canvas_group_grids,
+      this._canvas_group_guides,
+      this._canvas_group_temp,
       this._canvas_group_controls,
     ]) {
       g.remove();
@@ -202,6 +239,28 @@ export class SPDesktop {
   /** The group for control items (handles, rubberband) above the drawing. */
   getCanvasControls(): CanvasItemGroup {
     return this.#controls;
+  }
+  /** The group of the grids, above the drawing. */
+  getCanvasGrids(): CanvasItemGroup {
+    return this.#grids;
+  }
+  /** The group of the guides, above the grids. */
+  getCanvasGuides(): CanvasItemGroup {
+    return this.#guides;
+  }
+  /** The group of temporary items (snap indicator), below the controls. */
+  getCanvasTemp(): CanvasItemGroup {
+    return this.#temp;
+  }
+  getNamedView(): SPNamedView {
+    return this.doc.getNamedView();
+  }
+  getSnapIndicator(): SnapIndicator {
+    return this.#snap_indicator;
+  }
+  /** The snap manager (upstream desktop->getNamedView()->snap_manager). */
+  getSnapManager(): SnapManager {
+    return this.#snap_manager;
   }
 
   getTool(): ToolBase | null {
@@ -306,6 +365,7 @@ export class SPDesktop {
     this.#layerManager._setDocument(doc);
     this.#updateLayersFromDocument();
     this.#updatePage();
+    this.#showNamedView(doc.getNamedView());
     const disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
     const disconnectNamedView = doc.getNamedView().changedSignal.connect(() => this.#updatePage());
     this.#disconnectModified = () => {
@@ -335,6 +395,7 @@ export class SPDesktop {
     if (!this.doc) return;
     this.#disconnectModified?.();
     this.#disconnectModified = null;
+    this.#hideNamedView();
     this.doc.getRoot().invokeHide(this.dkey);
     this.#drawing.paintServers.clear();
   }
@@ -355,6 +416,95 @@ export class SPDesktop {
     desk.setOpacity(nv.checkerboard.value ? 0 : 1);
     this.canvas.set_desk(desk.toRGBA());
     this.#page.update(this.doc.preferredBounds().transformed(this.doc2dt()));
+  }
+
+  // Guides and grids (upstream SPNamedView::show and hide)
+
+  /** Show the guides and grids of nv and follow their changes. */
+  #showNamedView(nv: SPNamedView): void {
+    const sync = () => this.#syncNamedView(nv);
+    const off = [nv.guidesAndGridsChangedSignal.connect(sync), nv.changedSignal.connect(sync)];
+    this.#disconnectNamedView = () => {
+      for (const f of off) f();
+    };
+    sync();
+  }
+
+  #hideNamedView(): void {
+    this.#disconnectNamedView?.();
+    this.#disconnectNamedView = null;
+    for (const { item, disconnect } of [...this.#guide_views.values(), ...this.#grid_views.values()]) {
+      disconnect();
+      item.unlink();
+    }
+    this.#guide_views.clear();
+    this.#grid_views.clear();
+  }
+
+  /** Create and remove the views of the guides and grids of nv, and show or hide the guides. */
+  #syncNamedView(nv: SPNamedView): void {
+    for (const [guide, view] of this.#guide_views) {
+      if (nv.guides.includes(guide)) continue;
+      view.disconnect();
+      view.item.unlink();
+      this.#guide_views.delete(guide);
+    }
+    for (const guide of nv.guides) {
+      if (this.#guide_views.has(guide)) continue;
+      const item = new CanvasItemGuideLine(
+        this.#guides,
+        guide.label() ?? '',
+        guide.getPoint(),
+        guide.getNormal(),
+      );
+      item.set_stroke(guide.getColor());
+      item.set_locked(guide.getLocked());
+      guide.views.push(item);
+      const off = sp_dt_guide_event(this, item, guide);
+      const disconnect = () => {
+        off();
+        guide.views = guide.views.filter((v) => v !== item);
+      };
+      this.#guide_views.set(guide, { item, disconnect });
+    }
+    const show = nv.getShowGuides() && nv.editable;
+    for (const { item } of this.#guide_views.values()) item.set_visible(show);
+
+    for (const [grid, view] of this.#grid_views) {
+      if (nv.grids.includes(grid)) continue;
+      view.disconnect();
+      view.item.unlink();
+      this.#grid_views.delete(grid);
+    }
+    for (const grid of nv.grids) {
+      if (this.#grid_views.has(grid)) continue;
+      const item = new CanvasItemGridXY(this.#grids);
+      const update = () => {
+        // upstream SPGrid::update
+        const { origin, spacing } = grid.getEffectiveOriginAndSpacing();
+        item.set_visible(grid.isVisible() && grid.isEnabled());
+        item.set_origin(origin.transformed(this.doc2dt()));
+        item.set_spacing(spacing);
+        item.set_major_color(grid.getMajorColor().toRGBA());
+        item.set_minor_color(grid.getMinorColor().toRGBA());
+        item.set_dotted(grid.getDotted());
+        item.set_major_line_interval(grid.getMajorLineInterval());
+      };
+      update();
+      this.#grid_views.set(grid, { item, disconnect: grid.changedSignal.connect(update) });
+    }
+  }
+
+  readonly #onKeyDown = (event: KeyboardEvent): void => {
+    if (sp_dt_guide_key_event(this, event)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  /** The visible area in desktop coordinates. */
+  get_display_area(): Rect {
+    return this.canvas.get_area_world().transformed(this._current_affine.w2d());
   }
 
   // Picking

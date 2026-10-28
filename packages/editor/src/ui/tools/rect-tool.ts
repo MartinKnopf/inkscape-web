@@ -24,7 +24,7 @@ import { type ModifierState, mod_select_add_to, ToolBase } from './tool-base.ts'
  * corner radii of the tool preferences; Ctrl for a square or an
  * integer-ratio rectangle, Shift to draw around the start point. A click
  * without drag selects the clicked object.
- * TODO: ShapeEditor (knots), snapping, status bar messages, Shift+G, gradient drag, cursor.
+ * TODO: ShapeEditor (knots), status bar messages, Shift+G, gradient drag, cursor.
  */
 export class RectTool extends ToolBase {
   rect: SPRect | null = null;
@@ -65,8 +65,8 @@ export class RectTool extends ToolBase {
           // Save drag origin; remember clicked item, disregarding groups.
           this.setup_for_drag_start(e);
           this.dragging = true;
-          // Position center. TODO: snap center.
-          this.center = this._desktopPoint(this._windowPoint(e));
+          // Position center, snapped.
+          this.center = this._freeSnap(this._desktopPoint(this._windowPoint(e)));
           this.grabCanvasEvents(e);
           ret = true;
         }
@@ -77,8 +77,10 @@ export class RectTool extends ToolBase {
         if (this.dragging && e.buttons & 1) {
           const w = this._windowPoint(e);
           if (!this.checkDragMoved(w)) break;
-          this.drag(this._desktopPoint(w), e);
+          this.drag(this._desktopPoint(w), e); // This will also handle the snapping.
           ret = true;
+        } else if (!this.dragging) {
+          this._preSnap(this._desktopPoint(this._windowPoint(e)));
         }
         break;
       }
@@ -142,7 +144,7 @@ export class RectTool extends ToolBase {
       this.rect.updateRepr();
     }
 
-    const r = snap_rectangular_box(this._desktop, pt, this.center, state);
+    const r = snap_rectangular_box(this._desktop, pt, this.center, state, this.rect);
     const d = r.dimensions();
     this.rect.setPosition(r.min().x, r.min().y, d.x, d.y);
     if (this.rx !== 0.0) this.rect.setRx(true, this.rx);

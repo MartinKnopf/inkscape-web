@@ -23,7 +23,7 @@ import { type ModifierState, mod_freehand_angle_snapping, mod_select_add_to, Too
  * The spiral tool (upstream SpiralTool): drag from the center to create a
  * spiral with the turns, divergence and inner radius of the tool
  * preferences; Ctrl snaps the angle.
- * TODO: ShapeEditor (knots), snapping, status bar messages, gradient drag, cursor.
+ * TODO: ShapeEditor (knots), status bar messages, gradient drag, cursor.
  */
 export class SpiralTool extends ToolBase {
   spiral: SPSpiral | null = null;
@@ -65,8 +65,8 @@ export class SpiralTool extends ToolBase {
         if (e.button === 0) {
           this.dragging = true;
           this.setup_for_drag_start(e);
-          // TODO: snap center.
-          this.center = this._desktopPoint(this._windowPoint(e));
+          // Snap center.
+          this.center = this._freeSnap(this._desktopPoint(this._windowPoint(e)));
           this.grabCanvasEvents(e);
           ret = true;
         }
@@ -77,8 +77,10 @@ export class SpiralTool extends ToolBase {
         if (this.dragging && e.buttons & 1) {
           const w = this._windowPoint(e);
           if (!this.checkDragMoved(w)) break;
-          this.drag(this._desktopPoint(w), e);
+          this.drag(this._desktopPoint(w), e); // This will also handle the snapping.
           ret = true;
+        } else if (!this.dragging) {
+          this._preSnap(this._desktopPoint(this._windowPoint(e)));
         }
         break;
       }
@@ -144,7 +146,8 @@ export class SpiralTool extends ToolBase {
       this.spiral.updateRepr();
     }
 
-    // TODO: snap the end point.
+    // Snap the end point.
+    p = this._freeSnap(p, this.spiral);
     const dt2doc = this._desktop.dt2doc();
     const p0 = this.center.transformed(dt2doc);
     const p1 = p.transformed(dt2doc);

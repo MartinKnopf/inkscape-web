@@ -2,8 +2,8 @@
 // Upstream: src/ui/dialog/document-properties.cpp, src/ui/dialog/document-properties.h
 /*
  * Document properties dialog: the operations of its page tab (page size,
- * scale, viewBox, colors, border, checkerboard, display unit). The widgets
- * are in apps/web.
+ * scale, viewBox, colors, border, checkerboard, display unit) and its grids
+ * tab. The widgets are in apps/web.
  *
  * Authors:
  *   bulia byak <buliabyak@users.sf.net>
@@ -21,12 +21,15 @@
 import {
   C_,
   type Colors,
+  convertUnit,
   DocumentUndo,
   findPaperSize,
+  GridType,
   type PaperSize,
   type SPDocument,
+  SPGrid,
 } from '@inkscape-web/core';
-import { Rect } from '@inkscape-web/geom';
+import { Point, Rect } from '@inkscape-web/geom';
 
 /** The dialog key of the Document Properties dialog. */
 export const DOCUMENT_PROPERTIES_DIALOG = 'DocumentProperties';
@@ -167,4 +170,83 @@ export function set_display_unit(doc: SPDocument, unit: string): void {
   doc.getNamedView().setDisplayUnit(unit);
   doc.setModifiedSinceSave();
   DocumentUndo.done(doc, C_('Undo', 'Changed default display unit'));
+}
+
+// Grids tab. Origin and spacing are shown in the unit of the grid; the grid
+// stores them in user units.
+
+/** Add a grid to the namedview (upstream onNewGrid). TODO: axonometric and modular grids in the UI. */
+export function grid_new(doc: SPDocument, type = GridType.RECTANGULAR): SPGrid | null {
+  const grid = SPGrid.create_new(doc, doc.getNamedView().getRepr(), type);
+  DocumentUndo.done(doc, C_('Undo', 'Create new grid'), 'document-properties');
+  return grid;
+}
+
+export function grid_remove(grid: SPGrid): void {
+  const doc = grid.document;
+  grid.deleteObject();
+  DocumentUndo.done(doc, C_('Undo', 'Remove grid'), 'document-properties');
+}
+
+/** A value in the unit of grid, in user units of the document along dim. */
+function toUser(grid: SPGrid, v: number, dim: 'x' | 'y'): number {
+  return convertUnit(v, grid.getUnit(), 'px') / grid.document.getDocumentScale()[dim];
+}
+/** A value in user units, in the unit of grid. */
+function fromUser(grid: SPGrid, v: number, dim: 'x' | 'y'): number {
+  return convertUnit(v * grid.document.getDocumentScale()[dim], 'px', grid.getUnit());
+}
+
+/** The origin in the unit of the grid. */
+export function grid_get_origin(grid: SPGrid): Point {
+  const o = grid.getOrigin();
+  return new Point(fromUser(grid, o.x, 'x'), fromUser(grid, o.y, 'y'));
+}
+/** The spacing in the unit of the grid. */
+export function grid_get_spacing(grid: SPGrid): Point {
+  const s = grid.getSpacing();
+  return new Point(fromUser(grid, s.x, 'x'), fromUser(grid, s.y, 'y'));
+}
+
+/** Set the origin, in the unit of the grid. */
+export function grid_set_origin(grid: SPGrid, origin: Point): void {
+  grid.setOrigin(new Point(toUser(grid, origin.x, 'x'), toUser(grid, origin.y, 'y')));
+  DocumentUndo.done(grid.document, C_('Undo', 'Change grid dimensions'), 'show-grid');
+}
+
+/** Set the spacing, in the unit of the grid. */
+export function grid_set_spacing(grid: SPGrid, spacing: Point): void {
+  if (!(spacing.x > 0 && spacing.y > 0)) return;
+  grid.setSpacing(new Point(toUser(grid, spacing.x, 'x'), toUser(grid, spacing.y, 'y')));
+  DocumentUndo.done(grid.document, C_('Undo', 'Change grid dimensions'), 'show-grid');
+}
+
+/** Set the unit of the grid; origin and spacing keep their size. */
+export function grid_set_unit(grid: SPGrid, unit: string): void {
+  grid.setUnit(unit);
+  DocumentUndo.done(grid.document, C_('Undo', 'Change grid units'), 'show-grid');
+}
+
+/** Set the color of the minor or the major lines; the steps of a drag merge. */
+export function grid_set_color(grid: SPGrid, color: Colors.Color, major: boolean): void {
+  if (major) grid.setMajorColor(color);
+  else grid.setMinorColor(color);
+  DocumentUndo.maybeDone(grid.document, 'grid-color', C_('Undo', 'Change grid color'), 'show-grid');
+}
+
+/** Show a major line every interval lines. */
+export function grid_set_major_line_interval(grid: SPGrid, interval: number): void {
+  if (!(interval >= 1)) return;
+  grid.setMajorLineInterval(interval);
+  DocumentUndo.done(grid.document, C_('Undo', 'Change grid number of lines'), 'show-grid');
+}
+
+/** Set a flag of the grid: enabled, visible, dotted or snap to visible lines only. */
+export function grid_set_flag(
+  grid: SPGrid,
+  flag: 'enabled' | 'visible' | 'dotted' | 'snapvisiblegridlinesonly',
+  on: boolean,
+): void {
+  grid.getRepr().setAttributeBoolean(flag, on);
+  DocumentUndo.done(grid.document, '', 'show-grid');
 }

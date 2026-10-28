@@ -8,6 +8,8 @@
  */
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
+import { SPGrid } from './sp-grid.ts';
+import { SPGuide } from './sp-guide.ts';
 import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
@@ -53,6 +55,8 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:stop', () => new SPStop()],
   ['svg:svg', () => new SPRoot()],
   ['sodipodi:namedview', () => new SPNamedView()],
+  ['sodipodi:guide', () => new SPGuide()],
+  ['inkscape:grid', () => new SPGrid()],
 
   // ignore
   ['rdf:RDF', null], // no SP node yet
