@@ -13,6 +13,7 @@ import { CLIP_MASK_CLASS, type SvgDrawingItem } from './drawing-item.ts';
 import { DrawingPaintServers } from './drawing-paintserver.ts';
 import { SvgDrawingShape } from './drawing-shape.ts';
 import { DrawingFilters } from './nr-filter.ts';
+import { SvgDrawingText } from './drawing-text.ts';
 
 let drawingCount = 0;
 
@@ -96,6 +97,10 @@ export class SvgDrawing implements Drawing {
 
   createImage(): SvgDrawingImage {
     return this.#own(new SvgDrawingImage(this.#doc));
+  }
+
+  createText(): SvgDrawingText {
+    return this.#own(new SvgDrawingText(this.#doc));
   }
 
   /** Let item resolve url() paints with the paint servers of this drawing and use its defs. */
