@@ -32,6 +32,8 @@ import {
   SP_OBJECT_STYLE_MODIFIED_FLAG,
   type SPObject,
 } from './object/sp-object.ts';
+import type { SPPaintServer } from './object/sp-paint-server.ts';
+import { BadURIException } from './object/uri-references.ts';
 import {
   enum_baseline,
   enum_blend_mode,
@@ -178,8 +180,7 @@ function warnOnce(message: string): void {
 }
 
 // Reference callbacks ---------------------------------------------------------------------------
-// TODO: SPFilter and SPPaintServer are not ported. A reference never resolves yet, so these are
-// not called by the references. They follow upstream for when they are.
+// TODO: SPFilter is not ported; a filter reference never resolves yet.
 
 /** Emit style modified signal on style's object if the filter changed. */
 function spStyleFilterRefModified(_obj: SPObject | null, flags: number, style: SPStyle): void {
@@ -232,7 +233,7 @@ export function spStyleFillPaintServerRefChanged(
     style.fill_ps_modified_connection = null;
   }
   if (ref) {
-    // TODO: is<SPPaintServer>(ref)
+    // The reference accepts only paint servers (SPPaintServerReference._acceptObject).
     style.fill_ps_modified_connection = ref.modifiedSignal.connect((obj, flags) =>
       spStylePaintServerRefModified(obj, flags, style),
     );
@@ -1195,20 +1196,20 @@ export class SPStyle {
     return features.length === 0 ? 'normal' : features.join(', ');
   }
 
-  // The references. TODO: they return SPFilter / SPPaintServer when these are ported.
+  // The references. TODO: getFilter() returns SPFilter when it is ported.
   getFilter(): SPObject | null {
     return this.filter.href ? this.filter.href.getObject() : null;
   }
   getFilterURI(): string | null {
     return this.filter.href ? this.filter.href.getURI() : null;
   }
-  getFillPaintServer(): SPObject | null {
+  getFillPaintServer(): SPPaintServer | null {
     return this.fill.href ? this.fill.href.getObject() : null;
   }
   getFillURI(): string | null {
     return this.fill.href ? this.fill.href.getURI() : null;
   }
-  getStrokePaintServer(): SPObject | null {
+  getStrokePaintServer(): SPPaintServer | null {
     return this.stroke.href ? this.stroke.href.getObject() : null;
   }
   getStrokeURI(): string | null {
@@ -1235,7 +1236,7 @@ export function spStyleSetIpaintToUri(
       paint.href = new SPPaintServerReference(style.object);
     } else if (document || style.document) {
       // Used by desktop style (no object to attach to!).
-      paint.href = new SPPaintServerReference(document ?? style.document);
+      paint.href = new SPPaintServerReference((document ?? style.document) as SPDocument);
     } else {
       console.error('sp_style_set_ipaint_to_uri: No valid object or document!');
       return;
@@ -1255,7 +1256,15 @@ export function spStyleSetIpaintToUri(
 
   if (paint.href) {
     if (paint.href.getObject()) paint.href.detach();
-    if (uri !== null) paint.href.attach(uri);
+    if (uri !== null) {
+      try {
+        paint.href.attach(uri);
+      } catch (e) {
+        if (!(e instanceof BadURIException)) throw e;
+        console.warn(e.message);
+        paint.href.detach();
+      }
+    }
   }
 }
 

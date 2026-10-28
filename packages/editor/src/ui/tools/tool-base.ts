@@ -17,6 +17,7 @@ import { Point } from '@inkscape-web/geom';
 import { getDoubleLimited } from '../../actions/actions-canvas-transform.ts';
 import { get_active_tool, set_active_tool } from '../../actions/actions-tools.ts';
 import type { SPDesktop } from '../../desktop.ts';
+import { GrDrag } from '../../gradient-drag.ts';
 import { SelCue } from '../../selcue.ts';
 
 /** Browser wheel deltas per wheel click: Chromium reports 100 px, Firefox 3 lines. */
@@ -80,6 +81,8 @@ export class ToolBase {
   #selcue: SelCue | null = null;
   /** The tool that was active before this one (upstream _last_active_tool). */
   #last_active_tool = '';
+  /** The gradient handles of the selection, see enableGrDrag(). */
+  protected _grdrag: GrDrag | null = null;
 
   /** The item under the pointer at the button press, selected by a click without drag. */
   item_to_select: SPItem | null = null;
@@ -109,6 +112,7 @@ export class ToolBase {
     for (const type of EVENT_TYPES) this._element.removeEventListener(type, this.#onEvent);
     this.#disconnectPrefs();
     this.enableSelectionCue(false);
+    this.enableGrDrag(false);
   }
 
   getPrefsPath(): string {
@@ -137,6 +141,34 @@ export class ToolBase {
       this.#selcue?.destroy();
       this.#selcue = null;
     }
+  }
+
+  /** Show the handles of the gradients of the selected items (upstream enableGrDrag). */
+  enableGrDrag(enable = true): void {
+    if (enable) {
+      this._grdrag ??= new GrDrag(this._desktop);
+    } else {
+      this._grdrag?.destroy();
+      this._grdrag = null;
+    }
+  }
+
+  get_drag(): GrDrag | null {
+    return this._grdrag;
+  }
+
+  /** Delete the selected gradient stops; false if none is selected. */
+  deleteSelectedDrag(just_one: boolean): boolean {
+    if (this._grdrag?.selected.size) {
+      this._grdrag.deleteSelected(just_one);
+      return true;
+    }
+    return false;
+  }
+
+  /** Return true if there is a gradient drag. */
+  hasGradientDrag(): boolean {
+    return !!this._grdrag?.isNonEmpty();
   }
 
   /** The layer new objects go into. */

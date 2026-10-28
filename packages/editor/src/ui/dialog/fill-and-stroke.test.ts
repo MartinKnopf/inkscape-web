@@ -1,11 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/dialog/fill-and-stroke.cpp, src/ui/widget/stroke-style.cpp
 // @vitest-environment happy-dom
-import { Colors, Preferences, SPDocument, spReprCssAttrNew } from '@inkscape-web/core';
+import {
+  Colors,
+  Preferences,
+  SPDocument,
+  SPGradientType,
+  SPLinearGradient,
+  SPRadialGradient,
+  type SPStop,
+  spReprCssAttrNew,
+} from '@inkscape-web/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SPDesktop } from '../../desktop.ts';
 import { Canvas } from '../widget/canvas.ts';
 import {
+  gradientStops,
   PaintMode,
   queryOpacity,
   queryPaint,
@@ -13,8 +23,11 @@ import {
   STROKE_UNITS,
   set_scaled_dash,
   setFlatColor,
+  setGradient,
   setOpacity,
   setPaintMode,
+  setStopColor,
+  setStopOffset,
   setStrokeDash,
   setStrokeJoinOrCap,
   setStrokeWidth,
@@ -172,5 +185,32 @@ describe('opacity', () => {
     expect(styleOf('a')).toContain('opacity:0.4');
     expect(queryOpacity(dt)).toBeCloseTo(0.4, 3);
     expect(steps()).toEqual(['Change opacity']);
+  });
+});
+
+describe('gradient mode', () => {
+  it('sets a new gradient from the flat color, switches to radial and edits a stop', () => {
+    const { dt, select, steps } = setup();
+    select('a');
+    setPaintMode(dt, true, PaintMode.Gradient);
+    const info = queryPaint(dt, true);
+    if (info.kind !== 'paint' || !info.gradient) throw new Error('no gradient');
+    expect(info.mode).toBe(PaintMode.Gradient);
+    expect(info.gradient).toBeInstanceOf(SPLinearGradient);
+    const stops = gradientStops(info.gradient);
+    expect(stops.map((s) => s.getColor().toString())).toEqual(['#ff0000ff', '#ff0000ff']);
+
+    setGradient(dt, true, info.gradient.getVector(), SPGradientType.SP_GRADIENT_TYPE_RADIAL);
+    const radial = queryPaint(dt, true);
+    expect(radial.kind === 'paint' && radial.gradient).toBeInstanceOf(SPRadialGradient);
+
+    setStopColor(stops[1] as SPStop, new Colors.Color(0x0000ffff));
+    setStopOffset(stops[1] as SPStop, 0.8);
+    expect(steps()).toEqual([
+      'Set gradient on fill',
+      'Set gradient on fill',
+      'Change gradient stop color',
+      'Change gradient stop offset',
+    ]);
   });
 });

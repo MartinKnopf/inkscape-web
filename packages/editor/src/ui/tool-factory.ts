@@ -10,6 +10,7 @@
  */
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
+import { GradientTool } from './tools/gradient-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
 import { PenTool } from './tools/pen-tool.ts';
 import { PencilTool } from './tools/pencil-tool.ts';
@@ -26,6 +27,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/shapes/rect': RectTool,
   '/tools/freehand/pen': PenTool,
   '/tools/freehand/pencil': PencilTool,
+  '/tools/gradient': GradientTool,
   '/tools/select': SelectTool,
   '/tools/shapes/spiral': SpiralTool,
   '/tools/shapes/star': StarTool,

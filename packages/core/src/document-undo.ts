@@ -129,6 +129,7 @@ function maybeDoneInternal(
 ): void {
   const s = doc.undoStack;
   if (!s.sensitive) throw new Error('maybeDone on an insensitive document');
+  doc.collectOrphans();
   doc.ensureUpToDate();
   if (!temporary) DocumentUndo.clearRedo(doc);
   const log = [...s.partial, ...doc.rdoc.commitUndoable()];

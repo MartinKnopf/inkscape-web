@@ -16,6 +16,7 @@ import type { SPDesktop } from '@inkscape-web/editor';
 import type { FunctionComponent } from 'react';
 import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts';
 import { ArcToolbar } from './arc-toolbar.tsx';
+import { GradientToolbar } from './gradient-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
 import { PencilToolbar } from './pencil-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
@@ -32,6 +33,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Spiral: SpiralToolbar,
   Pencil: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={true} />,
   Pen: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={false} />,
+  Gradient: GradientToolbar,
 };
 
 /** The tool controls bar: the toolbar of the active tool of the active desktop. */

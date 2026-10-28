@@ -11,15 +11,18 @@ import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
 import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
+import { SPLinearGradient } from './sp-linear-gradient.ts';
 import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
 import { SPPolygon } from './sp-polygon.ts';
 import { SPPolyLine } from './sp-polyline.ts';
+import { SPRadialGradient } from './sp-radial-gradient.ts';
 import { SPRect } from './sp-rect.ts';
 import { SPRoot } from './sp-root.ts';
 import { SPSpiral } from './sp-spiral.ts';
 import { SPStar } from './sp-star.ts';
+import { SPStop } from './sp-stop.ts';
 import { SPUse } from './sp-use.ts';
 
 function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
@@ -37,14 +40,17 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:g', () => new SPGroup()],
   ['svg:image', () => new SPImage()],
   ['svg:line', () => new SPLine()],
+  ['svg:linearGradient', () => new SPLinearGradient()],
   ['svg:path', () => new SPPath()],
   ['svg:polygon', () => new SPPolygon()],
   ['svg:polyline', () => new SPPolyLine()],
+  ['svg:radialGradient', () => new SPRadialGradient()],
   ['svg:rect', () => new SPRect()],
   ['rect', () => new SPRect()], // LPE rect
   ['spiral', () => new SPSpiral()],
   ['star', () => new SPStar()],
   ['svg:use', () => new SPUse()],
+  ['svg:stop', () => new SPStop()],
   ['svg:svg', () => new SPRoot()],
   ['sodipodi:namedview', () => new SPNamedView()],
 

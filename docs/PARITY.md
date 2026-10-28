@@ -5,14 +5,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 8 | 26 | 31 |
+| Tools | 9 | 26 | 35 |
 | Dialogs | 9 | 29 | 31 |
 | Actions | 73 | 409 | 18 |
 | Live path effects | 3 | 56 | 5 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (8/26)</summary>
+<details><summary>Tools (9/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
@@ -22,7 +22,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `dropper-tool.cpp`
 - [ ] `eraser-tool.cpp`
 - [ ] `flood-tool.cpp`
-- [ ] `gradient-tool.cpp`
+- [x] `gradient-tool.cpp`
 - [ ] `lpe-tool.cpp`
 - [ ] `marker-tool.cpp`
 - [ ] `measure-tool.cpp`

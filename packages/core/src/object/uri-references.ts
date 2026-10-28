@@ -42,6 +42,10 @@ function uriFragmentId(uri: string): string {
  * A reference from an owner object to the object that a URI points to
  * (upstream Inkscape::URIReference). It follows id changes in the document:
  * changedSignal is emitted with the old and the new object.
+ *
+ * The reference increments the hrefcount of the object (SPObject.hrefObject). Upstream does this
+ * also for references owned by a document (desktop and query styles); here these do not count,
+ * because JS has no destructor that would release the count of a style that is no longer used.
  */
 export class URIReference {
   readonly #owner: SPObject | null;
@@ -68,8 +72,19 @@ export class URIReference {
   getOwner(): SPObject | null {
     return this.#owner;
   }
+  getOwnerObject(): SPObject | null {
+    return this.#owner;
+  }
+  /** The document of the owner (upstream returns null for object owners; callers here want the document). */
+  getOwnerDocument(): SPDocument | null {
+    return this.#owner ? this.#owner.document : this.#ownerDocument;
+  }
   getURI(): string | null {
     return this.#uri;
+  }
+  /** The URI in CSS form, "url(#id)" (upstream Inkscape::URI::cssStr). */
+  cssStr(): string | null {
+    return this.#uri === null ? null : `url(${this.#uri})`;
   }
   isAttached(): boolean {
     return this.#uri !== null;
@@ -168,12 +183,14 @@ export class URIReference {
     this.#releaseConnection?.();
     this.#releaseConnection = null;
     const owner = this.#owner;
-    if (obj && !owner?.cloned) {
-      obj.hrefObject(owner);
+    // Document owners do not count, see the class comment.
+    const counts = owner !== null && !owner.cloned;
+    if (obj) {
+      if (counts) obj.hrefObject(owner);
       this.#releaseConnection = obj.releaseSignal.connect(() => this.#release(obj));
     }
     this.changedSignal.emit(old_obj, obj);
-    if (old_obj && !owner?.cloned) {
+    if (old_obj && counts) {
       /* release the old object _after_ the signal emission */
       old_obj.unhrefObject(owner);
     }
