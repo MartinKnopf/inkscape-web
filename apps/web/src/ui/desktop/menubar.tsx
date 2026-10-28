@@ -54,7 +54,7 @@ const entryKey = (e: MenuEntry): string =>
   e.kind === 'item'
     ? `${e.action}|${e.label}`
     : e.kind === 'submenu'
-      ? `sub|${e.id ?? e.label}`
+      ? `sub|${e.id}|${e.label}`
       : `sec|${e.id ?? e.children.map(entryKey).join()}`;
 
 /** The entries of a menu: sections are separated from their neighbours like GTK does. */
