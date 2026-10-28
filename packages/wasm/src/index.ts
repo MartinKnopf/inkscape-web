@@ -38,6 +38,35 @@ export interface Geom {
    * not touch each other when filled with the fill rule (Path > Break Apart).
    */
   splitNonIntersectingPaths(d: string, fillRule: FillRule): string[];
+  /** Upstream flatten() of path/path-boolop.cpp: remove self-intersections with the fill rule. */
+  flattenPath(d: string, fillRule: FillRule): string;
+  /** Geom::crossings() of the first path of `a` and of `b`: flat list [ta, tb, ta, tb, ...]. */
+  pathCrossings(a: string, b: string): number[];
+  /** The livarot part of LPESimplify::doEffect(); `threshold` is already scaled by the item size. */
+  simplifyPath(d: string, threshold: number, steps: number, justCoalesce: boolean): string;
+  /** Upstream do_offset() of helper/geom-pathstroke.cpp (Offset LPE). `join` is a LineJoinType. */
+  offsetPath(
+    d: string,
+    toOffset: number,
+    tolerance: number,
+    miterLimit: number,
+    fillRule: FillRule,
+    join: number,
+    point: readonly [number, number],
+  ): { d: string; helper: string; mix: string };
+  /**
+   * The 2geom part of LPEBendPath::doEffect_pwd2() (Bend LPE): `d` bent along `bend`. bbox is
+   * [x0, x1, y0, y1] of the original bounding box.
+   */
+  bendPath(
+    d: string,
+    bend: string,
+    bbox: readonly [number, number, number, number],
+    propScale: number,
+    scaleYRel: boolean,
+    vertical: boolean,
+    version15: boolean,
+  ): string;
   /** Rewrite path data with absolute commands, no shorthands and the given precision. */
   normalizePath(d: string, precision: number): string;
   /** Bounds [left, top, right, bottom] of the path transformed by (a b c d e f); [] if the path is empty. */
@@ -68,6 +97,17 @@ export async function loadGeom(): Promise<Geom> {
     cutPath: (pathv, lines) => m.cutPath(pathv, lines) as string[],
     splitNonIntersectingPaths: (d, fillRule) => m.splitNonIntersectingPaths(d, fillRule) as string[],
     normalizePath: (d, precision) => m.normalizePath(d, precision),
+    flattenPath: (d, fillRule) => m.flattenPath(d, fillRule),
+    pathCrossings: (a, b) => m.pathCrossings(a, b) as number[],
+    simplifyPath: (d, threshold, steps, justCoalesce) => m.simplifyPath(d, threshold, steps, justCoalesce),
+    offsetPath: (d, toOffset, tolerance, miterLimit, fillRule, join, [px, py]) =>
+      m.offsetPath(d, toOffset, tolerance, miterLimit, fillRule, join, px, py) as {
+        d: string;
+        helper: string;
+        mix: string;
+      },
+    bendPath: (d, bend, [x0, x1, y0, y1], propScale, scaleYRel, vertical, version15) =>
+      m.bendPath(d, bend, x0, x1, y0, y1, propScale, scaleYRel, vertical, version15),
     pathBounds: (d, exact, [a, b, c, dd, e, f]) => m.pathBounds(d, exact, a, b, c, dd, e, f),
     transformPath: (d, [a, b, c, dd, e, f]) => m.transformPath(d, a, b, c, dd, e, f),
     reversePath: (d) => m.reversePath(d),

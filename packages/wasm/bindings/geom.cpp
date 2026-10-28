@@ -4,11 +4,16 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 #include <2geom/affine.h>
+#include <2geom/path-intersection.h>
 #include <2geom/path-sink.h>
 #include <2geom/pathvector.h>
 #include <2geom/svg-path-parser.h>
 #include <2geom/svg-path-writer.h>
+#include <2geom/sbasis-geometric.h>
+#include <2geom/sbasis-to-bezier.h>
+#include "helper/geom.h"
 #include "helper/geom-pathstroke.h"
+#include "livarot/Path.h"
 #include "path/path-boolop.h"
 
 // Upstream: src/path/path-boolop.cpp sp_pathvector_boolop()
@@ -47,6 +52,111 @@ emscripten::val split_non_intersecting(std::string const &d, int fill_rule)
 std::string normalize_path(std::string const &d, int precision)
 {
     return Geom::write_svg_path(Geom::parse_svg_path(d.c_str()), precision, false, false);
+}
+
+// Upstream: src/path/path-boolop.cpp flatten(): the path without self-intersections, with the fill rule.
+std::string flatten_path(std::string const &d, int fill_rule)
+{
+    auto pv = Geom::parse_svg_path(d.c_str());
+    flatten(pv, static_cast<FillRule>(fill_rule));
+    return Geom::write_svg_path(pv);
+}
+
+// Geom::crossings(Path, Path) of the first path of `a` and of `b`: [ta, tb, ta, tb, ...].
+emscripten::val path_crossings(std::string const &a, std::string const &b)
+{
+    auto out = emscripten::val::array();
+    auto pa = Geom::parse_svg_path(a.c_str());
+    auto pb = Geom::parse_svg_path(b.c_str());
+    if (pa.empty() || pb.empty()) {
+        return out;
+    }
+    for (auto const &c : Geom::crossings(pa[0], pb[0])) {
+        out.call<void>("push", c.ta);
+        out.call<void>("push", c.tb);
+    }
+    return out;
+}
+
+// Upstream: src/live_effects/lpe-simplify.cpp LPESimplify::doEffect(), the livarot part:
+// `threshold` is already scaled by the item size.
+std::string simplify_path(std::string const &d, double threshold, int steps, bool just_coalesce)
+{
+    Geom::PathVector const original_pathv = pathv_to_linear_and_cubic_beziers(Geom::parse_svg_path(d.c_str()));
+    Path pathliv;
+    pathliv.LoadPathVector(original_pathv);
+    for (int i = 0; i < steps; ++i) {
+        if (just_coalesce) {
+            pathliv.Coalesce(threshold);
+        } else {
+            pathliv.ConvertEvenLines(threshold);
+            pathliv.Simplify(threshold);
+        }
+    }
+    return Geom::write_svg_path(pathliv.MakePathVector());
+}
+
+// Upstream: src/helper/geom-pathstroke.cpp do_offset() (Offset LPE). Returns { d, helper, mix }.
+emscripten::val offset_path(std::string const &d, double to_offset, double tolerance, double miter_limit,
+                            int fill_rule, int join, double px, double py)
+{
+    Geom::PathVector helper_path;
+    Geom::PathVector mix_pathv_all;
+    auto result = Inkscape::do_offset(Geom::parse_svg_path(d.c_str()), to_offset, tolerance, miter_limit,
+                                      static_cast<FillRule>(fill_rule), static_cast<Inkscape::LineJoinType>(join),
+                                      Geom::Point(px, py), helper_path, mix_pathv_all);
+    auto out = emscripten::val::object();
+    out.set("d", Geom::write_svg_path(result));
+    out.set("helper", Geom::write_svg_path(helper_path));
+    out.set("mix", Geom::write_svg_path(mix_pathv_all));
+    return out;
+}
+
+// Upstream: src/live_effects/lpe-bendpath.cpp LPEBendPath::doEffect_pwd2(), called as
+// Effect::doEffect_path() does with concatenate_before_pwd2 (the 2geom part of the Bend LPE).
+// bbox_* is the original bbox of the item, the parameters are those of the effect.
+std::string bend_path(std::string const &d, std::string const &bend, double bbox_x0, double bbox_x1,
+                      double bbox_y0, double bbox_y1, double prop_scale, bool scale_y_rel, bool vertical,
+                      bool version_1_5)
+{
+    using namespace Geom;
+    PathVector const path_in = parse_svg_path(d.c_str());
+    Piecewise<D2<SBasis>> pwd2_in;
+    for (auto const &i : path_in) {
+        pwd2_in.concat(i.toPwSb());
+    }
+    Piecewise<D2<SBasis>> uskeleton = arc_length_parametrization(paths_to_pw(parse_svg_path(bend.c_str())), 2, .1);
+    uskeleton = remove_short_cuts(uskeleton, .01);
+    Piecewise<D2<SBasis>> n = rot90(derivative(uskeleton));
+    n = force_continuity(remove_short_cuts(n, .01));
+    if (uskeleton.empty()) {
+        return d;
+    }
+    Interval boundingbox_X(bbox_x0, bbox_x1);
+    Interval boundingbox_Y(bbox_y0, bbox_y1);
+    D2<Piecewise<SBasis>> patternd2 = make_cuts_independent(pwd2_in);
+    Piecewise<SBasis> x = vertical ? Piecewise<SBasis>(patternd2[1]) : Piecewise<SBasis>(patternd2[0]);
+    Piecewise<SBasis> y = vertical ? Piecewise<SBasis>(patternd2[0]) : Piecewise<SBasis>(patternd2[1]);
+    Interval bboxHorizontal = vertical ? boundingbox_Y : boundingbox_X;
+    Interval bboxVertical = vertical ? boundingbox_X : boundingbox_Y;
+    if (version_1_5) {
+        x -= bboxHorizontal.min();
+    } else {
+        //+0.1 in x fix bug #1658855
+        x -= bboxHorizontal.min() + 0.1;
+    }
+    y -= bboxVertical.middle();
+    double scaling = uskeleton.cuts.back() / bboxHorizontal.extent();
+    if (scaling != 1.0) {
+        x *= scaling;
+    }
+    if (scale_y_rel) {
+        y *= (scaling * prop_scale);
+    } else {
+        if (prop_scale != 1.0) y *= prop_scale;
+    }
+    Piecewise<D2<SBasis>> output = compose(uskeleton, x) + y * compose(n, x);
+    return write_svg_path(path_from_piecewise(output, 0.01 /* LPE_CONVERSION_TOLERANCE */));
 }
 
 // The functions below are reference implementations for the TypeScript port in packages/geom
@@ -115,6 +225,11 @@ EMSCRIPTEN_BINDINGS(geom)
     emscripten::function("cutPath", &cut_path);
     emscripten::function("splitNonIntersectingPaths", &split_non_intersecting);
     emscripten::function("normalizePath", &normalize_path);
+    emscripten::function("flattenPath", &flatten_path);
+    emscripten::function("pathCrossings", &path_crossings);
+    emscripten::function("simplifyPath", &simplify_path);
+    emscripten::function("offsetPath", &offset_path);
+    emscripten::function("bendPath", &bend_path);
     emscripten::function("pathBounds", &path_bounds);
     emscripten::function("transformPath", &transform_path);
     emscripten::function("reversePath", &reverse_path);
