@@ -91,6 +91,7 @@ export * from './svg/svg-bool.ts';
 export * from './svg/svg-box.ts';
 export * from './svg/svg-length.ts';
 export * from './svg/svg-path.ts';
+export * from './text-chemistry.ts';
 export * from './text-editing.ts';
 export * from './util/paper.ts';
 export * from './util/signal.ts';

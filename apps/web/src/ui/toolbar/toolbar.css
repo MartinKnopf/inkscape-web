@@ -121,3 +121,7 @@
 .snap-option[aria-disabled="true"] {
   color: #999;
 }
+
+.font-family-entry {
+  width: 160px;
+}

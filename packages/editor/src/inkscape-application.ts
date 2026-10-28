@@ -19,6 +19,7 @@ import { add_actions_object_align } from './actions/actions-object-align.ts';
 import { add_actions_path } from './actions/actions-paths.ts';
 import { add_actions_selection_object } from './actions/actions-selection-object.ts';
 import { add_actions_select_window } from './actions/actions-selection-window.ts';
+import { add_actions_text } from './actions/actions-text.ts';
 import { add_actions_tools } from './actions/actions-tools.ts';
 import { add_actions_transform } from './actions/actions-transform.ts';
 import { add_actions_undo_document } from './actions/actions-undo-document.ts';
@@ -56,6 +57,7 @@ export class InkscapeApplication {
     add_actions_object_align(this); // actions for object alignment
     add_actions_path(this); // actions for Paths
     add_actions_selection_object(this); // actions for selected objects
+    add_actions_text(this); // actions for text
     add_actions_transform(this); // actions for transforming selected objects
     // Window actions (upstream InkscapeWindow)
     add_actions_canvas_snapping(this); // Actions to toggle snapping.

@@ -16,13 +16,21 @@ import {
   Colors,
   type ObjectSet,
   Preferences,
+  SP_TSPAN_ROLE_LINE,
   type SPCSSAttr,
+  SPFlowdiv,
+  SPFlowpara,
+  SPFlowregionExclude,
+  SPFlowtext,
+  SPFlowtspan,
   SPItem,
   type SPObject,
   SPStrokeCapType,
   SPStrokeJoinType,
   type SPStyle,
   SPStyle as SPStyleClass,
+  SPText,
+  SPTSpan,
   spCssAttrScale,
   spCssAttrUnsetText,
   spCssAttrUnsetUris,
@@ -30,9 +38,11 @@ import {
   spReprCssChange,
   spReprCssMerge,
   spReprCssProperty,
+  spReprCssPropertyIsUnset,
   spReprCssSetProperty,
   spReprCssSetPropertyDouble,
   spReprCssSetPropertyString,
+  spReprCssUnsetProperty,
   spStyleSetToUri,
 } from '@inkscape-web/core';
 import type { SPDesktop } from './desktop.ts';
@@ -108,22 +118,46 @@ export function sp_desktop_set_color(
   sp_desktop_set_style(desktop, css);
 }
 
+/** Whether obj is part of a text: its style may have the text properties. TODO: tref, textPath. */
+function isTextualItem(obj: SPObject): boolean {
+  return (
+    obj instanceof SPText ||
+    obj instanceof SPFlowtext ||
+    obj instanceof SPTSpan ||
+    obj instanceof SPFlowdiv ||
+    obj instanceof SPFlowpara ||
+    obj instanceof SPFlowtspan
+  );
+}
+
 /**
- * Apply css to o and its children, recursively.
- * TODO: the special cases of text, flowed text and clones in flow regions (skip_lines).
+ * Apply css to o and its children, recursively. With skip_lines, line
+ * tspans and flowed paragraphs without own style keep inheriting from the
+ * text. TODO: textPath, clones in flow regions.
  */
 export function sp_desktop_apply_css_recursive(o: SPObject, css: SPCSSAttr, skip_lines: boolean): void {
   // non-items should not have style
   if (!(o instanceof SPItem)) return;
 
-  const css_set = spReprCssAttrNew();
-  spReprCssMerge(css_set, css);
+  // 1. tspans with role=line are not regular objects in that they are not supposed to have style of their own,
+  // but must always inherit from the parent text. Same for textPath.
+  // However, if the line tspan or textPath contains some style (old file?), we reluctantly set our style to it too.
+  // 2. Generally we allow setting style on clones, but when it's inside flowRegion, do not touch
+  // it, be it clone or not; it's just styleless shape (because that's how Inkscape does flowtext).
+  const is_line =
+    (o instanceof SPTSpan && o.role === SP_TSPAN_ROLE_LINE) ||
+    o instanceof SPFlowdiv ||
+    o instanceof SPFlowpara;
+  if (!(skip_lines && is_line && !o.getAttribute('style')) && !(o instanceof SPFlowregionExclude)) {
+    const css_set = spReprCssAttrNew();
+    spReprCssMerge(css_set, css);
 
-  // Scale the style by the inverse of the accumulated parent transform in the paste context.
-  const ex = o.i2docAffine().descrim();
-  if (ex !== 0 && ex !== 1) spCssAttrScale(css_set, 1 / ex);
+    // Scale the style by the inverse of the accumulated parent transform in the paste context.
+    const ex = o.i2docAffine().descrim();
+    if (ex !== 0 && ex !== 1) spCssAttrScale(css_set, 1 / ex);
 
-  spReprCssChange(o.getRepr(), css_set, 'style');
+    spReprCssChange(o.getRepr(), css_set, 'style');
+  }
 
   // Setting style on the child of a clone spills into the clone original (via shared repr), don't do it!
   if (o.getRepr().name() === 'svg:use') return;
@@ -195,11 +229,20 @@ export function sp_desktop_set_style(
   // 3. If nobody has intercepted the signal, apply the style to the selection
   if (!intercepted) {
     // Remove text attributes if not text. Do this once in case a zillion objects are selected.
-    // TODO: text items keep the text attributes (no text objects yet).
     const css_no_text = spReprCssAttrNew();
     spReprCssMerge(css_no_text, css);
     spCssAttrUnsetText(css_no_text);
-    for (const item of set.items()) sp_desktop_apply_css_recursive(item, css_no_text, true);
+    for (const item of set.items()) {
+      // If not text, don't apply text attributes (can a group have text attributes? Yes! FIXME)
+      if (isTextualItem(item)) {
+        // If any font property has changed, then we have written out the font
+        // properties in longhand and we need to remove the 'font' shorthand.
+        if (!spReprCssPropertyIsUnset(css, 'font-family')) spReprCssUnsetProperty(css, 'font');
+        sp_desktop_apply_css_recursive(item, css, true);
+      } else {
+        sp_desktop_apply_css_recursive(item, css_no_text, true);
+      }
+    }
   }
 }
 

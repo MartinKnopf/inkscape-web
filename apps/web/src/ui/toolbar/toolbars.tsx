@@ -24,6 +24,7 @@ import { PencilToolbar } from './pencil-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
 import { SpiralToolbar } from './spiral-toolbar.tsx';
 import { StarToolbar } from './star-toolbar.tsx';
+import { TextToolbar } from './text-toolbar.tsx';
 import { useActiveTool } from './tool-toolbar.tsx';
 import { ZoomToolbar } from './zoom-toolbar.tsx';
 
@@ -40,6 +41,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Dropper: DropperToolbar,
   Measure: MeasureToolbar,
   Zoom: ZoomToolbar,
+  Text: TextToolbar,
 };
 
 /** The tool controls bar: the toolbar of the active tool of the active desktop. */
