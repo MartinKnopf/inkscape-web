@@ -19,6 +19,7 @@ import { SPRect } from './sp-rect.ts';
 import { SPRoot } from './sp-root.ts';
 import { SPSpiral } from './sp-spiral.ts';
 import { SPStar } from './sp-star.ts';
+import { SPUse } from './sp-use.ts';
 
 function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
   const e = new SPGenericEllipse();
@@ -41,6 +42,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['rect', () => new SPRect()], // LPE rect
   ['spiral', () => new SPSpiral()],
   ['star', () => new SPStar()],
+  ['svg:use', () => new SPUse()],
   ['svg:svg', () => new SPRoot()],
   ['sodipodi:namedview', () => new SPNamedView()],
 

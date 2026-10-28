@@ -501,13 +501,13 @@ export class SPItem extends SPObject {
   /** Scale the stroke width of this item and its children by expansion. */
   adjustStrokeWidthRecursive(expansion: number): void {
     this.adjustStroke(expansion);
-    // TODO: skip the children of SPUse (a clone's child is the ghost of its original).
+    // SPUse overrides it: a clone's child is the ghost of its original, it is not touched.
     for (const o of this.children) if (o instanceof SPItem) o.adjustStrokeWidthRecursive(expansion);
   }
 
   freezeStrokeWidthRecursive(freeze: boolean): void {
     this.freeze_stroke_width = freeze;
-    // TODO: skip the children of SPUse.
+    // SPUse overrides it and skips its child.
     for (const o of this.children) if (o instanceof SPItem) o.freezeStrokeWidthRecursive(freeze);
   }
 

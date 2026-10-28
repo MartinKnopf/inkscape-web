@@ -15,6 +15,8 @@
 export const preferences_skeleton: Readonly<Record<string, string>> = {
   '/options/rotationsnapsperpi/value': '12.0',
   '/options/dragtolerance/value': '4.0',
+  '/options/clonecompensation/value': '1',
+  '/options/cloneorphans/value': '0',
 
   '/tools/bounding_box': '0',
 
