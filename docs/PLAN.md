@@ -133,6 +133,17 @@ Dependency direction: `geom ← core ← editor ← web`. `wasm` is used by `cor
 
 Separate track from phase 1: **text layout engine** (`packages/text`).
 
+Until that port exists, text uses an interim layout in the core:
+`Layout` (`libnrtype/Layout-TNG.ts`) has the upstream interface (input,
+iterators, cursor and selection shapes, bounds), but its `calculateFlow()`
+(`Layout-TNG-Compute.ts`) is a simple line layout. It places one glyph per
+code point, measured by an injected `TextMeasurer` (Canvas 2D in the
+browser, fixed width in tests), and breaks lines only at line tspans,
+preserved newlines and frame widths. There is no shaping, bidi or vertical
+text. The editor draws each span as `svg:text` with the layout's positions.
+The HarfBuzz port replaces `calculateFlow()` and the measurer; the objects,
+the tool and the dialogs keep using the `Layout` interface.
+
 ## 6. Decisions
 
 - Upstream: track `master`.
