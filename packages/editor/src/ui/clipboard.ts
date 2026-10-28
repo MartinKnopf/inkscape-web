@@ -140,6 +140,8 @@ export class ClipboardManager {
   #text_style: SPCSSAttr | null = null;
   /** The text that we wrote to the system clipboard last, to recognize our own content. */
   #written_text: string | null = null;
+  /** The last write to the system clipboard; reads wait for it. */
+  #writing: Promise<void> = Promise.resolve();
 
   /** The clipboard document, if there is one (for tests and Relink to Copied). */
   document(): SPDocument | null {
@@ -556,6 +558,8 @@ export class ClipboardManager {
 
   /** Read the system clipboard; null if there is none or the access is denied. */
   async #readSystem(): Promise<ClipboardContent | null> {
+    // A paste right after a copy must see the copied content.
+    await this.#writing;
     if (!this.system) return null;
     try {
       const content: ClipboardContent = new Map();
@@ -669,20 +673,22 @@ export class ClipboardManager {
   }
 
   /** Write the clipboard document to the system clipboard as SVG and text. */
-  async #setClipboardTargets(): Promise<void> {
+  #setClipboardTargets(): Promise<void> {
     const doc = this.#clipboardSPDoc;
-    if (!doc) return;
+    if (!doc) return Promise.resolve();
     const text = saveBuf(doc.getReprDoc(), SVG_NS_URI);
     this.#written_text = text;
-    if (!this.system) return;
-    try {
-      await this.system.write({
+    if (!this.system) return Promise.resolve();
+    // Write now: the browser allows it only while the user action (key press) is active.
+    this.#writing = this.system
+      .write({
         'image/svg+xml': new Blob([text], { type: 'image/svg+xml' }),
         [CLIPBOARD_TEXT_TARGET]: new Blob([text], { type: CLIPBOARD_TEXT_TARGET }),
+      })
+      .catch(() => {
+        // Access denied: the clipboard stays in memory.
       });
-    } catch {
-      // Access denied: the clipboard stays in memory.
-    }
+    return this.#writing;
   }
 
   /** Show a canvas notice. TODO: desktop notices (showNotice). */

@@ -159,6 +159,20 @@ describe('paste', () => {
     expect(rect).not.toBe(doc.getObjectById('r'));
   });
 
+  it('waits for the copy to be written before it reads the clipboard', async () => {
+    const { dt, item, layerItems } = setup();
+    const write = clipboard.write.bind(clipboard);
+    clipboard.write = (data) => new Promise((r) => setTimeout(() => r(write(data)), 10));
+    try {
+      dt.getSelection().set(item('blue'));
+      void ClipboardManager.get().copy(dt.getSelection());
+      await sp_selection_paste(dt, true);
+      expect(layerItems()).toHaveLength(4);
+    } finally {
+      clipboard.write = write;
+    }
+  });
+
   it('keeps the clipboard in memory when the access is denied', async () => {
     const { dt, item, layerItems } = setup();
     clipboard.denied = true;
