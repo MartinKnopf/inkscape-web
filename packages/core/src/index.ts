@@ -5,6 +5,7 @@
 export * from './attributes.ts';
 // Upstream namespace Inkscape::Colors.
 export * as Colors from './colors/index.ts';
+export * from './display/cairo-utils.ts';
 export type * from './display/drawing.ts';
 export * from './document.ts';
 export * from './document-undo.ts';
@@ -15,6 +16,7 @@ export * from './object/sp-defs.ts';
 export * from './object/sp-dimensions.ts';
 export * from './object/sp-ellipse.ts';
 export * from './object/sp-factory.ts';
+export * from './object/sp-image.ts';
 export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';
 export * from './object/sp-line.ts';

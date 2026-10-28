@@ -6,8 +6,9 @@
  *
  * Copyright (C) 2011 Authors
  */
-import type { Drawing } from '@inkscape-web/core';
+import { type Drawing, Pixbuf } from '@inkscape-web/core';
 import { SvgDrawingGroup } from './drawing-group.ts';
+import { SvgDrawingImage } from './drawing-image.ts';
 import { SvgDrawingShape } from './drawing-shape.ts';
 
 /**
@@ -22,6 +23,8 @@ export class SvgDrawing implements Drawing {
   constructor(doc: Document) {
     this.#doc = doc;
     this.root = new SvgDrawingGroup(doc);
+    // The browser loads the images that are no data: URIs (blob:, http:).
+    Pixbuf.urlLoader ??= (url) => loadImageSize(doc, url);
   }
 
   createGroup(): SvgDrawingGroup {
@@ -31,4 +34,14 @@ export class SvgDrawing implements Drawing {
   createShape(): SvgDrawingShape {
     return new SvgDrawingShape(this.#doc);
   }
+  createImage(): SvgDrawingImage {
+    return new SvgDrawingImage(this.#doc);
+  }
+}
+
+/** The pixel size of the image at url, loaded by the browser. */
+function loadImageSize(doc: Document, url: string): Promise<{ width: number; height: number }> {
+  const img = doc.createElement('img');
+  img.src = url;
+  return img.decode().then(() => ({ width: img.naturalWidth, height: img.naturalHeight }));
 }

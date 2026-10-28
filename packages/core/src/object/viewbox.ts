@@ -11,6 +11,7 @@
  * Copyright (C) 2013-2014 Tavmjong Bah, authors
  */
 import { Affine, are_near, EPSILON, Rect, Translate } from '@inkscape-web/geom';
+import type { Node } from '../xml/node.ts';
 import type { SPItemCtx } from './sp-item.ts';
 
 /** Upstream SP_ASPECT_* (enums.h). */
@@ -81,6 +82,13 @@ export class SPViewBox {
     this.aspect_set = true;
     this.aspect_align = a;
     this.aspect_clip = clip === 'slice' ? SP_ASPECT_SLICE : SP_ASPECT_MEET;
+  }
+
+  /** Write the preserveAspectRatio attribute to repr, if set. */
+  write_preserveAspectRatio(repr: Node): void {
+    if (!this.aspect_set) return;
+    const align = Object.keys(ASPECT_ALIGN).find((k) => ASPECT_ALIGN[k] === this.aspect_align) ?? 'xMidYMid';
+    repr.setAttribute('preserveAspectRatio', this.aspect_clip === SP_ASPECT_SLICE ? `${align} slice` : align);
   }
 
   /**

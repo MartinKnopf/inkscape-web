@@ -8,6 +8,7 @@
  */
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
+import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
 import { SPNamedView } from './sp-namedview.ts';
@@ -34,6 +35,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:circle', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_CIRCLE)],
   ['arc', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ARC)],
   ['svg:g', () => new SPGroup()],
+  ['svg:image', () => new SPImage()],
   ['svg:line', () => new SPLine()],
   ['svg:path', () => new SPPath()],
   ['svg:polygon', () => new SPPolygon()],
