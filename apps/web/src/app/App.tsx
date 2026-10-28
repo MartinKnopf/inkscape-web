@@ -50,6 +50,7 @@ interface MenuItem {
 const DIALOG_XML = "win.dialog-open('XMLEditor')";
 const DIALOG_OBJECTS = "win.dialog-open('Objects')";
 const DIALOG_FILL_STROKE = "win.dialog-open('FillStroke')";
+const DIALOG_ALIGN = "win.dialog-open('AlignDistribute')";
 
 /** Menu items by menu. TODO: all items, sections, submenus. */
 const MENU_ITEMS: Record<string, MenuItem[]> = {
@@ -68,8 +69,20 @@ const MENU_ITEMS: Record<string, MenuItem[]> = {
   _Object: [
     { label: '_Fill and Stroke...', action: DIALOG_FILL_STROKE },
     { label: 'Layers and Objects...', action: DIALOG_OBJECTS },
+    { label: '_Align and Distribute...', action: DIALOG_ALIGN },
   ],
-  _Path: [{ label: '_Object to Path', action: 'app.object-to-path' }],
+  _Path: [
+    { label: '_Object to Path', action: 'app.object-to-path' },
+    { label: '_Union', action: 'app.path-union' },
+    { label: '_Difference', action: 'app.path-difference' },
+    { label: '_Intersection', action: 'app.path-intersection' },
+    { label: 'E_xclusion', action: 'app.path-exclusion' },
+    { label: 'Di_vision', action: 'app.path-division' },
+    { label: 'Cut _Path', action: 'app.path-cut' },
+    { label: '_Combine', action: 'app.path-combine' },
+    { label: 'Break _Apart', action: 'app.path-break-apart' },
+    { label: 'Split Pat_h', action: 'app.path-split' },
+  ],
 };
 
 /** Remove the GTK mnemonic marker ("_File" → "File"). */
