@@ -77,6 +77,15 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
   ["win.tool-switch('Pen')", N_('Pen Tool'), SECTION, N_('Draw Bezier curves and straight lines')],
   ["win.tool-switch('Pencil')", N_('Pencil Tool'), SECTION, N_('Draw freehand lines')],
   ["win.tool-switch('Gradient')", N_('Gradient Tool'), SECTION, N_('Create and edit gradients')],
+  ["win.tool-switch('Dropper')", N_('Dropper Tool'), SECTION, N_('Pick colors from image')],
+  ["win.tool-switch('Zoom')", N_('Zoom Tool'), SECTION, N_('Zoom in or out')],
+  ["win.tool-switch('Measure')", N_('Measure Tool'), SECTION, N_('Measure objects')],
+  [
+    "win.tool-toggle('Dropper')",
+    N_('Toggle Dropper'),
+    SECTION,
+    N_('Toggle between Dropper tool and last used tool'),
+  ],
   [
     "win.tool-toggle('Select')",
     N_('Toggle Selector Tool'),
