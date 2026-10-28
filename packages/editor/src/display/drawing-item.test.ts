@@ -44,6 +44,22 @@ describe('clip and mask', () => {
     expect(clip?.isConnected).toBe(false);
   });
 
+  it('draws a clip with clones as an svg:mask with opaque white content', () => {
+    const { drawing, view, target } = show(
+      '<defs><rect id="r" width="10" height="10"/><clipPath id="c"><use href="#r"/></clipPath></defs>' +
+        '<rect id="a" width="100" height="50" clip-path="url(#c)"/>',
+    );
+    const el = view('a').element;
+    expect(el.hasAttribute('clip-path')).toBe(false);
+    const mask = target(el.getAttribute('mask'));
+    expect(mask?.localName).toBe('mask');
+    expect(mask?.getAttribute('class')).toBe('inkscape-clip-mask');
+    expect(mask?.querySelector('g > g > path')).not.toBeNull();
+    expect(drawing.defs.querySelector('style')?.textContent).toContain(
+      '.inkscape-clip-mask * { fill: #fff !important;',
+    );
+  });
+
   it('puts the mask view into an svg:mask in the defs', () => {
     const { view, target } = show(
       '<defs><mask id="m" maskUnits="userSpaceOnUse"><rect width="10" height="10" style="fill:#fff"/></mask></defs>' +

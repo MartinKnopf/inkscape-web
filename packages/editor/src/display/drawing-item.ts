@@ -67,6 +67,8 @@ export abstract class SvgDrawingItem implements DrawingItem {
   #mask: SvgDrawingItem | null = null;
   /** The svg:mask that holds the element of the mask group. */
   #maskElement: SVGElement | null = null;
+  /** The svg:mask that holds the element of the clip group, if the clip has groups. */
+  #clipMaskElement: SVGElement | null = null;
   /** The paint servers of the drawing, for url() paints; set by SvgDrawing when it creates the item. */
   _paintServers: DrawingPaintServers | null = null;
   /** The drawing that created the item (its defs hold clips, masks and filters); set by SvgDrawing. */
@@ -163,15 +165,28 @@ export abstract class SvgDrawingItem implements DrawingItem {
 
   /**
    * Use the item (a group) as clip path: its element becomes an svg:clipPath in the defs of
-   * the drawing. Elements other than shapes, text and use are ignored in a clip path.
-   * TODO: groups and clones inside clip paths (the browser ignores svg:g in svg:clipPath).
+   * the drawing. The browser ignores svg:g in svg:clipPath, so a clip with groups or clones goes
+   * into an svg:mask instead, where a style sheet of the drawing paints all content opaque white
+   * (the clip then does not limit picking).
+   * TODO: clip-rule in the mask form; content added to the clip later keeps the form.
    */
   setClip(item: DrawingItem | null): void {
     if (this.#clip === item) return;
+    this.#clipMaskElement?.remove();
+    this.#clipMaskElement = null;
     this.#clip = item ? asSvg(item) : null;
     const clip = this.#clip;
     if (!clip || !this._drawing) {
       this.setAttribute('clip-path', null);
+      this.#applyMasks();
+      return;
+    }
+    if ([...clip.element.children].some((c) => c.localName === 'g')) {
+      const mask = this._drawing.createMaskElement('clip', CLIP_MASK_CLASS);
+      mask.append(clip.element);
+      this.#clipMaskElement = mask;
+      this.setAttribute('clip-path', null);
+      this.#applyMasks();
       return;
     }
     const id = this._drawing.uniqueId('clip');
@@ -187,6 +202,17 @@ export abstract class SvgDrawingItem implements DrawingItem {
     this.setAttribute('clip-path', `url(#${id})`);
   }
 
+  /** The mask attribute: the mask, the clip in mask form, or both (the clip masks the mask). */
+  #applyMasks(): void {
+    const clipMask = this.#clipMaskElement;
+    const mask = this.#maskElement;
+    // An element has one mask: with both, the svg:mask of the item is masked by the clip.
+    if (clipMask && mask) mask.setAttribute('mask', `url(#${clipMask.id})`);
+    else mask?.removeAttribute('mask');
+    const id = mask?.id ?? clipMask?.id;
+    this.setAttribute('mask', id ? `url(#${id})` : null);
+  }
+
   /**
    * Use the item (a group) as mask: its element goes into an svg:mask in the defs of the
    * drawing. Like upstream, the mask has no region: the svg:mask covers a large area.
@@ -196,18 +222,11 @@ export abstract class SvgDrawingItem implements DrawingItem {
     this.#maskElement?.remove();
     this.#maskElement = null;
     this.#mask = item ? asSvg(item) : null;
-    if (!this.#mask || !this._drawing) {
-      this.setAttribute('mask', null);
-      return;
+    if (this.#mask && this._drawing) {
+      this.#maskElement = this._drawing.createMaskElement('mask', null);
+      this.#maskElement.append(this.#mask.element);
     }
-    const id = this._drawing.uniqueId('mask');
-    const mask = this.element.ownerDocument.createElementNS(SVG_NS, 'mask') as SVGElement;
-    mask.id = id;
-    for (const [name, value] of Object.entries(MASK_REGION)) mask.setAttribute(name, value);
-    mask.append(this.#mask.element);
-    this._drawing.defs.append(mask);
-    this.#maskElement = mask;
-    this.setAttribute('mask', `url(#${id})`);
+    this.#applyMasks();
   }
 
   /** Filter the element with the mirror of filter in the drawing (see DrawingFilters). */
@@ -322,8 +341,8 @@ export abstract class SvgDrawingItem implements DrawingItem {
   }
 }
 
-/** The region of the svg:mask of setMask(), in user space: large enough to not cut the mask. */
-const MASK_REGION = { maskUnits: 'userSpaceOnUse', x: '-1e5', y: '-1e5', width: '2e5', height: '2e5' };
+/** The class of the svg:mask of a clip with groups (see setClip and SvgDrawing.createMaskElement). */
+export const CLIP_MASK_CLASS = 'inkscape-clip-mask';
 
 function asSvg(item: DrawingItem): SvgDrawingItem {
   if (!(item instanceof SvgDrawingItem)) throw new Error('DrawingItem is not an SvgDrawingItem');
