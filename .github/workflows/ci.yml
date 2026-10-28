@@ -60,6 +60,7 @@ jobs:
       - working-directory: inkscape-web
         run: |
           pnpm install --frozen-lockfile
+          packages/wasm/scripts/check-dist.sh
           pnpm build:wasm
           pnpm build:assets
           pnpm typecheck

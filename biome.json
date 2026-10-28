@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!spikes", "!**/*.md", "!pnpm-lock.yaml"]
+    "includes": ["**", "!spikes", "!**/*.md", "!pnpm-lock.yaml", "!packages/wasm/dist"]
   },
   "formatter": {
     "enabled": true,

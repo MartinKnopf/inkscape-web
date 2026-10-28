@@ -88,6 +88,7 @@ em++ $FLAGS -lembind bindings/geom.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcbl
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit
+scripts/inputs-hash.sh > dist/inputs-hash
 # License files of everything linked into the module (see THIRD-PARTY.md).
 mkdir -p dist/licenses
 cp "$INK/COPYING" dist/licenses/inkscape-COPYING
