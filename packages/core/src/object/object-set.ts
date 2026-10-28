@@ -316,6 +316,13 @@ export class ObjectSet {
     return this.#container.map((o) => o.getRepr());
   }
 
+  /** The repr of the topmost object in document order, or null for an empty set. */
+  topRepr(): Node | null {
+    const nodes = this.xmlNodes();
+    if (!nodes.length) return null;
+    return nodes.reduce((a, b) => (sp_repr_compare_position(a, b) < 0 ? b : a));
+  }
+
   /** The selected groups. */
   groups(): SPGroup[] {
     return this.#container.filter((o): o is SPGroup => o instanceof SPGroup);

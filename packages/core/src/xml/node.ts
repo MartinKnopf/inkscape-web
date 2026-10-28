@@ -9,6 +9,7 @@
  * Copyright 2003-2008 Authors
  */
 
+import { Point } from '@inkscape-web/geom';
 import { svgNumber } from '../svg/stringstream.ts';
 import type { SVGLength } from '../svg/svg-length.ts';
 import type { XmlDocument } from './document.ts';
@@ -165,6 +166,18 @@ export class Node {
   }
   setAttributeSvgLength(name: string, val: SVGLength): void {
     this.setAttribute(name, val.write());
+  }
+  /** Set the attribute to "x,y". */
+  setAttributePoint(name: string, val: Point): void {
+    this.setAttribute(name, `${svgNumber(val.x)},${svgNumber(val.y)}`);
+  }
+  /** The point of an "x,y" attribute, or defaultValue if it is missing or invalid. */
+  getAttributePoint(name: string, defaultValue: Point = new Point(0, 0)): Point {
+    const parts = this.attribute(name)?.split(',');
+    if (parts?.length !== 2) return defaultValue;
+    const x = Number.parseFloat(parts[0] ?? '');
+    const y = Number.parseFloat(parts[1] ?? '');
+    return Number.isNaN(x) || Number.isNaN(y) ? defaultValue : new Point(x, y);
   }
 
   setContent(content: string | null): void {
