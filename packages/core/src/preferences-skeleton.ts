@@ -43,4 +43,16 @@ export const preferences_skeleton: Readonly<Record<string, string>> = {
   '/tools/nodes/live_objects': '1',
   '/tools/nodes/edit_clipping_paths': '0',
   '/tools/nodes/edit_masks': '0',
+
+  '/tools/freehand/style':
+    'fill:none;stroke:black;stroke-opacity:1;stroke-linejoin:miter;stroke-linecap:butt;',
+  '/tools/freehand/pencil/tolerance': '15.0',
+  '/tools/freehand/pencil/selcue': '1',
+  '/tools/freehand/pencil/style': 'stroke-width:1px;',
+  '/tools/freehand/pencil/usecurrent': 'path',
+  '/tools/freehand/pencil/average_all_sketches': '1',
+  '/tools/freehand/pen/mode': 'drag',
+  '/tools/freehand/pen/selcue': '1',
+  '/tools/freehand/pen/style': 'stroke-width:1px;',
+  '/tools/freehand/pen/usecurrent': 'path',
 };

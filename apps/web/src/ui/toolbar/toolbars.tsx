@@ -17,6 +17,7 @@ import type { FunctionComponent } from 'react';
 import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts';
 import { ArcToolbar } from './arc-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
+import { PencilToolbar } from './pencil-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
 import { SpiralToolbar } from './spiral-toolbar.tsx';
 import { StarToolbar } from './star-toolbar.tsx';
@@ -29,6 +30,8 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Arc: ArcToolbar,
   Star: StarToolbar,
   Spiral: SpiralToolbar,
+  Pencil: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={true} />,
+  Pen: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={false} />,
 };
 
 /** The tool controls bar: the toolbar of the active tool of the active desktop. */

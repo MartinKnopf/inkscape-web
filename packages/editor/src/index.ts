@@ -40,6 +40,8 @@ export * from './ui/tool/shape-record.ts';
 export * from './ui/tool-factory.ts';
 export * from './ui/tools/arc-tool.ts';
 export * from './ui/tools/node-tool.ts';
+export * from './ui/tools/pen-tool.ts';
+export * from './ui/tools/pencil-tool.ts';
 export * from './ui/tools/rect-tool.ts';
 export * from './ui/tools/select-tool.ts';
 export * from './ui/tools/spiral-tool.ts';

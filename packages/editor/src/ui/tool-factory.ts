@@ -11,6 +11,8 @@
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
+import { PenTool } from './tools/pen-tool.ts';
+import { PencilTool } from './tools/pencil-tool.ts';
 import { RectTool } from './tools/rect-tool.ts';
 import { SelectTool } from './tools/select-tool.ts';
 import { SpiralTool } from './tools/spiral-tool.ts';
@@ -26,6 +28,10 @@ export function createTool(desktop: SPDesktop, id: string): ToolBase {
       return new ArcTool(desktop);
     case '/tools/shapes/rect':
       return new RectTool(desktop);
+    case '/tools/freehand/pen':
+      return new PenTool(desktop);
+    case '/tools/freehand/pencil':
+      return new PencilTool(desktop);
     case '/tools/select':
       return new SelectTool(desktop);
     case '/tools/shapes/spiral':

@@ -73,6 +73,8 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
   ["win.tool-switch('Arc')", N_('Ellipse/Arc Tool'), SECTION, N_('Create circles, ellipses and arcs')],
   ["win.tool-switch('Star')", N_('Star/Polygon Tool'), SECTION, N_('Create stars and polygons')],
   ["win.tool-switch('Spiral')", N_('Spiral Tool'), SECTION, N_('Create spirals')],
+  ["win.tool-switch('Pen')", N_('Pen Tool'), SECTION, N_('Draw Bezier curves and straight lines')],
+  ["win.tool-switch('Pencil')", N_('Pencil Tool'), SECTION, N_('Draw freehand lines')],
   [
     "win.tool-toggle('Select')",
     N_('Toggle Selector Tool'),

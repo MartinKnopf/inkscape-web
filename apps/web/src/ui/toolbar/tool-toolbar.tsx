@@ -35,6 +35,10 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Star', 'draw-polygon-star'],
     ['Spiral', 'draw-spiral'],
   ],
+  [
+    ['Pen', 'draw-path'],
+    ['Pencil', 'draw-freehand'],
+  ],
 ];
 
 /** The name of the active tool of desktop ("Select", "Rect", ...), or ''. */
