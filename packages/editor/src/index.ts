@@ -69,6 +69,7 @@ export * from './ui/dialog/document-properties.ts';
 export * from './ui/dialog/export.ts';
 export * from './ui/dialog/fill-and-stroke.ts';
 export * from './ui/dialog/guides.ts';
+export * from './ui/dialog/object-properties.ts';
 export * from './ui/dialog/objects.ts';
 export * from './ui/dialog/text-edit.ts';
 export * from './ui/dialog/transformation.ts';

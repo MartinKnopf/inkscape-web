@@ -9,6 +9,7 @@ import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
+import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { TextEditDialog } from './text-edit.tsx';
 import { TransformationDialog } from './transformation.tsx';
@@ -34,6 +35,7 @@ const DIALOGS: Record<string, DialogData> = {
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
+  ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
   Transform: { label: _('Transfor_m'), component: TransformationDialog },

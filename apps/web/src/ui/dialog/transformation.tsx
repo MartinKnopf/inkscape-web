@@ -8,7 +8,7 @@
  *
  * Copyright (C) 2004, 2005 Authors
  */
-import { _, formatNumber } from '@inkscape-web/core';
+import { _ } from '@inkscape-web/core';
 import {
   PageType,
   type ScalarUnit,
@@ -16,43 +16,11 @@ import {
   Transformation,
   type UnitMenu,
 } from '@inkscape-web/editor';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { iconUrl } from '../icon-loader.ts';
+import { NumberField } from './number-field.tsx';
 import { objectKey } from './use-repr.ts';
-
-/** A number field that commits on Enter or blur; Enter also applies (upstream: the spin buttons activate Apply). */
-function NumberField(props: {
-  label: string;
-  tooltip?: string;
-  value: number;
-  onCommit: (value: number) => void;
-  onEnter?: () => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const shown = formatNumber(props.value, 3);
-  const finish = () => {
-    const value = Number.parseFloat(draft ?? '');
-    setDraft(null);
-    if (draft !== null && Number.isFinite(value)) props.onCommit(value);
-  };
-  return (
-    <input
-      className="docprops-number"
-      aria-label={props.label}
-      title={props.tooltip}
-      value={draft ?? shown}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={finish}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          finish();
-          props.onEnter?.();
-        } else if (e.key === 'Escape') setDraft(null);
-      }}
-    />
-  );
-}
 
 function UnitSelect(props: { menu: UnitMenu; tooltip?: string; onChange: () => void }) {
   return (

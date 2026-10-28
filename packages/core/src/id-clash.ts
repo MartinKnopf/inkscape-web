@@ -11,6 +11,7 @@
  * Copyright (C) 2008 authors
  */
 import type { SPDocument } from './document.ts';
+import { _ } from './i18n.ts';
 import type { SPObject } from './object/sp-object.ts';
 import type { Node } from './xml/node.ts';
 import { spReprCssAttr, spReprCssProperty, spReprCssSet, spReprCssSetProperty } from './xml/repr-css.ts';
@@ -255,4 +256,23 @@ export function change_def_references(from_obj: SPObject, to_obj: SPObject): voi
   if (!old_id || !new_id) return;
   find_references(from_obj.document, refmap);
   for (const idref of refmap.get(old_id) ?? []) fix_ref(idref, new_id, old_id);
+}
+
+/**
+ * Whether id is a valid object id; if not, the reason as a translated message.
+ * This is a subset of the valid XML 1.0 ID characters.
+ */
+export function is_object_id_valid(id: string): { valid: boolean; warning: string } {
+  if (id === '') return { valid: false, warning: _('Invalid empty ID') };
+  const c = id[0] as string;
+  if (/[0-9]/.test(c)) return { valid: false, warning: _('ID cannot start with a digit') };
+  if (c === '.') return { valid: false, warning: _('ID cannot start with a period') };
+  if (c === '-') return { valid: false, warning: _('ID cannot start with a dash') };
+  const pos = id.search(/[^A-Za-z0-9\-_.:]/);
+  if (pos !== -1) {
+    const warning =
+      pos === 0 ? _('ID starts with an invalid character') : _('ID contains invalid characters');
+    return { valid: false, warning };
+  }
+  return { valid: true, warning: '' };
 }
