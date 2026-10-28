@@ -21,6 +21,7 @@ import {
   SPGroup,
   type SPItem,
 } from '@inkscape-web/core';
+import { set_active_tool_for_item } from '../../actions/actions-tools.ts';
 import type { SPDesktop } from '../../desktop.ts';
 import { Rubberband, RubberbandOperation } from '../../rubberband.ts';
 import { SelTrans } from '../../seltrans.ts';
@@ -61,8 +62,7 @@ function modifiers(e: ModifierState): ModifierState {
  * a group.
  * TODO: Alt+click select under, Alt+drag touch selection and force drag,
  * Alt+scroll cycling, Tab to select the next object, duplicate drag, sticky
- * transform keys, stamping (Space), Ctrl+A, Shift+G, double click on a
- * non-group (switch tool), cursors, status bar messages, gradient drag.
+ * transform keys, stamping (Space), Ctrl+A, Shift+G, cursors, status bar messages, gradient drag.
  */
 export class SelectTool extends ToolBase {
   readonly _seltrans: SelTrans;
@@ -312,8 +312,10 @@ export class SelectTool extends ToolBase {
         this._desktop.layerManager().setCurrentLayer(clicked_item);
         selection.clear();
         this.dragging = false;
+      } else {
+        // switch tool
+        set_active_tool_for_item(this._desktop, clicked_item);
       }
-      // TODO: else switch to the tool of the item (set_active_tool).
     } else {
       sp_select_context_up_one_layer(this._desktop);
     }

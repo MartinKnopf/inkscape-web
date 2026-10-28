@@ -25,9 +25,17 @@ import {
   Selection,
   Signal,
   SP_ITEM_SHOW_DISPLAY,
+  type SPCSSAttr,
   SPDocument,
   SPGroup,
   SPItem,
+  spCssAttrUnsetBlacklist,
+  spCssAttrUnsetText,
+  spCssAttrUnsetUris,
+  spReprCssAttrNew,
+  spReprCssMerge,
+  spReprCssSet,
+  type Node as XmlNode,
 } from '@inkscape-web/core';
 import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
 import { CanvasItemGroup } from './display/control/canvas-item.ts';
@@ -35,7 +43,7 @@ import { CanvasPage } from './display/control/canvas-page.ts';
 import { SvgDrawing } from './display/drawing.ts';
 import { SvgDrawingItem } from './display/drawing-item.ts';
 import { LayerManager } from './layer-manager.ts';
-import { SelectTool } from './ui/tools/select-tool.ts';
+import { createTool } from './ui/tool-factory.ts';
 import type { ToolBase } from './ui/tools/tool-base.ts';
 import type { Canvas } from './ui/widget/canvas.ts';
 
@@ -88,8 +96,8 @@ class DesktopAffine {
 /**
  * An editable view of a document on a canvas (upstream SPDesktop): shows the
  * document root in a Drawing, draws the page, owns zoom and scroll, the
- * selection, the current layer and the active tool (the select tool).
- * TODO: the other tools, namedview (zoom/center from the document, colors),
+ * selection, the current layer and the active tool.
+ * TODO: namedview (zoom/center from the document, colors),
  * transform history, rotation, flip, guides, grids, message stack.
  */
 export class SPDesktop {
@@ -99,6 +107,10 @@ export class SPDesktop {
   readonly dkey = SPItem.displayKeyNew(1);
   /** Emitted when the zoom factor changes (not when scrolling). The parameter is the new zoom factor. */
   readonly signal_zoom_changed = new Signal<[number]>();
+  /** Emitted after the active tool changed (upstream _event_context_changed_signal). */
+  readonly #event_context_changed_signal = new Signal<[SPDesktop, ToolBase | null]>();
+  /** The last used style (upstream SPDesktop::current), from "/desktop/style". */
+  current: SPCSSAttr = Preferences.get().getStyle('/desktop/style');
 
   // Canvas item groups, bottom to top (upstream CanvasItemGroups).
   readonly _canvas_group_pages_bg: SVGGElement;
@@ -189,11 +201,55 @@ export class SPDesktop {
     return this.#tool;
   }
 
-  /** Activate the tool with the preferences path toolName. TODO: the other tools. */
+  /**
+   * Activate the tool with the preferences path toolName ("/tools/shapes/rect").
+   * Use set_active_tool() (actions-tools.ts) to switch tools by name.
+   */
   setTool(toolName: string): void {
+    // Tool should be able to be replaced with itself.
     this.#tool?.destroy();
     this.#tool = null;
-    if (toolName === '/tools/select') this.#tool = new SelectTool(this);
+    if (toolName) this.#tool = createTool(this, toolName);
+    this.#event_context_changed_signal.emit(this, this.#tool);
+  }
+
+  connectEventContextChanged(slot: (desktop: SPDesktop, tool: ToolBase | null) => void): () => void {
+    return this.#event_context_changed_signal.connect(slot);
+  }
+
+  /** Set the style attribute of repr to the style for new objects of a tool, see getCurrentOrToolStyle(). */
+  applyCurrentOrToolStyle(repr: XmlNode, tool_path: string, with_text: boolean, use_current = ''): void {
+    const css = this.getCurrentOrToolStyle(tool_path, with_text, use_current);
+    if (css) spReprCssSet(repr, css, 'style');
+  }
+
+  /**
+   * The style for new objects of the tool with preferences path tool_path: the
+   * tool's own style (tool_path/style), with the last used style on top as
+   * tool_path/usecurrent says: "0" none, "1" the last used style
+   * (desktop.current), an item type ("rect") the last used style of that type
+   * ("/desktop/rect/style"). use_current overrides the preference.
+   * Returns null for an empty style.
+   */
+  getCurrentOrToolStyle(tool_path: string, with_text: boolean, use_current = ''): SPCSSAttr | null {
+    const prefs = Preferences.get();
+    const css = spReprCssAttrNew();
+    if (!use_current) use_current = prefs.getString(`${tool_path}/usecurrent`);
+
+    // Start with per-tool style, then apply current style on top if required
+    spReprCssMerge(css, prefs.getInheritedStyle(`${tool_path}/style`));
+    if (use_current && use_current !== '0') {
+      // use_current should never be empty, but treat empty as "0"
+      if (use_current === '1') spReprCssMerge(css, this.current);
+      else spReprCssMerge(css, prefs.getStyle(`/desktop/${use_current}/style`));
+    }
+    if (!css.attributeList().length) return null;
+
+    // Remove unwanted attributes
+    spCssAttrUnsetBlacklist(css);
+    spCssAttrUnsetUris(css);
+    if (!with_text) spCssAttrUnsetText(css);
+    return css;
   }
 
   /** Show doc instead of the current document. */

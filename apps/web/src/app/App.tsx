@@ -12,6 +12,8 @@ import * as Menubar from '@radix-ui/react-menubar';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react';
 import { useEffect, useRef } from 'react';
 import 'dockview-react/dist/styles/dockview.css';
+import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
+import { Toolbars } from '../ui/toolbar/toolbars.tsx';
 import { runAction } from './actions.ts';
 import {
   getActiveDesktop,
@@ -144,8 +146,11 @@ export function App() {
   return (
     <div className="app">
       <MenuBar />
+      <Toolbars />
       <div className="workspace">
-        <div className="toolbox" />
+        <div className="toolbox">
+          <ToolToolbar />
+        </div>
         <DockviewReact className="dockview-theme-light" components={components} onReady={onReady} />
       </div>
       <StatusBar />
