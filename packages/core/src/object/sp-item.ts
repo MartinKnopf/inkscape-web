@@ -865,6 +865,36 @@ export class SPItem extends SPObject {
     }
   }
 
+  /** Rotate the item around its rotation center (desktop coordinates) and write the transform. */
+  rotate_rel(rotation: Affine): void {
+    const center = this.getCenter();
+    const s = Translate(center);
+    const affine = s.inverse().multiply(rotation).multiply(s);
+    this.setI2dAffine(this.i2dtAffine().multiply(affine));
+    this.doWriteTransform(this.transform);
+    // Restore the center position (it changed because the bbox center changed).
+    if (this.isCenterSet()) {
+      this.setCenter(center.transformed(affine));
+      this.updateRepr();
+    }
+  }
+
+  /** Skew the item around its rotation center (desktop coordinates) and write the transform. */
+  skew_rel(skewX: number, skewY: number): void {
+    const center = this.getCenter();
+    const s = Translate(center);
+    const affine = s
+      .inverse()
+      .multiply(new Affine(1, skewY, skewX, 1, 0, 0))
+      .multiply(s);
+    this.setI2dAffine(this.i2dtAffine().multiply(affine));
+    this.doWriteTransform(this.transform);
+    if (this.isCenterSet()) {
+      this.setCenter(center.transformed(affine));
+      this.updateRepr();
+    }
+  }
+
   /** Move the item by tr in desktop coordinates and write the transform. */
   move_rel(tr: Affine): void {
     this.setI2dAffine(this.i2dtAffine().multiply(tr));

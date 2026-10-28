@@ -11,6 +11,7 @@ import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { TextEditDialog } from './text-edit.tsx';
+import { TransformationDialog } from './transformation.tsx';
 import { XmlTreeDialog } from './xml-tree.tsx';
 import './dialog.css';
 
@@ -35,6 +36,7 @@ const DIALOGS: Record<string, DialogData> = {
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
+  Transform: { label: _('Transfor_m'), component: TransformationDialog },
   XMLEditor: { label: _('_XML Editor'), component: XmlTreeDialog },
 };
 

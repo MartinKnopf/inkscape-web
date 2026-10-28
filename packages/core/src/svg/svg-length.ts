@@ -68,6 +68,22 @@ const UNIT_MAP = new Map(UNITS.map((u) => [u.abbr, u]));
 /** The unit returned for unknown abbreviations. Upstream: UnitTable::_empty_unit */
 const EMPTY_UNIT: Unit = { type: UnitType.DIMENSIONLESS, factor: 1.0, abbr: '' };
 
+/** The units of type, in the order of the unit table (upstream UnitTable::units). */
+export function unitsOfType(type: UnitType): readonly Unit[] {
+  return UNITS.filter((u) => u.type === type);
+}
+
+/** The abbreviation of the primary unit of type: px, degrees or % (upstream UnitTable::primary). */
+export function primaryUnit(type: UnitType): string {
+  return type === UnitType.LINEAR
+    ? 'px'
+    : type === UnitType.RADIAL
+      ? DEG
+      : type === UnitType.DIMENSIONLESS
+        ? '%'
+        : '';
+}
+
 /** Upstream: UnitTable::getUnit(abbr). Unknown abbreviations give the empty unit. */
 export function getUnit(abbr: string): Unit {
   return UNIT_MAP.get(abbr) ?? EMPTY_UNIT;

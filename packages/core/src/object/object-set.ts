@@ -890,6 +890,14 @@ export class ObjectSet {
     this.applyAffine(n2d.multiply(rotate).multiply(d2n));
   }
 
+  /** Skew around align by dx and dy (tangents, desktop coordinates). */
+  skewRelative(align: Point, dx: number, dy: number): void {
+    const d2n = Translate(align);
+    const n2d = Translate(align.neg());
+    const skew = new Affine(1, dy, dx, 1, 0, 0);
+    this.applyAffine(n2d.multiply(skew).multiply(d2n));
+  }
+
   moveRelative(dx: number, dy: number, compensate = true): void {
     this.applyAffine(Translate(dx, dy), true, compensate);
   }

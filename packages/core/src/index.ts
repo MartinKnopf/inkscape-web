@@ -39,6 +39,7 @@ export * from './object/sp-guide.ts';
 export * from './object/sp-image.ts';
 export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';
+export * from './object/sp-item-transform.ts';
 export * from './object/sp-line.ts';
 export * from './object/sp-linear-gradient.ts';
 export * from './object/sp-marker.ts';
