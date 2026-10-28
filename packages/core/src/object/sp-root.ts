@@ -14,7 +14,9 @@ import { Affine, Rect } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import type { Drawing, DrawingGroup, DrawingItem } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
+import { svgNumber } from '../svg/stringstream.ts';
 import { SVGLength, SVGLengthUnit } from '../svg/svg-length.ts';
+import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { SPDefs } from './sp-defs.ts';
 import type { SPItemCtx } from './sp-item.ts';
@@ -139,6 +141,24 @@ export class SPRoot extends SPGroup {
       }
     }
     this.#unset_x_and_y();
+  }
+
+  /**
+   * Write width, height and viewBox (unlike other objects, absolute units are kept).
+   * TODO: x, y, preserveAspectRatio.
+   */
+  override write(xmlDoc: XmlDocument, repr: Node | null, flags: number): Node | null {
+    repr ??= xmlDoc.createElement('svg:svg');
+    if (this.width._set) repr.setAttribute('width', this.width.write());
+    if (this.height._set) repr.setAttribute('height', this.height.write());
+    if (this.vb.viewBox_set) {
+      const b = this.vb.viewBox;
+      repr.setAttribute(
+        'viewBox',
+        [b.left(), b.top(), b.width(), b.height()].map((v) => svgNumber(v)).join(' '),
+      );
+    }
+    return super.write(xmlDoc, repr, flags);
   }
 
   protected override update(ctx: SPCtx, flags: number): void {

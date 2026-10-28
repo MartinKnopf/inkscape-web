@@ -25,6 +25,7 @@ export * from './selcue.ts';
 export * from './seltrans.ts';
 export * from './seltrans-handles.ts';
 export * from './ui/dialog/attrdialog.ts';
+export * from './ui/dialog/document-properties.ts';
 export * from './ui/dialog/fill-and-stroke.ts';
 export * from './ui/dialog/objects.ts';
 export * from './ui/dialog/xml-tree.ts';
