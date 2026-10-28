@@ -445,3 +445,43 @@
   flex: 1;
   height: auto;
 }
+
+.marker-row {
+  flex-wrap: wrap;
+}
+
+.marker-combo {
+  position: relative;
+  flex: 1;
+}
+
+.marker-combo > button {
+  width: 100%;
+  min-height: 24px;
+}
+
+.marker-combo img {
+  display: block;
+  width: 48px;
+  height: 20px;
+  margin: auto;
+}
+
+.marker-list {
+  position: absolute;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #999;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 20%);
+}
+
+.marker-list button[aria-selected="true"] {
+  background: #cfe3ff;
+  border-color: #3584e4;
+}
