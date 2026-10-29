@@ -17,6 +17,7 @@
 
 import { Affine, Point, Rect, Translate } from '@inkscape-web/geom';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
+import { sp_file_fix_page_elements } from './document-update.ts';
 import { prevent_id_clashes } from './id-clash.ts';
 import { ObjectSet } from './object/object-set.ts';
 import { SPDefs } from './object/sp-defs.ts';
@@ -26,6 +27,7 @@ import { LayerMode, SPGroup, sp_item_group_ungroup } from './object/sp-item-grou
 import { SPNamedView } from './object/sp-namedview.ts';
 import { getTypeString, type SPObject } from './object/sp-object.ts';
 import { SPRoot } from './object/sp-root.ts';
+import { PageManager } from './page-manager.ts';
 import { convertUnit, type SVGLength, SVGLengthUnit, svgUnitOf } from './svg/svg-length.ts';
 import { Signal } from './util/signal.ts';
 import type { XmlDocument } from './xml/document.ts';
@@ -102,6 +104,8 @@ export class SPDocument {
   /** Replaceable scheduler for idle updates. */
   static scheduleIdle: IdleScheduler = (callback) => setTimeout(callback, 0);
 
+  /** The pages; created before the object tree, since pages register while they are built. */
+  readonly #page_manager = new PageManager(this);
   #iddef = new Map<string, SPObject>();
   #reprdef = new Map<Node, SPObject>();
   #objectIdCounter = 1;
@@ -128,6 +132,8 @@ export class SPDocument {
     if (!root.defs) {
       rroot.addChild(rdoc.createElement('svg:defs'), null);
     }
+    // Convert the inkscape:page elements of Inkscape 1.2 - 1.4 to svg:view (upstream createDoc).
+    sp_file_fix_page_elements(this);
     DocumentUndo.setUndoSensitive(this, true);
   }
 
@@ -161,6 +167,9 @@ export class SPDocument {
   }
   getDefs(): SPObject | null {
     return this.root.defs;
+  }
+  getPageManager(): PageManager {
+    return this.#page_manager;
   }
 
   // Id and repr tables
@@ -381,19 +390,27 @@ export class SPDocument {
   }
 
   /**
-   * Resize the page to rect (desktop coordinates) and move the items so that
-   * they keep their place on the page.
-   * TODO: the unit of the root height, guides, grids, pages, scrolling the desktops.
+   * Resize the page to rect (document coordinates, px) and move the items and the pages so
+   * that they keep their place on the canvas. The root keeps the unit of its height.
+   * TODO: guides, grids, scrolling the desktops.
    */
   fitToRect(rect: Rect, _with_margins = false): void {
+    const { height } = this.root;
+    const unit = height._set && height.unit !== SVGLengthUnit.PERCENT ? height.getUnit().abbr : 'px';
     const tr_x = -rect.left();
     const tr_y_items = -rect.top() * this.yaxisdir();
     // Item translation (in desktop coordinates)
     const item_translation = Translate(tr_x, tr_y_items);
     // Resize the document. This changes the SVG origin relative to the drawing.
-    this.setWidthAndHeight(rect.width(), 'px', rect.height(), 'px');
+    this.setWidthAndHeight(
+      convertUnit(rect.width(), 'px', unit),
+      unit,
+      convertUnit(rect.height(), 'px', unit),
+      unit,
+    );
     // Translate everything to cancel out the change in the origin position.
     this.root.translateChildItems(item_translation);
+    this.#page_manager.movePages(item_translation);
   }
 
   /** The page area in document coordinates: (0,0) to getDimensions(). */
@@ -401,9 +418,9 @@ export class SPDocument {
     return new Rect(new Point(0, 0), this.getDimensions());
   }
 
-  /** The bounds of the selected page. TODO: pages (the page manager); now preferredBounds(). */
+  /** The bounds of the selected page (desktop coordinates), or preferredBounds() without pages. */
   pageBounds(): Rect {
-    return this.preferredBounds();
+    return this.#page_manager.getSelected()?.getDesktopRect() ?? this.preferredBounds();
   }
 
   // Items in an area

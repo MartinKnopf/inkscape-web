@@ -57,7 +57,7 @@ export function sp_parse_document_units(value: string | null): string {
  * held here.
  * The guides and grids are its children; the snap tolerances (in screen px)
  * are read here and used by the SnapManager of the editor.
- * TODO: window geometry, clip to page, the viewport canvas item and pages.
+ * TODO: window geometry, clip to page, the viewport canvas item.
  */
 export class SPNamedView extends SPObject {
   editable = true;
@@ -70,6 +70,8 @@ export class SPNamedView extends SPObject {
   border_on_top = new SVGBool(true);
   shadow_show = new SVGBool(false);
   checkerboard = new SVGBool(false);
+  /** Page label style on the canvas (labelstyle): "default" or "below". */
+  label_style = 'default';
   #background_color = DEFAULT_BACKGROUND_COLOR.clone();
   #border_color = DEFAULT_BORDER_COLOR.clone();
   /** Display unit abbreviation (inkscape:document-units). */
@@ -119,6 +121,7 @@ export class SPNamedView extends SPObject {
       SPAttr.BORDERCOLOR,
       SPAttr.BORDEROPACITY,
       SPAttr.PAGECOLOR,
+      SPAttr.PAGELABELSTYLE,
       SPAttr.INKSCAPE_DESK_COLOR,
       SPAttr.INKSCAPE_DESK_CHECKERBOARD,
       SPAttr.INKSCAPE_ZOOM,
@@ -235,6 +238,9 @@ export class SPNamedView extends SPObject {
       }
       case SPAttr.PAGECOLOR:
         this.#background_color = Color.parse(value) ?? DEFAULT_BACKGROUND_COLOR.clone();
+        break;
+      case SPAttr.PAGELABELSTYLE:
+        this.label_style = value ?? 'default';
         break;
       case SPAttr.INKSCAPE_DESK_COLOR:
         this.desk_color = Color.parse(value);
@@ -359,6 +365,10 @@ export class SPNamedView extends SPObject {
   }
   setCheckerboard(on: boolean): void {
     this.repr.setAttributeBoolean('inkscape:pagecheckerboard', on);
+  }
+  /** Show the page numbers below the pages (labelstyle="below") or the labels only ("default"). */
+  setLabelStyleBelow(below: boolean): void {
+    this.repr.setAttribute('labelstyle', below ? 'below' : 'default');
   }
   setDisplayUnit(abbr: string): void {
     this.repr.setAttribute('inkscape:document-units', abbr);

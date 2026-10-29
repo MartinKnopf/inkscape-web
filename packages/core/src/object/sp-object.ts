@@ -477,8 +477,13 @@ export class SPObject implements NodeObserver {
   protected orderChanged(child: Node, _oldRef: Node | null, newRef: Node | null): void {
     const object = this.getChildByRepr(child);
     if (!object) return;
-    this.reorder(object, this.#closestChildByRepr(newRef));
+    const prev = this.#closestChildByRepr(newRef);
+    this.reorder(object, prev);
+    object.position_changed(prev);
   }
+
+  /** Called on a child after it moved to another place among its siblings (upstream position_changed). */
+  protected position_changed(_prev: SPObject | null): void {}
 
   /** Called when the attribute key changes (and once per attribute in build). */
   set(key: SPAttr, value: string | null): void {
