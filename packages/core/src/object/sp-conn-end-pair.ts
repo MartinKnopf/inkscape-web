@@ -231,12 +231,17 @@ export class SPConnEndPair {
   createCurve(curvature: number): PathVector {
     const router = getRouter(this.#path.document);
     if (!router || this._connRef === null) return [];
+    return SPConnEndPair.curveFromRoute(router.route(this._connRef, curvature), curvature);
+  }
+
+  /** The path of a libavoid route: 'M', 'L' and 'C' commands per point (see AvoidRouter.route). */
+  static curveFromRoute(route: { points: number[]; types: string }, curvature: number): PathVector {
     const straight = curvature < 1e-3;
-    const { points, types } = router.route(this._connRef, curvature);
+    const { points, types } = route;
     const pt = (i: number) => new Point(points[2 * i]!, points[2 * i + 1]!);
     const pn = types.length;
-    const curve = new PathBuilder();
     if (!pn) return [];
+    const curve = new PathBuilder();
     curve.moveTo(pt(0));
     for (let i = 1; i < pn; ++i) {
       if (straight) {

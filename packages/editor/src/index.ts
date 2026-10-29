@@ -99,6 +99,7 @@ export * from './ui/tool/shape-record.ts';
 export * from './ui/tool-factory.ts';
 export * from './ui/tools/arc-tool.ts';
 export * from './ui/tools/calligraphic-tool.ts';
+export * from './ui/tools/connector-tool.ts';
 export * from './ui/tools/dropper-tool.ts';
 export * from './ui/tools/dynamic-base.ts';
 export * from './ui/tools/eraser-tool.ts';

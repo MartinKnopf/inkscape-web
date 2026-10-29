@@ -11,6 +11,7 @@
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
 import { CalligraphicTool } from './tools/calligraphic-tool.ts';
+import { ConnectorTool } from './tools/connector-tool.ts';
 import { DropperTool } from './tools/dropper-tool.ts';
 import { EraserTool } from './tools/eraser-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
@@ -42,6 +43,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/spray': SprayTool,
   '/tools/gradient': GradientTool,
   '/tools/dropper': DropperTool,
+  '/tools/connector': ConnectorTool,
   '/tools/measure': MeasureTool,
   '/tools/pages': PagesTool,
   '/tools/zoom': ZoomTool,
