@@ -5,22 +5,22 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 14 | 26 | 54 |
+| Tools | 18 | 26 | 69 |
 | Dialogs | 16 | 29 | 55 |
 | Actions | 133 | 409 | 33 |
 | Live path effects | 8 | 56 | 14 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (14/26)</summary>
+<details><summary>Tools (18/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
 - [ ] `box3d-tool.cpp`
-- [ ] `calligraphic-tool.cpp`
+- [x] `calligraphic-tool.cpp`
 - [ ] `connector-tool.cpp`
 - [x] `dropper-tool.cpp`
-- [ ] `eraser-tool.cpp`
+- [x] `eraser-tool.cpp`
 - [ ] `flood-tool.cpp`
 - [x] `gradient-tool.cpp`
 - [ ] `lpe-tool.cpp`
@@ -35,10 +35,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `rect-tool.cpp`
 - [x] `select-tool.cpp`
 - [x] `spiral-tool.cpp`
-- [ ] `spray-tool.cpp`
+- [x] `spray-tool.cpp`
 - [x] `star-tool.cpp`
 - [x] `text-tool.cpp`
-- [ ] `tweak-tool.cpp`
+- [x] `tweak-tool.cpp`
 - [x] `zoom-tool.cpp`
 
 </details>
