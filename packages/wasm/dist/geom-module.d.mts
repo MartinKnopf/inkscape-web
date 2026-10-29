@@ -15,6 +15,10 @@ interface EmbindModule {
   simplifyPath(_0: EmbindString, _1: number, _2: number, _3: boolean): string;
   offsetPath(_0: EmbindString, _1: number, _2: number, _3: number, _4: number, _5: number, _6: number, _7: number): any;
   strokeOutline(_0: EmbindString, _1: number, _2: number, _3: number, _4: number): string;
+  nodesatTimeAtArcLength(_0: EmbindString, _1: number): number;
+  nodesatArcLengthAt(_0: EmbindString, _1: number): number;
+  nodesatRadToLen(_0: number, _1: EmbindString, _2: EmbindString): number;
+  nodesatLenToRad(_0: number, _1: EmbindString, _2: EmbindString): number;
   bendPath(_0: EmbindString, _1: EmbindString, _2: number, _3: number, _4: number, _5: number, _6: number, _7: boolean, _8: boolean, _9: boolean): string;
   pathBounds(_0: EmbindString, _1: boolean, _2: number, _3: number, _4: number, _5: number, _6: number, _7: number): any;
   transformPath(_0: EmbindString, _1: number, _2: number, _3: number, _4: number, _5: number, _6: number): string;

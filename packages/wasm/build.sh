@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Build upstream lib2geom + livarot + path operations to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
+# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -69,6 +69,8 @@ SRCS="$SRCS $INK/src/path/path-boolop.cpp $INK/src/svg/stringstream.cpp $INK/src
 SRCS="$SRCS $INK/src/helper/geom-pathstroke.cpp $INK/src/helper/geom.cpp $INK/src/util/treeify.cpp"
 # Replaces src/util/numeric/precision.cpp (it reads the preferences).
 SRCS="$SRCS $HERE/shim/precision.cpp"
+# Arc length helpers of the Corners (Fillet/Chamfer) LPE.
+SRCS="$SRCS $INK/src/helper/geom-nodesatellite.cpp"
 
 # WASM has no FP rounding-mode control, so Boost.Interval gets its default (no-op)
 # rounding: we skip its hw_rounding.hpp (only used by 2geom/geometric-intersection.cpp).

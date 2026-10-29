@@ -54,6 +54,14 @@ export interface PathBoolopBackend {
   pathCrossings(a: string, b: string): number[];
   /** The livarot part of the Simplify LPE (lpe-simplify.cpp doEffect); threshold is scaled already. */
   simplifyPath(d: string, threshold: number, steps: number, justCoalesce: boolean): string;
+  /** helper/geom-nodesatellite.cpp timeAtArcLength() on the first curve of d. */
+  nodesatTimeAtArcLength(d: string, a: number): number;
+  /** helper/geom-nodesatellite.cpp arcLengthAt() on the first curve of d. */
+  nodesatArcLengthAt(d: string, a: number): number;
+  /** NodeSatellite::radToLen() (curves as path data with one curve). */
+  nodesatRadToLen(a: number, curveIn: string, curveOut: string): number;
+  /** NodeSatellite::lenToRad() (curves as path data with one curve). */
+  nodesatLenToRad(a: number, curveIn: string, curveOut: string): number;
   /** The livarot outline of the stroke of d (path-outline.cpp item_find_paths with bbox_only). */
   strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** do_offset() of helper/geom-pathstroke.cpp (Offset LPE). join is an Inkscape::LineJoinType. */
