@@ -52,6 +52,37 @@ export interface Geom {
   nodesatRadToLen(a: number, curveIn: string, curveOut: string): number;
   /** NodeSatellite::lenToRad() (curves as path data with one curve). */
   nodesatLenToRad(a: number, curveIn: string, curveOut: string): number;
+  /** The 2geom part of the Taper stroke LPE: stretch_along() of d with pattern, as one path. */
+  taperStretchAlong(d: string, pattern: string, width: number): string;
+  /** helper/geom-pathstroke.cpp half_outline() of the first path of d. join is a LineJoinType. */
+  halfOutline(d: string, width: number, miter: number, join: number): string;
+  /**
+   * The 2geom part of the Envelope Deformation LPE (lpe-envelope.cpp doEffect_pwd2). bends are the
+   * top, right, bottom and left paths; bbox is [x0, x1, y0, y1].
+   */
+  envelopePath(
+    d: string,
+    bends: readonly [string, string, string, string],
+    bbox: readonly [number, number, number, number],
+    xx: boolean,
+    yy: boolean,
+  ): string;
+  /** The 2geom part of the Pattern Along Path LPE (lpe-patternalongpath.cpp doEffect_pwd2). */
+  patternAlongPath(
+    d: string,
+    pattern: string,
+    params: {
+      copytype: number;
+      spacing: number;
+      normal_offset: number;
+      tang_offset: number;
+      prop_units: boolean;
+      vertical_pattern: boolean;
+      prop_scale: number;
+      scale_y_rel: boolean;
+      fuse_tolerance: number;
+    },
+  ): string;
   /** The livarot outline of the stroke of `d` (path-outline.cpp item_find_paths, bbox only). */
   strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** Upstream do_offset() of helper/geom-pathstroke.cpp (Offset LPE). `join` is a LineJoinType. */
@@ -180,6 +211,24 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     nodesatArcLengthAt: (d, a) => m.nodesatArcLengthAt(d, a),
     nodesatRadToLen: (a, ci, co) => m.nodesatRadToLen(a, ci, co),
     nodesatLenToRad: (a, ci, co) => m.nodesatLenToRad(a, ci, co),
+    taperStretchAlong: (d, pattern, width) => m.taperStretchAlong(d, pattern, width),
+    halfOutline: (d, width, miter, join) => m.halfOutline(d, width, miter, join),
+    envelopePath: (d, [b1, b2, b3, b4], [x0, x1, y0, y1], xx, yy) =>
+      m.envelopePath(d, b1, b2, b3, b4, x0, x1, y0, y1, xx, yy),
+    patternAlongPath: (d, pattern, p) =>
+      m.patternAlongPath(
+        d,
+        pattern,
+        p.copytype,
+        p.spacing,
+        p.normal_offset,
+        p.tang_offset,
+        p.prop_units,
+        p.vertical_pattern,
+        p.prop_scale,
+        p.scale_y_rel,
+        p.fuse_tolerance,
+      ),
     strokeOutline: (d, width, join, butt, miter) => m.strokeOutline(d, width, join, butt, miter),
     simplifyPath: (d, threshold, steps, justCoalesce) => m.simplifyPath(d, threshold, steps, justCoalesce),
     offsetPath: (d, toOffset, tolerance, miterLimit, fillRule, join, [px, py]) =>
