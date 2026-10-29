@@ -6,9 +6,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
 | Tools | 13 | 26 | 50 |
-| Dialogs | 15 | 29 | 52 |
+| Dialogs | 16 | 29 | 55 |
 | Actions | 122 | 409 | 30 |
-| Live path effects | 3 | 56 | 5 |
+| Live path effects | 8 | 56 | 14 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (15/29)</summary>
+<details><summary>Dialogs (16/29)</summary>
 
 - [x] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -59,7 +59,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `FontBrowser`
 - [ ] `FontCollections`
 - [ ] `IconPreview`
-- [ ] `LivePathEffect`
+- [x] `LivePathEffect`
 - [x] `ObjectProperties`
 - [x] `Objects`
 - [x] `Preferences`
@@ -491,11 +491,11 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (3/56)</summary>
+<details><summary>Live path effects (8/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
-- [ ] `bend_path`
+- [x] `bend_path`
 - [ ] `bool_op`
 - [ ] `bounding_box`
 - [ ] `bspline`
@@ -503,7 +503,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `circle_with_radius`
 - [ ] `clone_original`
 - [ ] `construct_grid`
-- [ ] `copy_rotate`
+- [x] `copy_rotate`
 - [ ] `curvestitching`
 - [ ] `dashed_stroke`
 - [ ] `doeffectstacktest`
@@ -524,7 +524,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `lattice2`
 - [ ] `line_segment`
 - [ ] `measure_segments`
-- [ ] `mirror_symmetry`
+- [x] `mirror_symmetry`
 - [x] `offset`
 - [ ] `parallel`
 - [ ] `path_length`
@@ -535,10 +535,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `pts2ellipse`
 - [ ] `recursive_skeleton`
 - [ ] `rough_hatches`
-- [ ] `roughen`
+- [x] `roughen`
 - [ ] `ruler`
 - [x] `show_handles`
-- [ ] `simplify`
+- [x] `simplify`
 - [ ] `skeletal`
 - [ ] `sketch`
 - [x] `slice`
