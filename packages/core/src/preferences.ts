@@ -79,6 +79,28 @@ export class Preferences {
     return Number.isNaN(v) ? def : v;
   }
 
+  /** The paths of the groups directly in path ("/tools/calligraphic/preset/cp0", ...), in order. */
+  getAllDirs(path: string): string[] {
+    const prefix = `${path}/`;
+    const dirs = new Set<string>();
+    for (const p of [...Object.keys(preferences_skeleton), ...this.#values.keys()]) {
+      if (!p.startsWith(prefix)) continue;
+      const slash = p.indexOf('/', prefix.length);
+      if (slash !== -1) dirs.add(p.slice(0, slash));
+    }
+    return [...dirs];
+  }
+
+  /** The entries directly in the group path: [name, value], in order. */
+  getAllEntries(path: string): [name: string, value: string][] {
+    const prefix = `${path}/`;
+    const names = new Set<string>();
+    for (const p of [...Object.keys(preferences_skeleton), ...this.#values.keys()]) {
+      if (p.startsWith(prefix) && !p.includes('/', prefix.length)) names.add(p.slice(prefix.length));
+    }
+    return [...names].map((name) => [name, this.#raw(prefix + name) ?? '']);
+  }
+
   /** The CSS properties of the style string at path (empty if not set). */
   getStyle(path: string): SPCSSAttr {
     const style = spReprCssAttrNew();

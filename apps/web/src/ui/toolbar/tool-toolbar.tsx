@@ -38,6 +38,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
   [
     ['Pen', 'draw-path'],
     ['Pencil', 'draw-freehand'],
+    ['Calligraphic', 'draw-calligraphic'],
     ['Text', 'draw-text'],
   ],
   [['Gradient', 'color-gradient']],

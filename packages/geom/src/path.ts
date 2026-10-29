@@ -10,7 +10,9 @@
  */
 import type { Affine } from './affine.ts';
 import { LineSegment } from './bezier-curve.ts';
+import type { Coord } from './coord.ts';
 import type { Curve } from './curve.ts';
+import { EllipticalArc } from './elliptical-arc.ts';
 import { Point } from './point.ts';
 import { type OptRect, type Rect, unify } from './rect.ts';
 
@@ -39,6 +41,19 @@ export class Path {
   /** An empty path that starts at p. */
   constructor(start: Point = new Point(0, 0)) {
     this.#start = start;
+  }
+
+  /** A closed circle of two arcs that starts at the rightmost point (upstream Path(Circle)). */
+  static fromCircle(center: Point, radius: Coord): Path {
+    const p1 = center.add(new Point(radius, 0));
+    const p2 = center.sub(new Point(radius, 0));
+    const p = new Path(p1);
+    p.#curves = [
+      new EllipticalArc(p1, radius, radius, 0, false, true, p2),
+      new EllipticalArc(p2, radius, radius, 0, false, true, p1),
+    ];
+    p.#closed = true;
+    return p;
   }
 
   /** Copy of the path. Curves are immutable, so they are shared. */

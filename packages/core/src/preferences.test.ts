@@ -59,3 +59,17 @@ describe('Preferences storage', () => {
     expect(prefs.getBool('/options/transform/stroke', true)).toBe(true);
   });
 });
+
+describe('getAllDirs and getAllEntries', () => {
+  it('list the groups and entries of the skeleton and of the user values', () => {
+    const prefs = new Preferences();
+    prefs.setString('/tools/calligraphic/preset/dcc7/name', 'Mine');
+    const dirs = prefs.getAllDirs('/tools/calligraphic/preset');
+    expect(dirs.slice(0, 2)).toEqual(['/tools/calligraphic/preset/cp0', '/tools/calligraphic/preset/cp1']);
+    expect(dirs.at(-1)).toBe('/tools/calligraphic/preset/dcc7');
+    expect(prefs.getAllEntries('/tools/calligraphic/preset/cp1').slice(0, 2)).toEqual([
+      ['name', 'Marker'],
+      ['mass', '2'],
+    ]);
+  });
+});

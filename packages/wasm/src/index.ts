@@ -127,8 +127,13 @@ export type AffineMatrix = readonly [number, number, number, number, number, num
 
 let module: Promise<MainModule> | undefined;
 
-export async function loadGeom(): Promise<Geom> {
-  module ??= createModule();
+/**
+ * Load the module (once). Tests in a DOM environment (happy-dom) pass the
+ * file path of dist/geom-module.wasm in locateFile: there the module gets an
+ * http URL from import.meta.url.
+ */
+export async function loadGeom(options?: { locateFile: (path: string) => string }): Promise<Geom> {
+  module ??= createModule(options);
   const m = await module;
   return {
     boolop: (a, b, op, fillA, fillB) => m.boolop(a, b, op, fillA, fillB),

@@ -10,6 +10,7 @@
  */
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
+import { CalligraphicTool } from './tools/calligraphic-tool.ts';
 import { DropperTool } from './tools/dropper-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
@@ -32,6 +33,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/shapes/rect': RectTool,
   '/tools/freehand/pen': PenTool,
   '/tools/freehand/pencil': PencilTool,
+  '/tools/calligraphic': CalligraphicTool,
   '/tools/gradient': GradientTool,
   '/tools/dropper': DropperTool,
   '/tools/measure': MeasureTool,

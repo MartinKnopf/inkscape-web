@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Helpers shared by the tool controls bars.
-import { _, type SPItem } from '@inkscape-web/core';
+import { _, Preferences, type SPItem } from '@inkscape-web/core';
 import type { SPDesktop } from '@inkscape-web/editor';
 import { useEffect, useReducer } from 'react';
 import { iconFallback, iconUrl } from '../icon-loader.ts';
@@ -64,5 +64,39 @@ export function IconButton(props: {
     >
       <img src={iconUrl(props.icon)} alt="" width={16} height={16} onError={iconFallback(props.icon)} />
     </button>
+  );
+}
+
+/** Re-render when a preference under the path prefix changes (upstream: the toolbar's pref observers). */
+export function usePreferencesUpdates(prefix: string): void {
+  const [, update] = useReducer((n: number) => n + 1, 0);
+  useEffect(
+    () => Preferences.get().changedSignal.connect((path) => path.startsWith(prefix) && update()),
+    [prefix],
+  );
+}
+
+/** A toolbar toggle button for the boolean preference path (upstream SimplePrefPusher). */
+export function PrefToggleButton(props: {
+  icon: string;
+  tooltip: string;
+  path: string;
+  def?: boolean;
+  disabled?: boolean;
+  onToggled?: (active: boolean) => void;
+}) {
+  const prefs = Preferences.get();
+  const active = prefs.getBool(props.path, props.def ?? false);
+  return (
+    <IconButton
+      icon={props.icon}
+      tooltip={props.tooltip}
+      active={active}
+      disabled={props.disabled ?? false}
+      onClick={() => {
+        prefs.setBool(props.path, !active);
+        props.onToggled?.(!active);
+      }}
+    />
   );
 }
