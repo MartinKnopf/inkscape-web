@@ -25,6 +25,7 @@ import {
   Preferences,
   SP_STYLE_FLAG_IFSET,
   type SPCSSAttr,
+  type SPDocument,
   SPGroup,
   SPItem,
   type SPObject,
@@ -236,4 +237,16 @@ export function take_style_from_item(object: SPObject): SPCSSAttr {
     if (ex !== 1.0) css = spCssAttrScale(css, ex);
   }
   return css;
+}
+
+/**
+ * Resize the document to the visual bounds of the drawing (upstream fit_canvas_to_drawing).
+ * Returns false for an empty drawing. Like upstream, this ignores the pages.
+ */
+export function fit_canvas_to_drawing(doc: SPDocument, with_margins = false): boolean {
+  doc.ensureUpToDate();
+  const bbox = doc.getRoot().documentVisualBounds();
+  if (!bbox) return false;
+  doc.fitToRect(bbox, with_margins);
+  return true;
 }

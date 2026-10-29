@@ -20,6 +20,7 @@ import { DropperToolbar } from './dropper-toolbar.tsx';
 import { GradientToolbar } from './gradient-toolbar.tsx';
 import { MeasureToolbar } from './measure-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
+import { PageToolbar } from './page-toolbar.tsx';
 import { PencilToolbar } from './pencil-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
 import { SpiralToolbar } from './spiral-toolbar.tsx';
@@ -41,6 +42,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Dropper: DropperToolbar,
   Measure: MeasureToolbar,
   Zoom: ZoomToolbar,
+  Pages: PageToolbar,
   Text: TextToolbar,
 };
 

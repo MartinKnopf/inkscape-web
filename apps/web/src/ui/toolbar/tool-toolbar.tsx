@@ -45,6 +45,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
   [
     ['Measure', 'tool-measure'],
     ['Zoom', 'zoom'],
+    ['Pages', 'tool-pages'],
   ],
 ];
 

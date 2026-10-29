@@ -9,6 +9,8 @@
  * Copyright (C) 2021 Authors
  */
 import {
+  C_,
+  DocumentUndo,
   N_,
   NC_,
   type SPDocument,
@@ -16,10 +18,11 @@ import {
   sp_guide_delete_all_guides,
 } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
+import { fit_canvas_to_drawing } from '../selection-chemistry.ts';
 
 const SECTION = NC_('Action Section', 'Edit Document');
 
-/** Action id, label, section and tooltip (untranslated). TODO: fit-canvas-to-drawing, set-display-unit, clip-to-page. */
+/** Action id, label, section and tooltip (untranslated). TODO: set-display-unit, clip-to-page. */
 export const raw_data_edit_document: readonly (readonly [string, string, string, string])[] = [
   [
     'doc.create-guides-around-page',
@@ -36,7 +39,13 @@ export const raw_data_edit_document: readonly (readonly [string, string, string,
   ],
   ['doc.delete-all-guides', N_('Delete All Guides'), SECTION, N_('Delete all the guides in the document')],
   ['doc.show-grids', N_('Show Grids'), SECTION, N_('Toggle the visibility of grids')],
+  ['doc.fit-canvas-to-drawing', N_('Fit Page to Drawing'), SECTION, N_('Fit the page to the drawing')],
 ];
+
+/** Fit Page to Drawing (upstream fit_canvas_drawing). */
+export function fit_canvas_drawing(document: SPDocument): void {
+  if (fit_canvas_to_drawing(document)) DocumentUndo.done(document, C_('Undo', 'Fit Page to Drawing'), '');
+}
 
 /**
  * Register the doc.* actions for guides and grids. The states of the toggle
@@ -51,6 +60,7 @@ export function add_actions_edit_document(app: InkscapeApplication): void {
   };
   map.add_action('create-guides-around-page', run(sp_guide_create_guides_around_page));
   map.add_action('delete-all-guides', run(sp_guide_delete_all_guides));
+  map.add_action('fit-canvas-to-drawing', run(fit_canvas_drawing));
   const lock = map.add_action_bool(
     'lock-all-guides',
     run((doc) => doc.getNamedView().toggleLockGuides()),
