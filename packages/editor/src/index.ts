@@ -111,6 +111,7 @@ export * from './ui/tools/pencil-tool.ts';
 export * from './ui/tools/rect-tool.ts';
 export * from './ui/tools/select-tool.ts';
 export * from './ui/tools/spiral-tool.ts';
+export * from './ui/tools/spray-tool.ts';
 export * from './ui/tools/star-tool.ts';
 export * from './ui/tools/text-tool.ts';
 export * from './ui/tools/tool-base.ts';

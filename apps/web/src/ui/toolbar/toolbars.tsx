@@ -26,6 +26,7 @@ import { PageToolbar } from './page-toolbar.tsx';
 import { PencilToolbar } from './pencil-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
 import { SpiralToolbar } from './spiral-toolbar.tsx';
+import { SprayToolbar } from './spray-toolbar.tsx';
 import { StarToolbar } from './star-toolbar.tsx';
 import { TextToolbar } from './text-toolbar.tsx';
 import { useActiveTool } from './tool-toolbar.tsx';
@@ -44,6 +45,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Calligraphic: CalligraphyToolbar,
   Eraser: EraserToolbar,
   Tweak: TweakToolbar,
+  Spray: SprayToolbar,
   Gradient: GradientToolbar,
   Dropper: DropperToolbar,
   Measure: MeasureToolbar,
