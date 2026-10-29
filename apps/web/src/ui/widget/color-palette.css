@@ -159,3 +159,10 @@
 .symbol-item[aria-pressed="true"] {
   border-color: #3584e4;
 }
+
+.docprops .attr-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #bbb;
+  font: inherit;
+}
