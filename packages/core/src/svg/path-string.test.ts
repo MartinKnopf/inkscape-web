@@ -10,6 +10,7 @@
  */
 import { type Coord, PathSink, Point, parse_svg_path } from '@inkscape-web/geom';
 import { describe, expect, it } from 'vitest';
+import { Preferences } from '../preferences.ts';
 import { PATHSTRING_FORMAT, PathString } from './path-string.ts';
 import { sp_svg_read_pathv } from './svg-path.ts';
 
@@ -167,5 +168,23 @@ describe('PathString', () => {
     const spacing = Math.hypot(p1.x - p0.x, p1.y - p0.y);
     const end = pv[0]?.finalPoint() as Point;
     expect(Math.hypot(last.x - end.x, last.y - end.y)).toBeLessThanOrEqual(spacing);
+  });
+});
+
+describe('PathString with preferences', () => {
+  it('uses /options/svgoutput/numericprecision and pathstring_format when no options are given', () => {
+    const prefs = Preferences.get();
+    const write = () => {
+      const s = new PathString();
+      s.moveTo(1.23456789, 2);
+      s.lineTo(3.98765432, 4);
+      return s.string();
+    };
+    expect(write()).toBe('M 1.23456789,2 3.98765432,4');
+    prefs.setInt('/options/svgoutput/numericprecision', 3);
+    prefs.setInt('/options/svgoutput/pathstring_format', ABS);
+    expect(write()).toBe('M 1.23,2 3.99,4');
+    prefs.remove('/options/svgoutput/numericprecision');
+    prefs.remove('/options/svgoutput/pathstring_format');
   });
 });

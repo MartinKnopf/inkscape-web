@@ -3,10 +3,12 @@
 import { _ } from '@inkscape-web/core';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react';
 import type { FunctionComponent } from 'react';
+import { getDocumentAnchor } from '../../app/documents.ts';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
+import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { TextEditDialog } from './text-edit.tsx';
 import { XmlTreeDialog } from './xml-tree.tsx';
@@ -17,6 +19,8 @@ interface DialogData {
   /** Title, with the mnemonic marker of upstream dialog-data.cpp. */
   label: string;
   component: FunctionComponent<IDockviewPanelProps>;
+  /** Width in px when the dialog is the first one that is docked. Default 320. */
+  width?: number;
 }
 
 /**
@@ -28,6 +32,7 @@ const DIALOGS: Record<string, DialogData> = {
   DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
+  Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
   XMLEditor: { label: _('_XML Editor'), component: XmlTreeDialog },
@@ -70,8 +75,10 @@ export function openDialog(key: string): void {
     id: key,
     component: key,
     title: data.label.replace('_', ''),
-    position: sibling ? { referenceGroup: sibling.group } : { referencePanel: 'drawing', direction: 'right' },
+    position: sibling
+      ? { referenceGroup: sibling.group }
+      : { referencePanel: getDocumentAnchor(dockview) ?? '', direction: 'right' },
   });
-  if (!sibling) panel.api.setSize({ width: 320 });
+  if (!sibling) panel.api.setSize({ width: data.width ?? 320 });
   panel.api.setActive();
 }

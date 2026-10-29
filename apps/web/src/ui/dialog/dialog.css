@@ -587,3 +587,83 @@
 .text-edit-buttons {
   justify-content: flex-end;
 }
+
+/* Preferences dialog */
+.prefs-dialog {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.pref-tree {
+  flex: 0 0 200px;
+  overflow: auto;
+  border-right: 1px solid #ccc;
+  padding: 4px 0;
+}
+
+.pref-tree-item {
+  display: block;
+  width: 100%;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.pref-tree-item.selected {
+  background: #cfe0f5;
+}
+
+.pref-page {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 12px;
+}
+
+.pref-title {
+  margin: 4px 0 8px;
+  font-size: 14px;
+}
+
+.pref-header {
+  margin: 12px 0 4px;
+  font-size: 12px;
+}
+
+.pref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.pref-row.indent {
+  padding-left: 16px;
+}
+
+.pref-label {
+  white-space: pre-line;
+}
+
+.pref-number {
+  width: 6em;
+}
+
+.pref-note {
+  color: #555;
+}
+
+.pref-error {
+  color: #a00;
+}
+
+.pref-swatch {
+  display: inline-block;
+  width: 24px;
+  height: 14px;
+  border: 2px solid;
+  vertical-align: middle;
+}

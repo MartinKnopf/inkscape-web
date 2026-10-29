@@ -2,6 +2,11 @@
 // Upstream: src/ui/widget/desktop-widget.cpp
 // Window title of a document.
 
+/** The title of a document tab: "*" when modified, then the document name. */
+export function tabTitle(name: string, modifiedSinceSave: boolean): string {
+  return `${modifiedSinceSave ? '*' : ''}${name}`;
+}
+
 /**
  * The window title: "*" when modified, the document name and " - Inkscape"
  * (upstream SPDesktopWidget::updateTitle without render and color modes).
