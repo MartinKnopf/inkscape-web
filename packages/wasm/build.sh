@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Build upstream lib2geom + livarot + path operations to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
+# Build upstream lib2geom + livarot + path operations + libavoid to WebAssembly.
+# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -64,6 +64,11 @@ GEOM=$(sed -n '/target_sources(2geom PRIVATE/,/^)/p' "$G/src/2geom/CMakeLists.tx
 SRCS=""
 for f in $GEOM svg-path-parser.cpp; do SRCS="$SRCS $G/src/2geom/$f"; done
 SRCS="$SRCS $(ls "$INK"/src/livarot/*.cpp)"
+# libavoid (connector routing): same file list as its CMakeLists.txt.
+A=$INK/src/3rdparty/adaptagrams
+for f in $(sed -n '/target_sources(avoid_LIB PRIVATE/,/^)/p' "$A/libavoid/CMakeLists.txt" | grep -oE '[a-z0-9_]+\.cpp'); do
+    SRCS="$SRCS $A/libavoid/$f"
+done
 SRCS="$SRCS $INK/src/path/path-boolop.cpp $INK/src/svg/stringstream.cpp $INK/src/svg/strip-trailing-zeros.cpp"
 # split_non_intersecting_paths() for Path > Break Apart.
 SRCS="$SRCS $INK/src/helper/geom-pathstroke.cpp $INK/src/helper/geom.cpp $INK/src/util/treeify.cpp"
@@ -77,7 +82,7 @@ SRCS="$SRCS $INK/src/live_effects/spiro.cpp $INK/src/live_effects/spiro-converte
 # WASM has no FP rounding-mode control, so Boost.Interval gets its default (no-op)
 # rounding: we skip its hw_rounding.hpp (only used by 2geom/geometric-intersection.cpp).
 export FLAGS="-O3 -std=c++20 -fexceptions -DHAVE_GSL -DBOOST_NUMERIC_INTERVAL_HW_ROUNDING_HPP \
-    -include $HERE/shim/glib.h -I$HERE/shim -I$INK/src -I$G/include -I$P/include -I$B/boost-include \
+    -include $HERE/shim/glib.h -I$HERE/shim -I$INK/src -I$G/include -I$A -I$P/include -I$B/boost-include \
     -Wno-deprecated-declarations"
 OBJ=$B/obj && mkdir -p "$OBJ"
 obj() { echo "$OBJ/$(echo "${1#"$INK"/}" | tr / _).o"; }
@@ -90,7 +95,7 @@ OBJS=""
 for s in $SRCS; do OBJS="$OBJS $(obj "$s")"; done
 mkdir -p dist
 # shellcheck disable=SC2086
-em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
+em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/avoid.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit
@@ -100,6 +105,7 @@ mkdir -p dist/licenses
 cp "$INK/COPYING" dist/licenses/inkscape-COPYING
 cp "$INK"/LICENSES/GPL-2.0.txt "$INK"/LICENSES/GPL-3.0.txt dist/licenses/
 cp "$G/COPYING-LGPL-2.1" "$G/COPYING-MPL-1.1" dist/licenses/
+cp "$A/libavoid/LICENSE.LGPL" dist/licenses/libavoid-LICENSE.LGPL
 cp "$B/vendor/gsl/COPYING" dist/licenses/gsl-COPYING
 cp "$B/vendor/double-conversion/LICENSE" dist/licenses/double-conversion-LICENSE
 echo "wasm: $(du -h dist/geom-module.wasm | cut -f1) ($(gzip -9c dist/geom-module.wasm | wc -c | tr -d ' ') bytes gzip)"

@@ -134,6 +134,35 @@ export interface Geom {
    * `ok` is false on an error. `zSnapThreshold` is SVGPathParser::setZSnapThreshold().
    */
   readPath(d: string, zSnapThreshold: number): { ok: boolean; d: string };
+  /** A new libavoid router (upstream libavoid in src/3rdparty/adaptagrams). */
+  newAvoidRouter(): AvoidRouter;
+}
+
+/**
+ * One libavoid router (upstream Avoid::Router of SPDocument) with its shapes and connectors,
+ * named by integer ids. Call free() when the document closes.
+ */
+export interface AvoidRouter {
+  /** Upstream new Avoid::ShapeRef(router, poly, id): an obstacle polygon [x, y, x, y, ...]. */
+  addShape(id: number, polygon: readonly number[]): void;
+  moveShape(id: number, polygon: readonly number[]): void;
+  deleteShape(id: number): void;
+  /** Upstream new Avoid::ConnRef(router, id) with setRoutingType() and the reroute callback. */
+  addConnector(id: number, orthogonal: boolean): void;
+  setRoutingType(id: number, orthogonal: boolean): void;
+  setEndpoints(id: number, x0: number, y0: number, x1: number, y1: number): void;
+  makePathInvalid(id: number): void;
+  isInitialised(id: number): boolean;
+  deleteConnector(id: number): void;
+  processTransaction(): boolean;
+  /** The connectors whose route changed in the transactions since the last call. */
+  takeChanged(): number[];
+  /**
+   * displayRoute(), with curvedPolyline(curvature) if curvature > 0: the points and one
+   * path command per point ('M', 'L' or 'C', where 'C' takes the point and the next two).
+   */
+  route(id: number, curvature: number): { points: number[]; types: string };
+  free(): void;
 }
 
 /** Upstream: src/livarot/Shape.h, the tweak modes of Shape::MakeTweak(). */
@@ -247,5 +276,23 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     reversePath: (d) => m.reversePath(d),
     writePath: (d, precision, optimize, shorthands) => m.writePath(d, precision, optimize, shorthands),
     readPath: (d, zSnapThreshold) => m.readPath(d, zSnapThreshold) as { ok: boolean; d: string },
+    newAvoidRouter: () => {
+      const r = new m.AvoidRouter();
+      return {
+        addShape: (id, polygon) => r.addShape(id, polygon),
+        moveShape: (id, polygon) => r.moveShape(id, polygon),
+        deleteShape: (id) => r.deleteShape(id),
+        addConnector: (id, orthogonal) => r.addConnector(id, orthogonal),
+        setRoutingType: (id, orthogonal) => r.setRoutingType(id, orthogonal),
+        setEndpoints: (id, x0, y0, x1, y1) => r.setEndpoints(id, x0, y0, x1, y1),
+        makePathInvalid: (id) => r.makePathInvalid(id),
+        isInitialised: (id) => r.isInitialised(id),
+        deleteConnector: (id) => r.deleteConnector(id),
+        processTransaction: () => r.processTransaction(),
+        takeChanged: () => r.takeChanged() as number[],
+        route: (id, curvature) => r.route(id, curvature) as { points: number[]; types: string },
+        free: () => r.delete(),
+      };
+    },
   };
 }
