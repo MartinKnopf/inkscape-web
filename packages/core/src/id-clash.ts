@@ -259,6 +259,16 @@ export function change_def_references(from_obj: SPObject, to_obj: SPObject): voi
 }
 
 /**
+ * Convert a string to a valid XML id: invalid characters become "_", and an id
+ * that starts with a digit, a period or a dash gets an "x" in front.
+ */
+export function sanitize_id(input_id: string): string {
+  if (input_id === '') return '_';
+  const id = input_id.replace(/[^A-Za-z0-9\-_.:]/g, '_');
+  return /^[0-9.-]/.test(id) ? `x${id}` : id;
+}
+
+/**
  * Whether id is a valid object id; if not, the reason as a translated message.
  * This is a subset of the valid XML 1.0 ID characters.
  */

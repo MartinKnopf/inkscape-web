@@ -41,6 +41,7 @@ import { SPMask } from './sp-mask.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
 import { SPRoot } from './sp-root.ts';
+import { SPSymbol } from './sp-symbol.ts';
 import { SPCloneCompensation, SPUse } from './sp-use.ts';
 
 /** The part of upstream LayerManager that the selection uses (the editor implements it). */
@@ -888,6 +889,132 @@ export class ObjectSet {
     const n2d = Translate(center.neg());
     const rotate = Rotate.from_degrees(angle_degrees);
     this.applyAffine(n2d.multiply(rotate).multiply(d2n));
+  }
+
+  /**
+   * Convert the selection to an svg:symbol in the defs and replace it by an
+   * svg:use of the symbol. A single group becomes the symbol (its translation
+   * moves to the use; a group with another transform stays as a group in the
+   * symbol, as a symbol cannot have a transform). Undo step "Group to symbol".
+   * Upstream: ObjectSet::toSymbol.
+   */
+  toSymbol(): void {
+    const doc = this.document();
+    if (!doc) return;
+    const xml_doc = doc.getReprDoc();
+    // TODO: flash "Select <b>objects</b> to convert to symbol." if nothing is selected.
+    if (this.isEmpty()) return;
+    doc.ensureUpToDate();
+
+    let items_: SPObject[] = [...this.objects()].sort(sp_object_compare_position);
+    const the_first_repr = items_[0]?.getRepr();
+    const the_parent_repr = the_first_repr?.parent();
+    if (!the_parent_repr) return;
+
+    // Find out if we have a single group.
+    let single_group = false;
+    let the_group: SPGroup | null = null;
+    let transform = Affine.identity();
+    const only = items_.length === 1 ? items_[0] : undefined;
+    if (only instanceof SPGroup) {
+      the_group = only;
+      single_group = true;
+      transform = sp_svg_transform_read(only.getAttribute('transform') ?? '') ?? Affine.identity();
+      if (transform.isTranslation()) {
+        // Create a new list from the children of the group.
+        items_ = only.children.slice();
+        // Hack: temporarily set clone compensation to unmoved, so that we can move clone-originals
+        // without disturbing clones.
+        const prefs = Preferences.get();
+        const saved = prefs.getInt(
+          '/options/clonecompensation/value',
+          SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED,
+        );
+        prefs.setInt('/options/clonecompensation/value', SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED);
+        // Remove the transform of the group, updating clones.
+        only.doWriteTransform(Affine.identity());
+        prefs.setInt('/options/clonecompensation/value', saved);
+      }
+    }
+
+    // Create the new svg:symbol.
+    const defsrepr = doc.getDefs()?.getRepr();
+    if (!defsrepr) return;
+    const symbol_repr = xml_doc.createElement('svg:symbol');
+    defsrepr.appendChild(symbol_repr);
+    let settitle = false;
+    // For a single group, copy the relevant attributes.
+    if (single_group && the_group) {
+      const id = the_group.getAttribute('id');
+      symbol_repr.setAttribute('style', the_group.getAttribute('style'));
+      symbol_repr.setAttribute('class', the_group.getAttribute('class'));
+      the_group.setAttribute('id', `${id}_transform`);
+      symbol_repr.setAttribute('id', id);
+      // This should eventually be replaced by 'refX' and 'refY' once the SVG WG approves it.
+      // It is done here for round-tripping.
+      symbol_repr.setAttribute(
+        'inkscape:transform-center-x',
+        the_group.getAttribute('inkscape:transform-center-x'),
+      );
+      symbol_repr.setAttribute(
+        'inkscape:transform-center-y',
+        the_group.getAttribute('inkscape:transform-center-y'),
+      );
+      the_group.removeAttribute('style');
+    }
+
+    // Move the selected items to the new symbol.
+    for (const item of [...items_].reverse()) {
+      const title = item.title();
+      if (!single_group && !settitle && title !== null) {
+        const title_repr = xml_doc.createElement('svg:title');
+        symbol_repr.addChildAtPos(title_repr, 0);
+        title_repr.appendChild(xml_doc.createTextNode(title));
+        const desc = item.desc();
+        if (desc !== null) {
+          const desc_repr = xml_doc.createElement('svg:desc');
+          symbol_repr.addChildAtPos(desc_repr, 1);
+          desc_repr.appendChild(xml_doc.createTextNode(desc));
+        }
+        settitle = true;
+      }
+      const repr = item.getRepr();
+      repr.parent()?.removeChild(repr);
+      symbol_repr.addChild(repr, null);
+    }
+
+    if (single_group && transform.isTranslation()) the_group?.deleteObject(true);
+
+    // Create a use of the new symbol (to replace the moved objects).
+    const clone = xml_doc.createElement('svg:use');
+    clone.setAttribute('xlink:href', `#${symbol_repr.attribute('id')}`);
+    the_parent_repr.appendChild(clone);
+    if (single_group && transform.isTranslation()) {
+      clone.setAttributeOrRemoveIfEmpty('transform', sp_svg_transform_write(transform));
+    }
+
+    // Change the selection to the new use.
+    doc.ensureUpToDate();
+    const use = doc.getObjectByRepr(clone);
+    if (use) this.set(use);
+
+    DocumentUndo.done(doc, C_('Undo', 'Group to symbol'), '');
+  }
+
+  /**
+   * Turn the symbols of the selected uses into groups (see SPSymbol.unSymbol).
+   * Undo step "unSymbol all selected symbols". Upstream: ObjectSet::unSymbol.
+   */
+  unSymbol(): void {
+    const doc = this.document();
+    if (!doc) return;
+    for (const item of this.items()) {
+      if (item instanceof SPUse) {
+        const sym = item.root();
+        if (sym instanceof SPSymbol) sym.unSymbol();
+      }
+    }
+    DocumentUndo.done(doc, C_('Undo', 'unSymbol all selected symbols'), '');
   }
 
   /** Skew around align by dx and dy (tangents, desktop coordinates). */
