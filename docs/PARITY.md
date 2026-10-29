@@ -6,7 +6,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
 | Tools | 13 | 26 | 50 |
-| Dialogs | 11 | 29 | 38 |
+| Dialogs | 15 | 29 | 52 |
 | Actions | 122 | 409 | 30 |
 | Live path effects | 3 | 56 | 5 |
 | Internal import/export modules | 2 | 35 | 6 |
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (11/29)</summary>
+<details><summary>Dialogs (15/29)</summary>
 
 - [x] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -60,19 +60,19 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `FontCollections`
 - [ ] `IconPreview`
 - [ ] `LivePathEffect`
-- [ ] `ObjectProperties`
+- [x] `ObjectProperties`
 - [x] `Objects`
 - [x] `Preferences`
 - [ ] `Prototype`
 - [ ] `SVGFonts`
 - [ ] `Selectors`
 - [x] `Spellcheck`
-- [ ] `Swatches`
-- [ ] `Symbols`
+- [x] `Swatches`
+- [x] `Symbols`
 - [x] `Text`
 - [ ] `Trace`
 - [x] `Transform`
-- [ ] `UndoHistory`
+- [x] `UndoHistory`
 - [x] `XMLEditor`
 
 </details>
