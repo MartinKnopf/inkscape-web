@@ -6,6 +6,8 @@ import { SPDocument } from '../document.ts';
 import { DocumentUndo } from '../document-undo.ts';
 import { Effect } from '../live_effects/effect.ts';
 import { setPathBoolopBackend } from '../path/path-boolop.ts';
+import { toCurves } from '../path-chemistry.ts';
+import { ObjectSet } from './object-set.ts';
 import { SPGroup } from './sp-item-group.ts';
 import type { SPLPEItem } from './sp-lpe-item.ts';
 import { SPPath } from './sp-path.ts';
@@ -121,5 +123,19 @@ describe('SPLPEItem', () => {
     expect(p.hasPathEffect()).toBe(false);
     DocumentUndo.redo(doc);
     expect(norm(item(doc, 'p').getAttribute('d'))).toBe(norm('M 0,0 H 10 M 0,10 H 10'));
+  });
+
+  it('Object to Path flattens the effects of a rect into a plain path', () => {
+    const doc = open('<rect id="r" x="0" y="0" width="10" height="10"/>');
+    apply(doc, 'r', 'mirror_symmetry', { start_point: '20,0', end_point: '20,10' });
+    const set = new ObjectSet(doc);
+    set.set(item(doc, 'r'));
+    toCurves(set);
+    const p = item(doc, 'r');
+    expect(p).toBeInstanceOf(SPPath);
+    expect(p.getAttribute('inkscape:path-effect')).toBeNull();
+    expect(p.getAttribute('sodipodi:type')).toBeNull();
+    expect(p.getAttribute('d')?.split('M')).toHaveLength(3);
+    expect(doc.undoStack.undo.at(-1)?.description).toBe('Object to path');
   });
 });
