@@ -61,6 +61,7 @@ export * from './object/sp-spiral.ts';
 export * from './object/sp-star.ts';
 export * from './object/sp-stop.ts';
 export * from './object/sp-string.ts';
+export * from './object/sp-symbol.ts';
 export * from './object/sp-text.ts';
 export * from './object/sp-tspan.ts';
 export * from './object/sp-use.ts';
