@@ -14,6 +14,7 @@ import { DropperTool } from './tools/dropper-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
+import { PagesTool } from './tools/pages-tool.ts';
 import { PenTool } from './tools/pen-tool.ts';
 import { PencilTool } from './tools/pencil-tool.ts';
 import { RectTool } from './tools/rect-tool.ts';
@@ -34,6 +35,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/gradient': GradientTool,
   '/tools/dropper': DropperTool,
   '/tools/measure': MeasureTool,
+  '/tools/pages': PagesTool,
   '/tools/zoom': ZoomTool,
   '/tools/select': SelectTool,
   '/tools/shapes/spiral': SpiralTool,

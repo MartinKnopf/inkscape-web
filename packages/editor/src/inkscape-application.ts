@@ -16,6 +16,7 @@ import { InkActionExtraData } from './actions/actions-extra-data.ts';
 import { add_actions_node_tool } from './actions/actions-node-tool.ts';
 import { add_actions_object } from './actions/actions-object.ts';
 import { add_actions_object_align } from './actions/actions-object-align.ts';
+import { add_actions_pages } from './actions/actions-pages.ts';
 import { add_actions_path } from './actions/actions-paths.ts';
 import { add_actions_selection_object } from './actions/actions-selection-object.ts';
 import { add_actions_select_window } from './actions/actions-selection-window.ts';
@@ -69,6 +70,7 @@ export class InkscapeApplication {
     // Document actions (upstream SPDocument)
     add_actions_edit_document(this); // Guides and grids.
     add_actions_undo_document(this);
+    add_actions_pages(this); // Pages, and the win.page-* actions that center the view.
   }
 
   get_action_extra_data(): InkActionExtraData {
