@@ -11,8 +11,8 @@ import { MessageDialogHost } from '../ui/dialog/message-dialog.tsx';
 import { SnapToolbar } from '../ui/toolbar/snap-toolbar.tsx';
 import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
 import { Toolbars } from '../ui/toolbar/toolbars.tsx';
-import { useActiveDesktop, useActiveDocument, useDocumentTitle, useZoom } from './active-desktop.ts';
 import { ColorPaletteBar } from '../ui/widget/color-palette.tsx';
+import { useActiveDesktop, useActiveDocument, useDocumentTitle, useZoom } from './active-desktop.ts';
 import {
   document_new,
   restoreAutosaved,
