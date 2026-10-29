@@ -26,6 +26,7 @@ import {
   Rect,
   rad_from_deg,
   reflection,
+  write_svg_path,
 } from '@inkscape-web/geom';
 import { pathv_to_linear_and_cubic_beziers } from '../helper/geom.ts';
 import { _, C_, N_ } from '../i18n.ts';
@@ -33,7 +34,6 @@ import { i2anc_affine } from '../object/sp-item.ts';
 import type { SPLPEItem } from '../object/sp-lpe-item.ts';
 import { sp_lpe_item_update_patheffect } from '../object/sp-lpe-item.ts';
 import { FillRule, flatten, pathBoolopBackend } from '../path/path-boolop.ts';
-import { sp_svg_write_path } from '../svg/svg-path.ts';
 import { EnumDataConverter } from '../util/enums.ts';
 import { GroupBBoxEffect } from './lpegroupbbox.ts';
 import type { LivePathEffectObject } from './lpeobject.ts';
@@ -68,7 +68,7 @@ const sgn = (x: number): number => (x > 0 ? 1 : x < 0 ? -1 : 0);
  * the ta of each crossing; computed by lib2geom in WASM).
  */
 function crossingTimes(original: Path, divider: Path): number[] {
-  const flat = pathBoolopBackend().pathCrossings(sp_svg_write_path(original), sp_svg_write_path(divider));
+  const flat = pathBoolopBackend().pathCrossings(write_svg_path([original]), write_svg_path([divider]));
   const out: number[] = [];
   for (let i = 0; i < flat.length; i += 2) out.push(flat[i] as number);
   return out;

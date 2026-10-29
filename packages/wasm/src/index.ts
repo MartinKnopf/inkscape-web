@@ -44,6 +44,8 @@ export interface Geom {
   pathCrossings(a: string, b: string): number[];
   /** The livarot part of LPESimplify::doEffect(); `threshold` is already scaled by the item size. */
   simplifyPath(d: string, threshold: number, steps: number, justCoalesce: boolean): string;
+  /** The livarot outline of the stroke of `d` (path-outline.cpp item_find_paths, bbox only). */
+  strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** Upstream do_offset() of helper/geom-pathstroke.cpp (Offset LPE). `join` is a LineJoinType. */
   offsetPath(
     d: string,
@@ -166,6 +168,7 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     normalizePath: (d, precision) => m.normalizePath(d, precision),
     flattenPath: (d, fillRule) => m.flattenPath(d, fillRule),
     pathCrossings: (a, b) => m.pathCrossings(a, b) as number[],
+    strokeOutline: (d, width, join, butt, miter) => m.strokeOutline(d, width, join, butt, miter),
     simplifyPath: (d, threshold, steps, justCoalesce) => m.simplifyPath(d, threshold, steps, justCoalesce),
     offsetPath: (d, toOffset, tolerance, miterLimit, fillRule, join, [px, py]) =>
       m.offsetPath(d, toOffset, tolerance, miterLimit, fillRule, join, px, py) as {

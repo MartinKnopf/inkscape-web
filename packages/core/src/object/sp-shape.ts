@@ -16,6 +16,7 @@ import {
   are_near,
   BezierCurve,
   type Curve,
+  EPSILON,
   L2,
   LineSegment,
   middle_point,
@@ -26,14 +27,16 @@ import {
   Rotate,
   Translate,
   unify,
+  write_svg_path,
 } from '@inkscape-web/geom';
 import type { Drawing, DrawingItem, DrawingShape } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
+import { hasPathBoolopBackend, pathBoolopBackend } from '../path/path-boolop.ts';
 import { SnapCandidatePoint } from '../snap-candidate.ts';
 import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
 import type { SnapPreferences } from '../snap-preferences.ts';
 import { SPMarkerLoc } from '../style.ts';
-import { SPShapeRendering } from '../style-enums.ts';
+import { SPShapeRendering, SPStrokeCapType, SPStrokeJoinType } from '../style-enums.ts';
 import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
 import type { Node } from '../xml/node.ts';
 import { BBoxType, SPItem, SPItemKey } from './sp-item.ts';
@@ -321,11 +324,15 @@ export class SPShape extends SPLPEItem {
     if (!bbox) return null;
 
     if (bboxtype === BBoxType.VISUAL_BBOX) {
+      // convert the stroke to a path and calculate that path's geometric bbox
       if (!this.style.stroke.isNone() && !this.style.stroke_extensions.hairline) {
-        // TODO: upstream takes the bbox of the stroke outline (item_to_outline, livarot).
-        // Until that is ported, expand by half the stroke width, scaled like the transform.
-        const scale = transform.descrim();
-        bbox = bbox.expandBy(0.5 * this.style.stroke_width.computed * scale);
+        const outline = this.#strokeOutline();
+        if (outline) {
+          bbox = unify(bbox, PathVector.boundsExact(PathVector.transformed(outline, transform)));
+        } else {
+          // Without the path operations (WASM), expand by half the stroke width.
+          bbox = bbox.expandBy(0.5 * this.style.stroke_width.computed * transform.descrim());
+        }
       }
       if (this.hasMarkers()) {
         for (const [, marker, tr] of this.get_markers()) {
@@ -340,6 +347,32 @@ export class SPShape extends SPLPEItem {
       }
     }
     return bbox;
+  }
+
+  /**
+   * The outline of the stroke in item coordinates, for the visual bbox (upstream item_to_outline
+   * with bbox_only, livarot in WASM), or null without the path operations or stroke.
+   * TODO: dashes.
+   */
+  #strokeOutline(): PathVector | null {
+    const style = this.style;
+    const stroke_width = style.stroke_width.computed;
+    if (!this._curve || !hasPathBoolopBackend() || stroke_width <= EPSILON) return null;
+    const join =
+      style.stroke_linejoin.computed === SPStrokeJoinType.SP_STROKE_LINEJOIN_MITER
+        ? 2 // join_pointy
+        : style.stroke_linejoin.computed === SPStrokeJoinType.SP_STROKE_LINEJOIN_ROUND
+          ? 1 // join_round
+          : 0; // join_straight
+    const butt =
+      style.stroke_linecap.computed === SPStrokeCapType.SP_STROKE_LINECAP_SQUARE
+        ? 1 // butt_square
+        : style.stroke_linecap.computed === SPStrokeCapType.SP_STROKE_LINECAP_ROUND
+          ? 2 // butt_round
+          : 0; // butt_straight
+    const miter = style.stroke_miterlimit.value * stroke_width;
+    const d = pathBoolopBackend().strokeOutline(write_svg_path(this._curve), stroke_width, join, butt, miter);
+    return sp_svg_read_pathv(d);
   }
 
   protected override show(drawing: Drawing, _key: number, _flags: number): DrawingItem {

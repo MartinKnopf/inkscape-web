@@ -21,6 +21,7 @@ import {
   Point,
   pathv_nearest_time,
   pathv_point_at,
+  write_svg_path,
 } from '@inkscape-web/geom';
 import { _, C_, N_ } from '../i18n.ts';
 import type { SPItem } from '../object/sp-item.ts';
@@ -30,7 +31,7 @@ import { type SPLPEItem, sp_lpe_item_update_patheffect } from '../object/sp-lpe-
 import { SPShape } from '../object/sp-shape.ts';
 import { FillRule, pathBoolopBackend } from '../path/path-boolop.ts';
 import { convertUnit } from '../svg/svg-length.ts';
-import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
+import { sp_svg_read_pathv } from '../svg/svg-path.ts';
 import { type KnotHolder, type KnotState, LPEKnotHolderEntity } from '../ui/knot/knot-holder-entity.ts';
 import { EnumDataConverter } from '../util/enums.ts';
 import { spReprCssAttr, spReprCssProperty } from '../xml/repr-css.ts';
@@ -274,7 +275,7 @@ export class LPEOffset extends GroupBBoxEffect {
     const miterlimit = this.attempt_force_join.get_value() ? Number.MAX_VALUE : this.miter_limit.get_value();
     const point = is_group ? INF_POINT : this.offset_pt;
     const res = pathBoolopBackend().offsetPath(
-      sp_svg_write_path(path_in),
+      write_svg_path(path_in),
       to_offset,
       tolerance,
       miterlimit,

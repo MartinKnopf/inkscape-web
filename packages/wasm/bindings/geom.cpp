@@ -148,6 +148,19 @@ std::string simplify_path(std::string const &d, double threshold, int steps, boo
     return Geom::write_svg_path(pathliv.MakePathVector());
 }
 
+// Upstream: src/path/path-outline.cpp item_find_paths() with bbox_only: the livarot outline of the
+// stroke (no dashes). join and butt are livarot JoinType and ButtType.
+std::string stroke_outline(std::string const &d, double width, int join, int butt, double miter)
+{
+    Geom::PathVector const pathv = pathv_to_linear_and_cubic_beziers(Geom::parse_svg_path(d.c_str()));
+    Path origin;
+    Path offset;
+    origin.LoadPathVector(pathv);
+    offset.SetBackData(false);
+    origin.Outline(&offset, 0.5 * width, static_cast<JoinType>(join), static_cast<ButtType>(butt), 0.5 * miter);
+    return Geom::write_svg_path(offset.MakePathVector());
+}
+
 // Upstream: src/helper/geom-pathstroke.cpp do_offset() (Offset LPE). Returns { d, helper, mix }.
 emscripten::val offset_path(std::string const &d, double to_offset, double tolerance, double miter_limit,
                             int fill_rule, int join, double px, double py)
@@ -283,6 +296,7 @@ EMSCRIPTEN_BINDINGS(geom)
     emscripten::function("pathCrossings", &path_crossings);
     emscripten::function("simplifyPath", &simplify_path);
     emscripten::function("offsetPath", &offset_path);
+    emscripten::function("strokeOutline", &stroke_outline);
     emscripten::function("bendPath", &bend_path);
     emscripten::function("pathBounds", &path_bounds);
     emscripten::function("transformPath", &transform_path);

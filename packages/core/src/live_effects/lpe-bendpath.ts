@@ -15,13 +15,14 @@ import {
   type PathVector,
   Point,
   rad_from_deg,
+  write_svg_path,
 } from '@inkscape-web/geom';
 import { _ } from '../i18n.ts';
 import type { SPItem } from '../object/sp-item.ts';
 import { type SPLPEItem, sp_lpe_item_update_patheffect } from '../object/sp-lpe-item.ts';
 import { pathBoolopBackend } from '../path/path-boolop.ts';
 import { Preferences } from '../preferences.ts';
-import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
+import { sp_svg_read_pathv } from '../svg/svg-path.ts';
 import { type KnotHolder, type KnotState, LPEKnotHolderEntity } from '../ui/knot/knot-holder-entity.ts';
 import { GroupBBoxEffect } from './lpegroupbbox.ts';
 import type { LivePathEffectObject } from './lpeobject.ts';
@@ -145,8 +146,8 @@ export class LPEBendPath extends GroupBBoxEffect {
     const bend = this.bend_path.get_pathvector().map((p) => p.transformed(affine));
     if (bend.length === 0) return path_in;
     const d = pathBoolopBackend().bendPath(
-      sp_svg_write_path(path_in),
-      sp_svg_write_path(bend),
+      write_svg_path(path_in),
+      write_svg_path(bend),
       [
         this.boundingbox_X.min(),
         this.boundingbox_X.max(),

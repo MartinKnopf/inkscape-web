@@ -54,6 +54,8 @@ export interface PathBoolopBackend {
   pathCrossings(a: string, b: string): number[];
   /** The livarot part of the Simplify LPE (lpe-simplify.cpp doEffect); threshold is scaled already. */
   simplifyPath(d: string, threshold: number, steps: number, justCoalesce: boolean): string;
+  /** The livarot outline of the stroke of d (path-outline.cpp item_find_paths with bbox_only). */
+  strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** do_offset() of helper/geom-pathstroke.cpp (Offset LPE). join is an Inkscape::LineJoinType. */
   offsetPath(
     d: string,
@@ -120,6 +122,11 @@ export function sp_pathvector_boolop(
 /** Upstream flatten(): remove the self-intersections of pathv with the fill rule. */
 export function flatten(pathv: PathVector, fill_rule: FillRule): PathVector {
   return parse_svg_path(pathBoolopBackend().flattenPath(write_svg_path(pathv), fill_rule));
+}
+
+/** Whether the path operations are available (they are not in tests that do not load WASM). */
+export function hasPathBoolopBackend(): boolean {
+  return backend !== null;
 }
 
 /** The implementation of the path operations. Throws if none was set. */
