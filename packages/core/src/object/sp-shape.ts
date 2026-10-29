@@ -34,8 +34,10 @@ import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
 import type { SnapPreferences } from '../snap-preferences.ts';
 import { SPMarkerLoc } from '../style.ts';
 import { SPShapeRendering } from '../style-enums.ts';
+import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
 import type { Node } from '../xml/node.ts';
 import { BBoxType, SPItem, SPItemKey } from './sp-item.ts';
+import { lpeItemClasses, SPLPEItem, sp_lpe_item_update_patheffect } from './sp-lpe-item.ts';
 import { SPMarker, sp_marker_hide, sp_marker_show_dimension, sp_marker_show_instance } from './sp-marker.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
@@ -51,10 +53,13 @@ export const SP_SHAPE_WRITE_PATH = 1 << 2;
  * Base class of shapes, including svg:path (upstream SPShape). The geometry is
  * the curve, a PathVector that is never changed in place: setCurve() replaces it.
  *
- * TODO: the 'marker' shorthand, LPE (curveBeforeLPE, update_patheffect), relative stroke units
- * (em, ex, %) in update(), path intersections as snap points, print, documentExactBounds.
+ * With a path effect, the curve is the result of the effects; curveBeforeLPE() is the curve
+ * they start from (for svg:path the inkscape:original-d attribute).
+ *
+ * TODO: the 'marker' shorthand, relative stroke units (em, ex, %) in update(), path
+ * intersections as snap points, print, documentExactBounds.
  */
-export class SPShape extends SPItem {
+export class SPShape extends SPLPEItem {
   // bbox cache
   bbox_geom_cache_is_valid = false;
   bbox_vis_cache_is_valid = false;
@@ -64,6 +69,7 @@ export class SPShape extends SPItem {
   bbox_vis_cache: OptRect = null;
 
   protected _curve: PathVector | null = null;
+  protected _curve_before_lpe: PathVector | null = null;
   /** The markers by SPMarkerLoc (hrefed by this shape). */
   _marker: (SPMarker | null)[] = [null, null, null, null];
   #release_connect: ((() => void) | null)[] = [null, null, null, null];
@@ -85,12 +91,88 @@ export class SPShape extends SPItem {
     this._curve = newCurve;
   }
 
+  /** The curve before the path effects, or null if the shape has no effect. */
+  curveBeforeLPE(): PathVector | null {
+    return this._curve_before_lpe;
+  }
+
+  /** The curve that tools edit: the curve before the path effects if there is one, else the curve. */
+  curveForEdit(): PathVector | null {
+    return this._curve_before_lpe ?? this._curve;
+  }
+
+  setCurveBeforeLPE(new_curve: PathVector | null): void {
+    this._curve_before_lpe = new_curve;
+  }
+
   /**
-   * Set the computed curve of a shape (upstream prepareShapeForLPE). Without update, so that
-   * set_shape() can be called from update(). TODO: LPE (curveBeforeLPE, the effects).
+   * Reset the shape's curve to the "original_curve"
+   * This is very important for LPEs to work properly! (the bbox might be recalculated depending on the curve in shape)
+   * Set the computed curve of a shape; without display update, so that set_shape() can be called
+   * from update(). Returns true if the path effects were run.
    */
-  protected prepareShapeForLPE(c: Path | PathVector): void {
-    this.setCurveInsync(Array.isArray(c) ? c : [c]);
+  protected prepareShapeForLPE(path: Path | PathVector): boolean {
+    const c = Array.isArray(path) ? path : [path];
+    const before = this.curveBeforeLPE();
+    if (before && !pathvEqual(before, c)) {
+      this.setCurveBeforeLPE(c);
+      sp_lpe_item_update_patheffect(this, true, false);
+      return true;
+    }
+    if (this.hasPathEffectOnClipOrMaskRecursive(this)) {
+      const d = this.getAttribute('d');
+      if (!before && d) this.setCurveInsync(sp_svg_read_pathv(d));
+      this.setCurveBeforeLPE(c);
+      return true;
+    }
+    this.setCurveInsync(c);
+    return false;
+  }
+
+  /**
+   * If the shape has an effect that is not known, read the curve from d to keep its appearance.
+   * Returns true in that case (the shape then does not compute its curve).
+   */
+  checkBrokenPathEffect(): boolean {
+    if (this.hasBrokenPathEffect()) {
+      console.warn(
+        'The shape has unknown LPE on it. Convert to path to make it editable preserving the appearance; editing it will remove the bad LPE',
+      );
+      const d = this.getAttribute('d');
+      if (d) {
+        // unconditionally read the curve from d, if any, to preserve appearance
+        this.setCurveInsync(sp_svg_read_pathv(d));
+        this.setCurveBeforeLPE(this.curve());
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** Run the path effects on the curve before them; with write, store the result in d. */
+  override update_patheffect(write: boolean): void {
+    if (!this.curveForEdit()) this.set_shape();
+    const edit = this.curveForEdit();
+    if (!edit) return;
+    const c_lpe: [PathVector] = [edit];
+    /* if a path has an lpeitem applied, then reset the curve to the _curve_before_lpe.
+     * This is very important for LPEs to work properly! (the bbox might be recalculated depending on the curve in shape)*/
+    this.setCurveInsync(edit);
+    let success = false;
+    // avoid update lpe in each selection
+    // must be set also to non effect items (satellites or parents)
+    this.lpe_initialized = true;
+    if (this.hasPathEffect() && this.pathEffectsEnabled()) {
+      success = this.performPathEffect(c_lpe, this);
+      if (success) {
+        this.resetClipPathAndMaskLPE();
+        this.setCurveInsync(c_lpe[0]);
+        this.applyToClipPath(this);
+        this.applyToMask(this);
+      }
+    }
+    if (write && success) this.getRepr()?.setAttribute('d', sp_svg_write_path(c_lpe[0]));
+    if (success) this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
   }
 
   /** Compute the curve from the attributes (rect, ellipse, …). Subclasses override it. */
@@ -101,11 +183,22 @@ export class SPShape extends SPItem {
     for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) {
       this.set_marker(i, this.style.marker_ptrs[i]?.value() ?? null);
     }
+    if (!this.hasPathEffectOnClipOrMaskRecursive(this)) {
+      const SPPath = lpeItemClasses.SPPath;
+      if (SPPath && this instanceof SPPath) {
+        const originald = this.getAttribute('inkscape:original-d');
+        if (originald) {
+          if (this.isOnClipboard()) this.setAttribute('d', originald);
+          this.setAttribute('inkscape:original-d', null);
+        }
+      }
+    }
   }
 
   protected override release(): void {
     for (let i = 0; i < SPMarkerLoc.SP_MARKER_LOC_QTY; i++) this.#detach_marker(i);
     this._curve = null;
+    this._curve_before_lpe = null;
     super.release();
   }
 
@@ -169,6 +262,7 @@ export class SPShape extends SPItem {
       }
     }
     // TODO: update the filter regions.
+    if (!this._curve) sp_lpe_item_update_patheffect(this, true, false);
   }
 
   override bbox(transform: Affine, bboxtype: BBoxType): OptRect {
@@ -635,4 +729,11 @@ function sp_shape_update_marker_view(shape: SPShape, ai: DrawingItem, drawing: D
     counter[type] = pos + 1;
     sp_marker_show_instance(marker, ai, drawing, type, pos, z_order++, tr, shape.style.stroke_width.computed);
   }
+}
+
+lpeItemClasses.SPShape = SPShape;
+
+/** Exact equality of two path vectors (upstream PathVector::operator==). */
+function pathvEqual(a: PathVector, b: PathVector): boolean {
+  return a.length === b.length && a.every((p, i) => p.equals(b[i] as Path));
 }

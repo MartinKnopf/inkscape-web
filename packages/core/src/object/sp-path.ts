@@ -24,20 +24,22 @@ import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { spReprCssAttr, spReprCssSet, spReprCssUnsetProperty } from '../xml/repr-css.ts';
+import { lpeItemClasses, sp_lpe_item_update_patheffect } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_STYLE_MODIFIED_FLAG,
   SP_OBJECT_USER_MODIFIED_FLAG_B,
   SP_OBJECT_VIEWPORT_MODIFIED_FLAG,
   SP_OBJECT_WRITE_BUILD,
+  SP_OBJECT_WRITE_EXT,
   type SPCtx,
 } from './sp-object.ts';
 import { SPShape } from './sp-shape.ts';
 
 /**
  * svg:path (upstream SPPath).
- * TODO: markers, connectors (connEndPair), LPE: inkscape:original-d is kept
- * as an attribute only, convert_to_guides, removeTransformsRecursively.
+ * With a path effect, inkscape:original-d is the path before the effects (curveBeforeLPE()).
+ * TODO: markers, connectors (connEndPair), convert_to_guides, removeTransformsRecursively.
  */
 export class SPPath extends SPShape {
   nodesInPath(): number {
@@ -52,8 +54,17 @@ export class SPPath extends SPShape {
   }
   override description(): string {
     const count = this.nodesInPath();
-    // TODO: ", path effect: %s" when LPE are ported.
-    return ngettext('%i node%s', '%i nodes%s', count).replace('%i', String(count)).replace('%s', '');
+    let lpe_desc = '';
+    if (this.hasPathEffect()) {
+      const names: string[] = [];
+      for (const it of this.getEffectList()) {
+        const lpe = it.lpeobject?.get_lpe();
+        if (!lpe) break;
+        names.push(lpe.getName());
+      }
+      lpe_desc = _(', path effect: %s').replace('%s', names.join(', '));
+    }
+    return ngettext('%i node%s', '%i nodes%s', count).replace('%i', String(count)).replace('%s', lpe_desc);
   }
 
   protected override build(document: SPDocument, repr: Node): void {
@@ -80,17 +91,23 @@ export class SPPath extends SPShape {
       }
     }
 
+    this.readAttr(SPAttr.INKSCAPE_ORIGINAL_D);
     this.readAttr(SPAttr.D);
 
     /* d is a required attribute */
     if (this.getAttribute('d') === null) {
-      // TODO: first see if calculating the path effect generates "d".
-      this.setKeyValue(SPAttr.D, '');
+      // First see if calculating the path effect will generate "d":
+      this.update_patheffect(true);
+      // I guess that didn't work, now we have nothing useful to write ("")
+      if (this.getAttribute('d') === null) this.setKeyValue(SPAttr.D, '');
     }
   }
 
   override set(key: SPAttr, value: string | null): void {
     switch (key) {
+      case SPAttr.INKSCAPE_ORIGINAL_D:
+        this.setCurveBeforeLPE(value !== null ? sp_svg_read_pathv(value) : null);
+        break;
       case SPAttr.D:
         this.setCurve(value !== null ? sp_svg_read_pathv(value) : null);
         break;
@@ -105,6 +122,11 @@ export class SPPath extends SPShape {
     if (repr) {
       if (this._curve) repr.setAttribute('d', sp_svg_write_path(this._curve));
       else repr.removeAttribute('d');
+      if (flags & SP_OBJECT_WRITE_EXT) {
+        if (this._curve_before_lpe)
+          repr.setAttribute('inkscape:original-d', sp_svg_write_path(this._curve_before_lpe));
+        else repr.removeAttribute('inkscape:original-d');
+      }
     }
     return super.write(xmlDoc, repr, flags);
   }
@@ -122,8 +144,20 @@ export class SPPath extends SPShape {
   /** Bake the transform into the path data; the stroke width is scaled with it. */
   override setTransform(transform: Affine): Affine {
     if (!this._curve) return Affine.identity(); // 0 nodes, nothing to transform
-    // TODO: LPE (transform the original-d instead).
-    this.setCurve(PathVector.transformed(this._curve, transform));
+    if (this.pathEffectsEnabled() && !this.optimizeTransforms()) return transform;
+    if (this.hasPathEffectRecursive() && this.pathEffectsEnabled()) {
+      if (!this._curve_before_lpe) {
+        // we are inside a LPE group creating a new element
+        // and the original-d curve is not defined,
+        // This fix a issue with calligrapic tool that make a transform just when draw
+        this.setCurveBeforeLPE(this._curve);
+      }
+      this.setCurveBeforeLPE(PathVector.transformed(this._curve_before_lpe ?? this._curve, transform));
+      // fix issue https://gitlab.com/inkscape/inbox/-/issues/5460
+      sp_lpe_item_update_patheffect(this, false, false);
+    } else {
+      this.setCurve(PathVector.transformed(this._curve, transform));
+    }
     // Adjust stroke
     this.adjustStroke(transform.descrim());
     // TODO: adjust pattern and gradient fill.
@@ -132,3 +166,5 @@ export class SPPath extends SPShape {
     return Affine.identity();
   }
 }
+
+lpeItemClasses.SPPath = SPPath;

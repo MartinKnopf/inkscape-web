@@ -147,3 +147,11 @@ export function node_count(pathv: PathVector): number {
   }
   return nr;
 }
+
+/** Move the start and end of the first path (upstream move_endpoints). */
+export function move_endpoints(pathv: PathVector | Path, new_p0: Point, new_p1: Point): void {
+  const path = pathv instanceof Path ? pathv : pathv[0];
+  if (!path) return;
+  path.setInitial(new_p0);
+  path.setFinal(new_p1);
+}

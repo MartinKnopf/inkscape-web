@@ -92,3 +92,39 @@ function arc_to_cubics(arc: EllipticalArc): CubicBezier[] {
   }
   return result;
 }
+
+/** The number of nodes of all paths (see count_path_nodes). Empty paths are ignored. */
+export function count_pathvector_nodes(pathv: PathVector): number {
+  let tot = 0;
+  for (const subpath of pathv) tot += count_path_nodes(subpath);
+  return tot;
+}
+
+export function count_pathvector_curves(pathv: PathVector): number {
+  let tot = 0;
+  for (const subpath of pathv) tot += count_path_curves(subpath);
+  return tot;
+}
+
+/*
+ * For closed paths, the number of nodes is exactly the same as the number of curves.
+ * For open paths, there is one more node that number of curves.
+ */
+export function count_path_nodes(path: Path): number {
+  let tot = count_path_curves(path);
+  if (!path.closed()) tot++;
+  return tot;
+}
+
+/** The number of curves, without an almost degenerate closing segment. */
+export function count_path_curves(path: Path): number {
+  if (path.empty()) return 0;
+  let tot = path.size();
+  if (path.closed()) {
+    const closingline = path.closingSegment(); // Always a Geom::LineSegment.
+    if (!closingline.isDegenerate() && are_near(closingline.initialPoint(), closingline.finalPoint())) {
+      tot -= 1;
+    }
+  }
+  return tot;
+}
