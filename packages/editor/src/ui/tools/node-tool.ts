@@ -9,11 +9,13 @@
  *
  * Copyright (C) 2009 Authors
  */
-import { Preferences, type Selection } from '@inkscape-web/core';
-import { Affine, type Rect } from '@inkscape-web/geom';
+import { Preferences, type Selection, type SPItem, SPLPEItem } from '@inkscape-web/core';
+import { Affine, type PathVector, type Rect } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
 import { CanvasItemGroup } from '../../display/control/canvas-item.ts';
+import { CanvasItemBpath } from '../../display/control/canvas-item-bpath.ts';
 import { Rubberband, RubberbandOperation } from '../../rubberband.ts';
+import { ShapeEditor } from '../shape-editor.ts';
 import { ControlPoint } from '../tool/control-point.ts';
 import { ControlPointSelection } from '../tool/control-point-selection.ts';
 import { MultiPathManipulator, type PathSharedData } from '../tool/multi-path-manipulator.ts';
@@ -63,8 +65,11 @@ function create_control_group(desktop: SPDesktop, name: string): CanvasItemGroup
  * - SelectableControlPoint: base for any type of selectable point. It can belong to only one
  *   selection.
  *
- * TODO: shape editors (knotholders of rect, ellipse, star, spiral under the node tool),
- * transform handles, clipping paths and masks, LPE helper paths, path flash, touch path
+ * The shape editors show the knots of the current path effect of the selected items, and the
+ * effect's helper paths are drawn (sp_update_helperpath).
+ *
+ * TODO: shape editors for the knotholders of rect, ellipse, star, spiral under the node tool,
+ * transform handles, clipping paths and masks, path flash, touch path
  * selection (Alt), status bar tips, cursors, gradient drag, snapping of segment drags.
  */
 export class NodeTool extends ToolBase {
@@ -76,6 +81,10 @@ export class NodeTool extends ToolBase {
   readonly #disconnects: (() => void)[] = [];
   /** The rubberband was started by this tool and the button is pressed. */
   #rubberbanding = false;
+  /** The shape editors by item (upstream _shape_editors). */
+  readonly _shape_editors = new Map<SPItem, ShapeEditor>();
+  /** The helper paths of the path effects (upstream _helperpath_tmpitem). */
+  _helperpath_tmpitem: CanvasItemBpath[] = [];
 
   show_handles = true;
   show_outline = false;
@@ -140,6 +149,10 @@ export class NodeTool extends ToolBase {
   }
 
   override destroy(): void {
+    for (const se of this._shape_editors.values()) se.unset_item();
+    this._shape_editors.clear();
+    for (const hp of this._helperpath_tmpitem) hp.unlink();
+    this._helperpath_tmpitem = [];
     this._selected_nodes.clear();
     Rubberband.get(this._desktop).stop();
     for (const d of this.#disconnects) d();
@@ -209,10 +222,11 @@ export class NodeTool extends ToolBase {
     }
   }
 
-  /** Edit the paths of the selected items. TODO: clipping paths and masks (gather_items), shape editors. */
+  /** Edit the paths of the selected items. TODO: clipping paths and masks (gather_items). */
   selection_changed(sel: Selection): void {
     const shapes: ShapeRecord[] = [];
-    for (const item of sel.items()) {
+    const items = sel.items();
+    for (const item of items) {
       shapes.push({
         object: item,
         role: ShapeRole.SHAPE_ROLE_NORMAL,
@@ -220,7 +234,29 @@ export class NodeTool extends ToolBase {
         edit_transform: Affine.identity(),
       });
     }
+    // use multiple ShapeEditors, one per shape. Shape editors of items that are no longer
+    // selected are removed.
+    for (const [item, se] of [...this._shape_editors]) {
+      if (!items.includes(item)) {
+        se.unset_item();
+        this._shape_editors.delete(item);
+      }
+    }
+    for (const item of items) {
+      if (this._shape_editors.has(item)) continue;
+      const si = new ShapeEditor(this._desktop);
+      si.onItemChanged = () => sp_update_helperpath(this._desktop);
+      si.set_item(item);
+      this._shape_editors.set(item, si);
+    }
     this._multipath.setItems(shapes);
+    sp_update_helperpath(this._desktop);
+  }
+
+  /** Rebuild the shape editors (after the current path effect of an item changed). */
+  update_shape_editors(): void {
+    for (const se of this._shape_editors.values()) se.reset_item();
+    sp_update_helperpath(this._desktop);
   }
 
   override root_handler(event: Event): boolean {
@@ -387,6 +423,36 @@ export class NodeTool extends ToolBase {
     } else {
       // Nothing pressed, switch back to add
       rubberband.setOperation(RubberbandOperation.ADD);
+    }
+  }
+}
+
+/**
+ * Draw the canvas indicators (helper paths) of the current path effect of the selected items
+ * (upstream sp_update_helperpath).
+ */
+export function sp_update_helperpath(desktop: SPDesktop): void {
+  const nt = desktop.getTool();
+  if (!(nt instanceof NodeTool)) return;
+  for (const hp of nt._helperpath_tmpitem) hp.unlink();
+  nt._helperpath_tmpitem = [];
+  for (const item of desktop.getSelection().items()) {
+    if (!(item instanceof SPLPEItem) || !item.hasPathEffectRecursive()) continue;
+    const lpe = item.getCurrentLPE();
+    if (!lpe?.isVisible()) continue;
+    const selectedNodesPositions = [...nt._selected_nodes.allPoints()]
+      .filter((p) => p.selected())
+      .map((p) => p.position());
+    lpe.setSelectedNodePoints(selectedNodesPositions);
+    lpe.setCurrentZoom(desktop.current_zoom());
+    const c: PathVector = [];
+    const dt2doc = desktop.getDocument().dt2doc();
+    for (const p of lpe.getCanvasIndicators(item)) c.push(...p.map((path) => path.transformed(dt2doc)));
+    if (c.length) {
+      const helperpath = new CanvasItemBpath(desktop.getCanvasTemp(), c, true);
+      helperpath.set_stroke(0x0000ff9a);
+      helperpath.set_fill(0x0); // No fill
+      nt._helperpath_tmpitem.push(helperpath);
     }
   }
 }

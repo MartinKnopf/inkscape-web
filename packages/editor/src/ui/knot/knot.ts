@@ -32,6 +32,10 @@ export class SPKnot {
   /** Position in desktop coordinates. */
   pos = new Point(0, 0);
   grabbed_rel_pos = new Point(0, 0);
+  /** Position when the drag started (desktop coordinates). */
+  drag_origin = new Point(0, 0);
+  /** Set for the knots of path effects (KnotHolder: their entities write the undo step). */
+  is_lpe = false;
 
   readonly click_signal = new Signal<[SPKnot, ModifierState]>();
   readonly grabbed_signal = new Signal<[SPKnot, ModifierState]>();
@@ -119,6 +123,7 @@ export class SPKnot {
     this.#xyp = new Point(Math.floor(w.x), Math.floor(w.y));
     this.#within_tolerance = true;
     this.grabbed_rel_pos = this.#desktopPoint(w).sub(this.pos);
+    this.drag_origin = this.pos;
     this.#grabbed = true;
     this.#moved = false;
   };

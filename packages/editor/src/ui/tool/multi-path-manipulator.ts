@@ -9,7 +9,15 @@
  *
  * Copyright (C) 2009 Authors
  */
-import { C_, DocumentUndo, Preferences, Signal, type SPObject, SPPath } from '@inkscape-web/core';
+import {
+  C_,
+  DocumentUndo,
+  LivePathEffectObject,
+  Preferences,
+  Signal,
+  type SPObject,
+  SPPath,
+} from '@inkscape-web/core';
 import { type Dim2, distance, middle_point, type Point, Scale, Translate, X } from '@inkscape-web/geom';
 import type { CanvasItemGroup } from '../../display/control/canvas-item.ts';
 import {
@@ -184,8 +192,14 @@ export class MultiPathManipulator extends PointManipulator {
 
     // add newly selected items
     for (const r of shapes.values()) {
-      if (!(r.object instanceof SPPath)) continue;
-      const newpm = new PathManipulator(this, r.object, r.edit_transform);
+      const lpe_param = r.role === ShapeRole.SHAPE_ROLE_LPE_PARAM && r.object instanceof LivePathEffectObject;
+      if (!(r.object instanceof SPPath) && !lpe_param) continue;
+      const newpm = new PathManipulator(
+        this,
+        r.object as SPPath | LivePathEffectObject,
+        r.edit_transform,
+        r.lpe_key,
+      );
       newpm.showHandles(this.#show_handles);
       // always show outlines for clips and masks
       newpm.showOutline(this.#show_outline || r.role !== ShapeRole.SHAPE_ROLE_NORMAL);
