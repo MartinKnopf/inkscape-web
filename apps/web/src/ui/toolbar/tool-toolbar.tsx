@@ -47,6 +47,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Tweak', 'tool-tweak'],
     ['Spray', 'tool-spray'],
     ['Eraser', 'draw-eraser'],
+    ['Connector', 'draw-connector'],
   ],
   [
     ['Measure', 'tool-measure'],

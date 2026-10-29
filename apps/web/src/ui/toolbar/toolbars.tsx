@@ -17,6 +17,7 @@ import type { FunctionComponent } from 'react';
 import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts';
 import { ArcToolbar } from './arc-toolbar.tsx';
 import { CalligraphyToolbar } from './calligraphy-toolbar.tsx';
+import { ConnectorToolbar } from './connector-toolbar.tsx';
 import { DropperToolbar } from './dropper-toolbar.tsx';
 import { EraserToolbar } from './eraser-toolbar.tsx';
 import { GradientToolbar } from './gradient-toolbar.tsx';
@@ -51,6 +52,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Measure: MeasureToolbar,
   Zoom: ZoomToolbar,
   Pages: PageToolbar,
+  Connector: ConnectorToolbar,
   Text: TextToolbar,
 };
 
