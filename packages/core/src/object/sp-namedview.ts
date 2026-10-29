@@ -13,6 +13,7 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * Copyright (C) 2006-2008 Johan Engelen
  */
+import { are_near } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { SPDocument } from '../document.ts';
@@ -68,7 +69,7 @@ export class SPNamedView extends SPObject {
   /** Page: border visible, on top, shadow, checkerboard, colors (page-manager.h). */
   border_show = new SVGBool(true);
   border_on_top = new SVGBool(true);
-  shadow_show = new SVGBool(false);
+  shadow_show = new SVGBool(true);
   checkerboard = new SVGBool(false);
   /** Page label style on the canvas (labelstyle): "default" or "below". */
   label_style = 'default';
@@ -372,6 +373,22 @@ export class SPNamedView extends SPObject {
   }
   setDisplayUnit(abbr: string): void {
     this.repr.setAttribute('inkscape:document-units', abbr);
+  }
+
+  /**
+   * Keep the viewport page (the page at the origin) at the size of the document. Returns true
+   * if no page covers the viewport, so the desktop shows the viewport as a page outline
+   * (upstream updateViewPort, which updates the viewport canvas item).
+   */
+  updateViewPort(): boolean {
+    const box = this.document.preferredBounds();
+    const page = this.document.getPageManager().getPageAt(box.corner(0));
+    if (!page) return true;
+    // This means the page is in the middle of being moved, so please don't move.
+    const rect = page.getDesktopRect();
+    const same = [0, 2].every((i) => are_near(rect.corner(i), box.corner(i), 1e-6));
+    if (page.isViewportPage() && !same) page.setDesktopRect(box);
+    return false;
   }
 
   override write(xmlDoc: XmlDocument, repr: Node | null, flags: number): Node | null {

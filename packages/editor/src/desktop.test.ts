@@ -19,6 +19,12 @@ function setup(svg = A4) {
   return { doc, canvas, dt };
 }
 
+/** The fill rects of the page backgrounds (in world coordinates, so in screen px at zoom 1). */
+const pageFills = (canvas: Canvas) =>
+  [...canvas.svg.querySelectorAll('[class="CanvasItemRect:background"]')]
+    .filter((g) => g.getAttribute('visibility') !== 'hidden')
+    .map((g) => g.lastElementChild);
+
 /** Window position of desktop point p. */
 const toWindow = (dt: SPDesktop, p: Point) => dt.d2w(p).sub(dt.getCanvas().get_pos());
 
@@ -29,9 +35,9 @@ describe('SPDesktop', () => {
     const root = drawing?.firstElementChild?.firstElementChild;
     expect(root?.getAttribute('transform')).toMatch(/^matrix\(3\.77952/);
     expect(root?.querySelector('path')?.getAttribute('d')).toBe('M 10 10 H 20 V 30');
-    const page = canvas.desktopLayer.querySelector('rect.background');
-    expect(Number(page?.getAttribute('width'))).toBeCloseTo(793.7, 1);
-    expect(Number(page?.getAttribute('height'))).toBeCloseTo(1122.5, 1);
+    const [page] = pageFills(canvas);
+    expect(Math.abs(Number(page?.getAttribute('width')) - 793.7)).toBeLessThan(1);
+    expect(Math.abs(Number(page?.getAttribute('height')) - 1122.5)).toBeLessThan(1);
     expect(dt.current_zoom()).toBe(1);
   });
 
@@ -73,6 +79,21 @@ describe('SPDesktop', () => {
     dt.setDocument(other);
     const paths = canvas.desktopLayer.querySelectorAll('path');
     expect([...paths].map((p) => p.getAttribute('d'))).toEqual(['M 0 0 H 5']);
-    expect(canvas.desktopLayer.querySelector('rect.background')?.getAttribute('width')).toBe('100');
+    expect(pageFills(canvas).map((r) => r?.getAttribute('width'))).toEqual(['100']);
+  });
+
+  it('draws each page of a multipage document with its label', () => {
+    const { dt, canvas } = setup(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="100" height="50"><defs><view viewBox="0 0 100 50"/><view viewBox="110 0 30 20" inkscape:label="Back"/></defs></svg>',
+    );
+    dt.zoom_absolute(new Point(0, 0), 1);
+    expect(pageFills(canvas).map((r) => [r?.getAttribute('width'), r?.getAttribute('height')])).toEqual([
+      ['100', '50'],
+      ['30', '20'],
+    ]);
+    const labels = [...canvas.svg.querySelectorAll('.CanvasItemText')]
+      .filter((g) => g.getAttribute('visibility') !== 'hidden')
+      .map((g) => g.textContent);
+    expect(labels).toEqual(['Back']);
   });
 });

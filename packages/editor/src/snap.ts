@@ -29,6 +29,7 @@ import {
   SPItem,
   type SPNamedView,
   type SPObject,
+  SPPage,
 } from '@inkscape-web/core';
 import { angle_between, L2, type OptRect, Point, type Rect, rot90 } from '@inkscape-web/geom';
 import type { SPDesktop } from './desktop.ts';
@@ -631,6 +632,11 @@ export class SnapManager {
 
   getGuideToIgnore(): SPGuide | null {
     return (this.#objects_to_ignore.find((o) => o instanceof SPGuide) as SPGuide | undefined) ?? null;
+  }
+
+  /** The page not to snap to (the page that is moved or resized). */
+  getPageToIgnore(): SPPage | null {
+    return (this.#objects_to_ignore.find((o) => o instanceof SPPage) as SPPage | undefined) ?? null;
   }
 
   /**

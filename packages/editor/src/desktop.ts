@@ -20,6 +20,8 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  */
 import {
+  DEFAULT_BLEED_COLOR,
+  DEFAULT_MARGIN_COLOR,
   LayerMode,
   Preferences,
   Selection,
@@ -32,6 +34,7 @@ import {
   type SPGuide,
   SPItem,
   type SPNamedView,
+  type SPPage,
   type SPStop,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
@@ -130,6 +133,7 @@ export class SPDesktop {
   current: SPCSSAttr = Preferences.get().getStyle('/desktop/style');
 
   // Canvas item groups, bottom to top (upstream CanvasItemGroups).
+  /** The page backgrounds and borders, in world coordinates below and above the drawing. */
   readonly _canvas_group_pages_bg: SVGGElement;
   readonly _canvas_group_drawing: SVGGElement;
   readonly _canvas_group_pages_fg: SVGGElement;
@@ -139,7 +143,12 @@ export class SPDesktop {
   readonly _canvas_group_controls: SVGGElement;
 
   readonly #drawing: SvgDrawing;
-  readonly #page = new CanvasPage();
+  readonly #pages_bg: CanvasItemGroup;
+  readonly #pages_fg: CanvasItemGroup;
+  /** The document viewport, drawn as a page when no page covers it (upstream SPNamedView::_viewport). */
+  readonly #viewport = new CanvasPage();
+  /** The canvas items of the pages of the PageManager (upstream SPPage::_canvas_item). */
+  #page_views = new Map<SPPage, CanvasPage>();
   readonly #controls: CanvasItemGroup;
   readonly #grids: CanvasItemGroup;
   readonly #guides: CanvasItemGroup;
@@ -170,9 +179,14 @@ export class SPDesktop {
       parent.append(g);
       return g;
     };
-    this._canvas_group_pages_bg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesBg');
     this._canvas_group_drawing = group(canvas.desktopLayer, 'CanvasItemGroup:Drawing');
+    // The pages are drawn in world coordinates (screen-sized borders, shadows and labels).
+    this._canvas_group_pages_bg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesBg');
+    canvas.desktopLayer.before(this._canvas_group_pages_bg);
     this._canvas_group_pages_fg = group(canvas.desktopLayer, 'CanvasItemGroup:PagesFg');
+    canvas.desktopLayer.after(this._canvas_group_pages_fg);
+    this.#pages_bg = new CanvasItemGroup(this._canvas_group_pages_bg, canvas);
+    this.#pages_fg = new CanvasItemGroup(this._canvas_group_pages_fg, canvas);
     this._canvas_group_grids = group(canvas.controlsLayer, 'CanvasItemGroup:Grids');
     this._canvas_group_guides = group(canvas.controlsLayer, 'CanvasItemGroup:Guides');
     this._canvas_group_temp = group(canvas.controlsLayer, 'CanvasItemGroup:Temp');
@@ -190,7 +204,7 @@ export class SPDesktop {
 
     this.#drawing = new SvgDrawing(dom);
     this._canvas_group_drawing.append(this.#drawing.root.element, this.#drawing.defs);
-    this.#page.add(Rect.fromXywh(0, 0, 0, 0), this._canvas_group_pages_bg, this._canvas_group_pages_fg);
+    this.#viewport.add(Rect.fromXywh(0, 0, 0, 0), this.#pages_bg, this.#pages_fg);
 
     this.setDocument(document);
     this.set_display_area(false);
@@ -207,7 +221,11 @@ export class SPDesktop {
     this.#detachDocument();
     for (const g of [this.#controls, this.#temp, this.#guides, this.#grids]) g.destroy();
     this.#disconnectZoomFromDocument?.();
-    this.#page.remove();
+    this.#viewport.remove();
+    for (const view of this.#page_views.values()) view.remove();
+    this.#page_views.clear();
+    this.#pages_bg.destroy();
+    this.#pages_fg.destroy();
     for (const g of [
       this._canvas_group_pages_bg,
       this._canvas_group_drawing,
@@ -368,9 +386,11 @@ export class SPDesktop {
     this.#showNamedView(doc.getNamedView());
     const disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
     const disconnectNamedView = doc.getNamedView().changedSignal.connect(() => this.#updatePage());
+    const disconnectPages = doc.getPageManager().connectPagesChanged(() => this.#updatePage());
     this.#disconnectModified = () => {
       disconnectModified();
       disconnectNamedView();
+      disconnectPages();
     };
   }
 
@@ -396,26 +416,85 @@ export class SPDesktop {
     this.#disconnectModified?.();
     this.#disconnectModified = null;
     this.#hideNamedView();
+    for (const view of this.#page_views.values()) view.remove();
+    this.#page_views.clear();
     this.doc.getRoot().invokeHide(this.dkey);
     this.#drawing.paintServers.clear();
   }
 
-  /** Show the page with the colors of the namedview and set the desk color (upstream set_desk_color). */
+  /**
+   * Show the pages of the PageManager (or the viewport without pages) with the colors of the
+   * namedview and set the desk color (upstream SPNamedView::updateViewPort, SPPage::update and
+   * set_desk_color).
+   */
   #updatePage(): void {
     const nv = this.doc.getNamedView();
-    // Page background has no configurable transparency; the checkerboard shows through when it is on.
-    // TODO: draw the checkerboard pattern.
-    const bg = nv.getBackgroundColor();
-    bg.setOpacity(nv.checkerboard.value ? 0 : 1);
-    const border = nv.getBorderColor();
-    if (!nv.border_show.value) border.setOpacity(0);
-    this.#page._background_color = bg.toRGBA();
-    this.#page._border_color = border.toRGBA();
-    this.#page._border_on_top = nv.border_on_top.value;
+    const pm = this.doc.getPageManager();
     const desk = nv.getDeskColor();
     desk.setOpacity(nv.checkerboard.value ? 0 : 1);
     this.canvas.set_desk(desk.toRGBA());
-    this.#page.update(this.doc.preferredBounds().transformed(this.doc2dt()));
+
+    if (nv.updateViewPort()) {
+      this.#setDefaultAttributes(this.#viewport);
+      this.#viewport.show();
+      this.#viewport.update(
+        this.doc.preferredBounds().transformed(this.doc2dt()),
+        null,
+        null,
+        '',
+        pm.hasPages(),
+      );
+    } else {
+      this.#viewport.hide();
+    }
+
+    const pages = new Set(pm.getPages());
+    for (const [page, view] of this.#page_views) {
+      if (pages.has(page)) continue;
+      view.remove();
+      this.#page_views.delete(page);
+    }
+    for (const page of pages) {
+      let view = this.#page_views.get(page);
+      if (!view) {
+        view = new CanvasPage();
+        view.add(page.getDesktopRect(), this.#pages_bg, this.#pages_fg);
+        this.#page_views.set(page, view);
+      }
+      this.#setDefaultAttributes(view);
+      view.is_selected = page.is_selected;
+      view.update(
+        page.getDesktopRect(),
+        page.getDesktopMargin(),
+        page.getDesktopBleed(),
+        page.getCanvasLabel(),
+        false,
+        this.doc.yaxisdir() > 0,
+      );
+    }
+  }
+
+  /** Update the canvas item with the display attributes of the namedview (upstream PageManager::setDefaultAttributes). */
+  #setDefaultAttributes(item: CanvasPage): void {
+    const nv = this.doc.getNamedView();
+    const border = nv.getBorderColor();
+    if (!nv.border_show.value) border.setOpacity(0);
+    // note: page background color doesn't have configurable transparency; it is considered to be opaque;
+    // here alpha gets manipulated to reveal checkerboard pattern, if needed
+    const bg = nv.getBackgroundColor();
+    bg.setOpacity(nv.checkerboard.value ? 0 : 1);
+    item.setOnTop(nv.border_on_top.value);
+    // fixed shadow size, not configurable; shadow changes size with zoom
+    item.setShadow(nv.border_show.value && nv.shadow_show.value ? 2 : 0);
+    item.setPageColor(
+      border.toRGBA(),
+      bg.toRGBA(),
+      nv.getDeskColor().toRGBA(),
+      DEFAULT_MARGIN_COLOR,
+      DEFAULT_BLEED_COLOR,
+      this.doc.getPageManager().getShadowColor(),
+    );
+    item.setLabelStyle(nv.label_style);
   }
 
   // Guides and grids (upstream SPNamedView::show and hide)
@@ -677,26 +756,23 @@ export class SPDesktop {
     this.set_display_area(d, 10);
   }
 
-  /**
-   * Zoom to fit the page in the window (upstream PageManager::zoomToPage
-   * with the document bounds; there are no multiple pages yet).
-   */
+  /** Zoom to fit the selected page, or the document without pages, in the window (upstream PageManager::zoomToSelectedPage). */
   zoom_page(): void {
-    const rect = this.doc.preferredBounds().transformed(this.doc2dt());
+    const rect = this.doc.getPageManager().getSelectedPageRect();
     if (rect.minExtent() < 1.0) return;
     this.set_display_area(rect, 10);
   }
 
   /** Zoom to fit the width of the page (upstream PageManager::zoomToSelectedPage with width_only). */
   zoom_page_width(): void {
-    const rect = this.doc.preferredBounds().transformed(this.doc2dt());
+    const rect = this.doc.getPageManager().getSelectedPageRect();
     if (rect.minExtent() < 1.0) return;
     this.set_display_width(rect, 10);
   }
 
   /** Center the page without zooming (upstream PageManager::centerToSelectedPage). */
   center_page(): void {
-    this.set_display_center(this.doc.preferredBounds().transformed(this.doc2dt()));
+    this.set_display_center(this.doc.getPageManager().getSelectedPageRect());
   }
 
   /** Zoom to the visual bounding box of the selection. */

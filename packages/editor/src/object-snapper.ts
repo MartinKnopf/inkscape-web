@@ -93,7 +93,23 @@ export class ObjectSnapper extends Snapper {
 
     // Consider the page border for snapping to
     const document = this._snapmanager.getDocument();
+    for (const page of document?.getPageManager().getPages() ?? []) {
+      if (page === this._snapmanager.getPageToIgnore()) continue;
+      if (snapprefs.isTargetSnappable(T.SNAPTARGET_PAGE_EDGE_CORNER)) {
+        getBBoxPoints(
+          page.getDesktopRect(),
+          this.#points_to_snap_to,
+          S.SNAPSOURCE_PAGE_CORNER,
+          T.SNAPTARGET_PAGE_EDGE_CORNER,
+          S.SNAPSOURCE_UNDEFINED,
+          T.SNAPTARGET_UNDEFINED, // No edges
+          S.SNAPSOURCE_PAGE_CENTER,
+          T.SNAPTARGET_PAGE_EDGE_CENTER,
+        );
+      }
+    }
     if (document && snapprefs.isTargetSnappable(T.SNAPTARGET_PAGE_EDGE_CORNER)) {
+      // Only the corners get added here.
       const page = document.preferredBounds().transformed(this._snapmanager.getDesktop().doc2dt());
       getBBoxPoints(
         page,
@@ -197,19 +213,21 @@ export class ObjectSnapper extends Snapper {
     const document = this._snapmanager.getDocument();
     const desktop = this._snapmanager.getDesktop();
 
-    // Consider the page border for snapping
+    // Consider the page borders for snapping (the viewport when there are no pages)
     if (
       document &&
       snapprefs.isTargetSnappable(T.SNAPTARGET_PAGE_EDGE_BORDER) &&
       snapprefs.isAnyCategorySnappable()
     ) {
-      this.#paths_to_snap_to.push(
-        new SnapCandidatePath(
-          rect_to_open_path(document.preferredBounds()),
-          T.SNAPTARGET_PAGE_EDGE_BORDER,
-          null,
-        ),
-      );
+      const pm = document.getPageManager();
+      const rects = pm.hasPages()
+        ? pm.getPages().map((p) => p.getDocumentRect())
+        : [document.preferredBounds()];
+      for (const rect of rects) {
+        this.#paths_to_snap_to.push(
+          new SnapCandidatePath(rect_to_open_path(rect), T.SNAPTARGET_PAGE_EDGE_BORDER, null),
+        );
+      }
     }
 
     for (const candidate of this._snapmanager._obj_snapper_candidates) {

@@ -16,8 +16,8 @@ import { CanvasItem, type CanvasItemGroup } from './canvas-item.ts';
 
 /**
  * A text label at a desktop point, with a rounded background; the size is in
- * screen px. Used for the tooltip of the snap indicator.
- * TODO: anchors, adjust, borders, scaled text.
+ * screen px. Used for the tooltip of the snap indicator and the page labels.
+ * TODO: adjust, scaled text.
  */
 export class CanvasItemText extends CanvasItem {
   #p: Point;
@@ -27,6 +27,12 @@ export class CanvasItemText extends CanvasItem {
   #background = 0x0;
   /** Horizontal anchor: 0 puts the text start at the coordinate, 0.5 (default) centers it. */
   #anchor = 0.5;
+  /** Vertical anchor: 0 puts the top of the background at the coordinate, 1 its bottom, 0.5 (default) centers it. */
+  #anchor_y = 0.5;
+  /** Corner radius of the background as a fraction of half its height; null: 3 px. */
+  #bg_radius: number | null = null;
+  /** Padding between the text and the edge of the background, in px. */
+  #border = 3;
   readonly #bg: SVGRectElement;
   readonly #label: SVGTextElement;
 
@@ -61,6 +67,20 @@ export class CanvasItemText extends CanvasItem {
     this.#anchor = anchor;
     this.request_update();
   }
+  /** Set both anchors (upstream set_anchor). A negative y anchor moves the text below the coordinate. */
+  set_anchor(anchor: Point): void {
+    this.#anchor = anchor.x;
+    this.#anchor_y = anchor.y;
+    this.request_update();
+  }
+  set_bg_radius(radius: number): void {
+    this.#bg_radius = radius;
+    this.request_update();
+  }
+  set_border(border: number): void {
+    this.#border = border;
+    this.request_update();
+  }
   set_background(rgba: number): void {
     this.#background = rgba;
     this.request_update();
@@ -72,7 +92,10 @@ export class CanvasItemText extends CanvasItem {
     this.#label.setAttribute('font-size', String(this.#fontsize));
     this.#label.setAttribute('fill', rgbaCss(this.#fill));
     this.#label.setAttribute('text-anchor', 'start');
-    this.#label.setAttribute('y', String(p.y + this.#fontsize / 3));
+    const pad = this.#border;
+    const height = this.#fontsize + 2 * pad;
+    const top = p.y - height * this.#anchor_y;
+    this.#label.setAttribute('y', String(top + pad + (this.#fontsize * 5) / 6));
     // The browser measures the text (when it is rendered); else an estimate.
     let width = 0;
     try {
@@ -81,13 +104,13 @@ export class CanvasItemText extends CanvasItem {
       width = 0;
     }
     if (!width) width = this.#text.length * this.#fontsize * 0.55;
-    const pad = 3;
     const left = p.x - width * this.#anchor;
     this.#label.setAttribute('x', String(left));
     this.#bg.setAttribute('x', String(left - pad));
-    this.#bg.setAttribute('y', String(p.y - this.#fontsize / 2 - pad));
+    this.#bg.setAttribute('y', String(top));
     this.#bg.setAttribute('width', String(width + 2 * pad));
-    this.#bg.setAttribute('height', String(this.#fontsize + 2 * pad));
+    this.#bg.setAttribute('height', String(height));
+    this.#bg.setAttribute('rx', String(this.#bg_radius === null ? 3 : (this.#bg_radius * height) / 2));
     this.#bg.setAttribute('fill', rgbaCss(this.#background));
   }
 }
