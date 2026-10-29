@@ -29,6 +29,7 @@ import { SpiralToolbar } from './spiral-toolbar.tsx';
 import { StarToolbar } from './star-toolbar.tsx';
 import { TextToolbar } from './text-toolbar.tsx';
 import { useActiveTool } from './tool-toolbar.tsx';
+import { TweakToolbar } from './tweak-toolbar.tsx';
 import { ZoomToolbar } from './zoom-toolbar.tsx';
 
 /** The controls bar of each tool, by tool name. TODO: the other tools (the select toolbar first). */
@@ -42,6 +43,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Pen: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={false} />,
   Calligraphic: CalligraphyToolbar,
   Eraser: EraserToolbar,
+  Tweak: TweakToolbar,
   Gradient: GradientToolbar,
   Dropper: DropperToolbar,
   Measure: MeasureToolbar,

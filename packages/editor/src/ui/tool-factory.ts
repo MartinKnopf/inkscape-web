@@ -25,6 +25,7 @@ import { SpiralTool } from './tools/spiral-tool.ts';
 import { StarTool } from './tools/star-tool.ts';
 import { TextTool } from './tools/text-tool.ts';
 import type { ToolBase } from './tools/tool-base.ts';
+import { TweakTool } from './tools/tweak-tool.ts';
 import { ZoomTool } from './tools/zoom-tool.ts';
 
 /** The tools by preferences path. TODO: the other tools. */
@@ -36,6 +37,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/freehand/pencil': PencilTool,
   '/tools/calligraphic': CalligraphicTool,
   '/tools/eraser': EraserTool,
+  '/tools/tweak': TweakTool,
   '/tools/gradient': GradientTool,
   '/tools/dropper': DropperTool,
   '/tools/measure': MeasureTool,

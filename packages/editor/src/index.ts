@@ -115,6 +115,7 @@ export * from './ui/tools/star-tool.ts';
 export * from './ui/tools/text-tool.ts';
 export * from './ui/tools/tool-base.ts';
 export * from './ui/tools/tool-data.ts';
+export * from './ui/tools/tweak-tool.ts';
 export * from './ui/tools/zoom-tool.ts';
 export * from './ui/widget/canvas.ts';
 export * from './ui/widget/canvas-grid.ts';
