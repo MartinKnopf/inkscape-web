@@ -43,6 +43,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
   ],
   [['Gradient', 'color-gradient']],
   [['Dropper', 'color-picker']],
+  [['Eraser', 'draw-eraser']],
   [
     ['Measure', 'tool-measure'],
     ['Zoom', 'zoom'],

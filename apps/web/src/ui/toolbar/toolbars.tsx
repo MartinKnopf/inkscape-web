@@ -18,6 +18,7 @@ import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts
 import { ArcToolbar } from './arc-toolbar.tsx';
 import { CalligraphyToolbar } from './calligraphy-toolbar.tsx';
 import { DropperToolbar } from './dropper-toolbar.tsx';
+import { EraserToolbar } from './eraser-toolbar.tsx';
 import { GradientToolbar } from './gradient-toolbar.tsx';
 import { MeasureToolbar } from './measure-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
@@ -40,6 +41,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Pencil: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={true} />,
   Pen: ({ desktop }) => <PencilToolbar desktop={desktop} pencil_mode={false} />,
   Calligraphic: CalligraphyToolbar,
+  Eraser: EraserToolbar,
   Gradient: GradientToolbar,
   Dropper: DropperToolbar,
   Measure: MeasureToolbar,

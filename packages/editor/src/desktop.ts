@@ -608,6 +608,29 @@ export class SPDesktop {
     return null;
   }
 
+  /**
+   * The items at the points (world coordinates, as upstream), each once, in
+   * the order found (upstream getItemsAtPoints): groups are entered;
+   * topmost_only takes the topmost item at each point; without all_layers
+   * only items in the current layer count; limit 0 is no limit.
+   */
+  getItemsAtPoints(points: readonly Point[], all_layers = true, topmost_only = true, limit = 0): SPItem[] {
+    const result: SPItem[] = [];
+    const current_layer = this.#layerManager.currentLayer();
+    const window_origin = this.canvas.get_area_world().min();
+    for (const point of points) {
+      const items = this.#pickCandidates(point.sub(window_origin), true);
+      for (const item of topmost_only ? items.slice(0, 1) : items) {
+        if (result.includes(item)) continue;
+        if (!all_layers && this.#layerManager.layerForObject(item) !== current_layer) continue;
+        result.push(item);
+        //limit 0 = no limit
+        if (result.length === limit) return result;
+      }
+    }
+    return result;
+  }
+
   /** The topmost non-layer group at window point p (upstream getGroupAtPoint). */
   getGroupAtPoint(p: Point): SPItem | null {
     for (const item of this.#pickCandidates(p, false)) if (item instanceof SPGroup) return item;

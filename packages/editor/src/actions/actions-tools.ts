@@ -102,6 +102,7 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
     SECTION,
     N_('Draw calligraphic or brush strokes'),
   ],
+  ["win.tool-switch('Eraser')", N_('Eraser Tool'), SECTION, N_('Erase objects or paths')],
   ["win.tool-switch('Gradient')", N_('Gradient Tool'), SECTION, N_('Create and edit gradients')],
   ["win.tool-switch('Dropper')", N_('Dropper Tool'), SECTION, N_('Pick colors from image')],
   ["win.tool-switch('Zoom')", N_('Zoom Tool'), SECTION, N_('Zoom in or out')],

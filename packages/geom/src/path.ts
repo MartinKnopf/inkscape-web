@@ -43,6 +43,14 @@ export class Path {
     this.#start = start;
   }
 
+  /** The closed outline of the rectangle, from corner 0 to 3 (upstream Path(Rect)). */
+  static fromRect(r: Rect): Path {
+    const p = new Path(r.corner(0));
+    for (let i = 0; i < 3; ++i) p.#curves.push(new LineSegment(r.corner(i), r.corner(i + 1)));
+    p.#closed = true;
+    return p;
+  }
+
   /** A closed circle of two arcs that starts at the rightmost point (upstream Path(Circle)). */
   static fromCircle(center: Point, radius: Coord): Path {
     const p1 = center.add(new Point(radius, 0));

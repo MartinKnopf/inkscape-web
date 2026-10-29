@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/tools/calligraphic-tool.cpp, src/ui/tools/dynamic-base.cpp
 // @vitest-environment happy-dom
-import { resolve } from 'node:path';
-import { Preferences, SPDocument, type SPItem, setPathBoolopBackend } from '@inkscape-web/core';
+import { Preferences, type SPItem } from '@inkscape-web/core';
 import { Path, Point } from '@inkscape-web/geom';
-import { loadGeom } from '@inkscape-web/wasm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { tool_switch } from '../../actions/actions-tools.ts';
-import { SPDesktop } from '../../desktop.ts';
-import { Canvas } from '../widget/canvas.ts';
 import { add_cap } from './calligraphic-tool.ts';
+import {
+  line,
+  type Mods,
+  mockHitTest,
+  pointer,
+  setupDesktop,
+  stroke as strokeThrough,
+  unmockHitTest,
+  useWasmBackend,
+} from './tool-test-utils.ts';
 
-// happy-dom: the module would read the wasm file from an http URL.
-const wasm = resolve(import.meta.dirname, '../../../../wasm/dist/geom-module.wasm');
-setPathBoolopBackend(await loadGeom({ locateFile: () => wasm }));
+await useWasmBackend();
 
 const SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300">' +
@@ -30,38 +33,18 @@ const PREFS: Record<string, number> = {
 
 function setup() {
   for (const [p, v] of Object.entries(PREFS)) Preferences.get().setDouble(p, v);
-  const doc = SPDocument.createNewDocFromMem(SVG);
-  if (!doc) throw new Error('parse failed');
-  const host = document.createElement('div');
-  Object.defineProperties(host, { clientWidth: { value: 800 }, clientHeight: { value: 600 } });
-  const dt = new SPDesktop(new Canvas(host), doc);
-  tool_switch('Calligraphic', dt);
-  const svg = dt.getCanvas().svg;
-  const layer = () => [...(doc.getObjectById('layer1')?.getRepr().children() ?? [])];
-  const undoSteps = () => doc.undoStack.undo.map((e) => e.description);
-  return { doc, dt, svg, layer, undoSteps };
-}
-
-type Mods = { shiftKey?: boolean; ctrlKey?: boolean; altKey?: boolean };
-
-function pointer(target: Element, type: string, x: number, y: number, buttons: number, mods: Mods = {}) {
-  target.dispatchEvent(
-    new PointerEvent(type, { bubbles: true, button: 0, buttons, clientX: x, clientY: y, ...mods }),
-  );
+  const d = setupDesktop(SVG, 'Calligraphic');
+  const layer = () => [...(d.doc.getObjectById('layer1')?.getRepr().children() ?? [])];
+  return { ...d, layer };
 }
 
 /** A horizontal stroke from x0 to x1 at y in 5 px steps. */
-function stroke(target: Element, x0: number, x1: number, y: number, mods: Mods = {}) {
-  pointer(target, 'pointerdown', x0, y, 1, mods);
-  for (let x = x0 + 5; x <= x1; x += 5) pointer(target, 'pointermove', x, y, 1, mods);
-  pointer(target, 'pointerup', x1, y, 0, mods);
-}
+const stroke = (target: Element, x0: number, x1: number, y: number, mods: Mods = {}) =>
+  strokeThrough(target, line(x0, y, x1, y), mods);
 
-beforeEach(() => {
-  Object.defineProperty(document, 'elementsFromPoint', { value: () => [], configurable: true });
-});
+beforeEach(() => mockHitTest());
 afterEach(() => {
-  Reflect.deleteProperty(document, 'elementsFromPoint');
+  unmockHitTest();
   for (const p of [...Object.keys(PREFS), '/tools/calligraphic/cap_rounding']) Preferences.get().remove(p);
 });
 
