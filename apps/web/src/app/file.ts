@@ -302,3 +302,35 @@ export async function sp_file_save_blob(data: Blob, suggestedName: string): Prom
     throw e;
   }
 }
+
+/** The part of FileSystemDirectoryHandle that we use. */
+interface DirectoryPicker {
+  showDirectoryPicker(options: { mode: 'readwrite' }): Promise<{
+    getFileHandle(name: string, options: { create: boolean }): Promise<FileHandle>;
+  }>;
+}
+
+/**
+ * Save several files (for example the exported pages) into a folder the user picks: with the
+ * File System Access API a folder dialog, else one download per file. Returns false if the
+ * user cancels.
+ */
+export async function sp_file_save_blobs(files: readonly { data: Blob; name: string }[]): Promise<boolean> {
+  const w = window as Window & Partial<DirectoryPicker>;
+  if (!w.showDirectoryPicker) {
+    for (const { data, name } of files) await download(data, name);
+    return true;
+  }
+  try {
+    const dir = await w.showDirectoryPicker({ mode: 'readwrite' });
+    for (const { data, name } of files) {
+      const writable = await (await dir.getFileHandle(name, { create: true })).createWritable();
+      await writable.write(data);
+      await writable.close();
+    }
+    return true;
+  } catch (e) {
+    if (isAbort(e)) return false;
+    throw e;
+  }
+}
