@@ -17,6 +17,7 @@ import {
   isLandscape,
   matchingPaperSize,
   PAGE_UNITS,
+  resize_to_fit,
   type SPDesktop,
   set_background_color,
   set_border_color,
@@ -25,14 +26,16 @@ import {
   set_display_unit,
   set_document_dimensions,
   set_document_scale,
+  set_label_style,
   set_orientation,
   set_paper_size,
   set_show_border,
+  set_show_shadow,
   set_viewbox_pos,
   set_viewbox_size,
 } from '@inkscape-web/editor';
 import { Point } from '@inkscape-web/geom';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { objectKey, useReprVersion } from './use-repr.ts';
 
@@ -82,10 +85,10 @@ function ColorField(props: { label: string; value: Colors.Color; onChange: (colo
 
 /**
  * The Document Properties dialog (dialog key "DocumentProperties"): the page tab
- * (page size, scale, viewBox, display units, colors, border, checkerboard)
- * and the grids tab (rectangular grids).
+ * (size of the selected page, resize to content, scale, viewBox, display units, colors,
+ * border, shadow, page labels, checkerboard) and the grids tab (rectangular grids).
  * TODO: the other tabs (guides, color management, scripting, metadata, license),
- * margins and bleed, multiple pages, content scaling when the scale changes,
+ * content scaling when the scale changes,
  * axonometric and modular grids.
  */
 export function DocumentPropertiesDialog() {
@@ -227,10 +230,15 @@ function keepOpacity(color: Colors.Color, old: Colors.Color): Colors.Color {
   return color;
 }
 
-/** The page tab. */
+/** The page tab. The size controls act on the selected page (see current_page). */
 function PageTab({ desktop }: { desktop: SPDesktop }) {
   const doc = desktop.doc;
   const nv = doc.getNamedView();
+  const pm = doc.getPageManager();
+  const page = useSyncExternalStore(
+    (cb) => pm.connectPageSelected(cb),
+    () => pm.getSelected(),
+  );
   const size = getPageSize(doc);
   const paper = matchingPaperSize(size);
   const landscape = isLandscape(size);
@@ -241,7 +249,7 @@ function PageTab({ desktop }: { desktop: SPDesktop }) {
   return (
     <div className="docprops">
       <fieldset>
-        <legend>{_('Page')}</legend>
+        <legend>{page && pm.getPageCount() > 1 ? page.getLabel() : _('Page')}</legend>
         <label className="docprops-row">
           <span>{_('Page size')}</span>
           <select
@@ -290,6 +298,15 @@ function PageTab({ desktop }: { desktop: SPDesktop }) {
               </option>
             ))}
           </select>
+        </div>
+        <div className="docprops-row">
+          <button
+            type="button"
+            title={_("Fit the page to the current selection or the drawing if there's no selection.")}
+            onClick={() => resize_to_fit(doc, desktop.getSelection())}
+          >
+            {_('Resize to content')}
+          </button>
         </div>
         <div className="docprops-row" role="radiogroup" aria-label={_('Orientation')}>
           <span>{_('Orientation')}</span>
@@ -388,6 +405,25 @@ function PageTab({ desktop }: { desktop: SPDesktop }) {
           />
         </label>
         <ColorField label={_('Border color')} value={border} onChange={(c) => set_border_color(doc, c)} />
+        <label
+          className="docprops-row"
+          title={_('If set, the page border shows a shadow on its right and lower side.')}
+        >
+          <span>{_('Show shadow')}</span>
+          <input
+            type="checkbox"
+            checked={nv.shadow_show.value}
+            onChange={(e) => set_show_shadow(doc, e.target.checked)}
+          />
+        </label>
+        <label className="docprops-row" title={_('Show the big page labels below the page border.')}>
+          <span>{_('Show big page labels')}</span>
+          <input
+            type="checkbox"
+            checked={nv.label_style === 'below'}
+            onChange={(e) => set_label_style(doc, e.target.checked)}
+          />
+        </label>
       </fieldset>
     </div>
   );

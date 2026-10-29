@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/dialog/document-properties.cpp, src/ui/dialog/document-properties.h
 /*
- * Document properties dialog: the operations of its page tab (page size,
+ * Document properties dialog: the operations of its page tab (size of the current page,
  * scale, viewBox, colors, border, checkerboard, display unit) and its grids
  * tab. The widgets are in apps/web.
  *
@@ -25,9 +25,11 @@ import {
   DocumentUndo,
   findPaperSize,
   GridType,
+  type ObjectSet,
   type PaperSize,
   type SPDocument,
   SPGrid,
+  type SPPage,
 } from '@inkscape-web/core';
 import { Point, Rect } from '@inkscape-web/geom';
 
@@ -44,10 +46,33 @@ export interface PageSize {
   unit: string;
 }
 
-/** Root width and height with their units; relative sizes are given in px (upstream getWidth(), getHeight()). */
+/**
+ * The selected page of a multipage document when it is not the viewport page: the page
+ * size controls act on it. null when they act on the document size.
+ */
+export function current_page(doc: SPDocument): SPPage | null {
+  const page = doc.getPageManager().getSelected();
+  return page && !page.isViewportPage() ? page : null;
+}
+
+/**
+ * The size of the current page: the root width and height with their units (relative sizes
+ * are given in px, upstream getWidth(), getHeight()), or the selected page that is not the
+ * viewport page, in the unit of the root width.
+ */
 export function getPageSize(doc: SPDocument): PageSize {
   const { root } = doc;
   const unit = (len: typeof root.width) => (len.isAbsolute() ? len.getUnit().abbr : 'px');
+  const page = current_page(doc);
+  if (page) {
+    const rect = page.getDesktopRect();
+    const u = unit(root.width);
+    return {
+      width: convertUnit(rect.width(), 'px', u),
+      height: convertUnit(rect.height(), 'px', u),
+      unit: u,
+    };
+  }
   const pick = (len: typeof root.width, vb: number | null) => {
     if (len.isAbsolute()) return len.value;
     return vb ?? len.computed;
@@ -69,13 +94,44 @@ export function matchingPaperSize(size: PageSize): PaperSize | null {
 }
 
 /**
- * Set the page size (upstream set_document_dimensions). The viewBox follows,
- * so the document scale stays.
+ * Set the size of the current page (upstream set_document_dimensions). Without pages, or for
+ * the viewport page, this is the document size: the viewBox follows, so the document scale
+ * stays, and the viewport page follows the document. Another selected page is resized; a
+ * new unit then becomes the unit of the document size.
  */
 export function set_document_dimensions(doc: SPDocument, width: number, height: number, unit: string): void {
   if (!(width > 0) || !(height > 0)) return;
-  doc.setWidthAndHeight(width, unit, height, unit, true);
+  const page = current_page(doc);
+  if (page) {
+    const old = getPageSize(doc);
+    if (old.unit !== unit) {
+      const dims = doc.getDimensions();
+      doc.setWidthAndHeight(
+        convertUnit(dims.x, 'px', unit),
+        unit,
+        convertUnit(dims.y, 'px', unit),
+        unit,
+        true,
+      );
+    }
+    doc.getPageManager().resizePage(page, convertUnit(width, unit, 'px'), convertUnit(height, unit, 'px'));
+  } else {
+    doc.setWidthAndHeight(width, unit, height, unit, true);
+    doc.getNamedView().updateViewPort();
+  }
   DocumentUndo.done(doc, C_('Undo', 'Set page size'));
+}
+
+/**
+ * Fit the first page to the selection, or to the content without one (upstream
+ * signal_resize_to_fit of the page properties).
+ */
+export function resize_to_fit(doc: SPDocument, selection: ObjectSet): void {
+  const page_manager = doc.getPageManager();
+  page_manager.selectPageIndex(0);
+  // fit page to selection or content, if there's no selection
+  page_manager.fitToSelection(selection);
+  DocumentUndo.done(doc, C_('Undo', 'Resize page to fit'), 'tool-pages');
 }
 
 /** Choose a preset, keeping the current orientation and unit (the unit of the preset). */
@@ -163,6 +219,19 @@ export function set_show_border(doc: SPDocument, on: boolean): void {
   doc.getNamedView().setShowBorder(on);
   doc.setModifiedSinceSave();
   DocumentUndo.done(doc, C_('Undo', 'Toggle page border'));
+}
+
+export function set_show_shadow(doc: SPDocument, on: boolean): void {
+  doc.getNamedView().getRepr().setAttributeBoolean('inkscape:showpageshadow', on);
+  doc.setModifiedSinceSave();
+  DocumentUndo.done(doc, C_('Undo', 'Toggle page shadow'));
+}
+
+/** Show the big page labels below the pages (labelstyle). */
+export function set_label_style(doc: SPDocument, below: boolean): void {
+  doc.getNamedView().setLabelStyleBelow(below);
+  doc.setModifiedSinceSave();
+  DocumentUndo.done(doc, C_('Undo', 'Toggle page label style'));
 }
 
 /** Set the display unit (inkscape:document-units). */

@@ -12,7 +12,7 @@
  * Copyright (C) 1999-2007, 2021 Authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { C_, Colors, DocumentUndo, type SPDocument, type SPObject } from '@inkscape-web/core';
+import { C_, Colors, DocumentUndo, type SPDocument, type SPObject, type SPPage } from '@inkscape-web/core';
 import { type OptRect, Point, Rect } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
 import { type RenderOptions, sp_export_png_blob } from '../../helper/png-write.ts';
@@ -125,7 +125,8 @@ export function dpi_change(
 
 /**
  * The area to export for an area button, in desktop coordinates (upstream refreshArea). The
- * selection falls back to the drawing, and that to the page, when it is empty. null for custom.
+ * selection falls back to the drawing, and that to the page, when it is empty. The page is the
+ * selected page of a multipage document. null for custom.
  */
 export function export_area_bounds(desktop: SPDesktop, area: ExportArea): OptRect {
   if (area === 'custom') return null;
@@ -138,14 +139,21 @@ export function export_area_bounds(desktop: SPDesktop, area: ExportArea): OptRec
     const bbox = doc.getRoot().desktopVisualBounds();
     if (bbox) return bbox;
   }
-  return doc.preferredBounds().transformed(desktop.doc2dt());
+  return (
+    doc.getPageManager().getSelected()?.getDesktopRect() ??
+    doc.preferredBounds().transformed(desktop.doc2dt())
+  );
 }
 
-/** The object whose export hints belong to the area (upstream onExport: the root, or the first selected item). */
+/**
+ * The object whose export hints belong to the area (upstream onExport): the first selected
+ * item, the selected page, or the root.
+ */
 export function export_hint_target(desktop: SPDesktop, area: ExportArea): SPObject | null {
-  return area === 'selection'
-    ? (desktop.getSelection().firstItem() ?? null)
-    : desktop.getDocument().getRoot();
+  const doc = desktop.getDocument();
+  if (area === 'selection') return desktop.getSelection().firstItem() ?? null;
+  if (area === 'page') return doc.getPageManager().getSelected() ?? doc.getRoot();
+  return doc.getRoot();
 }
 
 /** The export filename and dpi saved on an object (upstream SPObject::getExportFilename and getExportDpi). */
@@ -195,6 +203,8 @@ export function export_filename(desktop: SPDesktop, area: ExportArea, ext: strin
     const id = desktop.getSelection().firstItem()?.getId();
     if (id) return `${id}${ext}`;
   }
+  const page = doc.getPageManager().getSelected();
+  if (area === 'page' && page) return `${page.getLabel()}${ext}`;
   return with_extension(doc.documentFilename ?? 'bitmap', ext);
 }
 
@@ -225,6 +235,30 @@ export function export_raster(desktop: SPDesktop, g: ExportGeometry, options: Re
   const area = new Rect(new Point(g.x0, g.y0), new Point(g.x1, g.y1)).transformed(desktop.dt2doc());
   const { width, height } = export_bitmap_size(g);
   return sp_export_png_blob(desktop.getDocument(), area, width, height, options);
+}
+
+/** One page to export: the page, its area in desktop px, its file name and dpi (from its hints, or the defaults). */
+export interface PageExport {
+  page: SPPage;
+  geometry: ExportGeometry;
+  filename: string;
+}
+
+/**
+ * The exports of the given pages, each as its own PNG (upstream: the pages of the batch export,
+ * and the multiple pages of the single export). The name and dpi come from the export hints of
+ * each page, else the page label and dpi.
+ */
+export function page_exports(pages: readonly SPPage[], dpi: number, ext: string): PageExport[] {
+  return pages.map((page) => {
+    const hints = get_export_hints(page);
+    const r = page.getDesktopRect();
+    return {
+      page,
+      geometry: { x0: r.left(), y0: r.top(), x1: r.right(), y1: r.bottom(), dpi: hints.dpi || dpi },
+      filename: with_extension(hints.filename || page.getLabel(), ext),
+    };
+  });
 }
 
 /**

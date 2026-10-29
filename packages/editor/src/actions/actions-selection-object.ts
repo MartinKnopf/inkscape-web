@@ -12,6 +12,7 @@ import { C_, DocumentUndo, N_, NC_, type Selection } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 
 const SECTION_SELECT = NC_('Action Section', 'Select');
+const SECTION_PAGE = NC_('Action Section', 'Page');
 
 /** Action id, label, section and tooltip (untranslated). TODO: ungroup-pop, link, stack up/down, bitmap copy. */
 export const raw_data_selection_object: readonly (readonly [string, string, string, string])[] = [
@@ -21,7 +22,21 @@ export const raw_data_selection_object: readonly (readonly [string, string, stri
   ['app.selection-raise', N_('Raise'), SECTION_SELECT, N_('Bring selection up one step')],
   ['app.selection-lower', N_('Lower'), SECTION_SELECT, N_('Bring selection down one step')],
   ['app.selection-bottom', N_('Lower to Bottom'), SECTION_SELECT, N_('Lower selection to bottom')],
+  [
+    'app.page-fit-to-selection',
+    N_('Resize Page to Selection'),
+    SECTION_PAGE,
+    N_('Fit the page to the current selection or the drawing if there is no selection'),
+  ],
 ];
+
+/** Fit the selected page to the selection, or to the drawing without one (upstream page_fit_to_selection). */
+export function page_fit_to_selection(selection: Selection): void {
+  const document = selection.document();
+  if (!document) return;
+  document.getPageManager().fitToSelection(selection);
+  DocumentUndo.done(document, C_('Undo', 'Resize page to fit'), 'tool-pages');
+}
 
 function select_object_group(selection: Selection): void {
   selection.group();
@@ -47,5 +62,6 @@ export function add_actions_selection_object(app: InkscapeApplication): void {
   add('selection-raise', (s) => s.raise());
   add('selection-lower', (s) => s.lower());
   add('selection-bottom', (s) => s.lowerToBottom());
+  add('page-fit-to-selection', page_fit_to_selection);
   app.get_action_extra_data().add_data(raw_data_selection_object);
 }

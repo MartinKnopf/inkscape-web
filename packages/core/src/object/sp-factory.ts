@@ -27,6 +27,7 @@ import { SPMarker } from './sp-marker.ts';
 import { SPMask } from './sp-mask.ts';
 import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
+import { SPPage } from './sp-page.ts';
 import { SPPath } from './sp-path.ts';
 import { SPPolygon } from './sp-polygon.ts';
 import { SPPolyLine } from './sp-polyline.ts';
@@ -71,6 +72,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['spiral', () => new SPSpiral()],
   ['star', () => new SPStar()],
   ['svg:use', () => new SPUse()],
+  ['svg:view', () => new SPPage()],
   ['svg:stop', () => new SPStop()],
   ['svg:symbol', () => new SPSymbol()],
   ['svg:text', () => new SPText()],

@@ -30,14 +30,15 @@ import {
   export_raster,
   get_export_bg_color,
   PAGE_UNITS,
+  page_exports,
   type SPDesktop,
   save_export_hints,
   set_export_bg_color,
   with_extension,
 } from '@inkscape-web/editor';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
-import { sp_file_save_blob } from '../../app/file.ts';
+import { sp_file_save_blob, sp_file_save_blobs } from '../../app/file.ts';
 import { useSelectionUpdates } from '../toolbar/toolbar.tsx';
 import { SpinButton } from '../widget/spinbutton.tsx';
 import { objectKey, useReprVersion } from './use-repr.ts';
@@ -63,7 +64,9 @@ function areaFromPrefs(): ExportArea {
  * The Export dialog (dialog key "Export"): export the document, the page, the selection or a custom
  * area as a PNG. The size in pixels, the dpi and the area are linked as in Inkscape. The image is
  * rendered by the browser from the document; the user picks the file when exporting.
- * TODO: the preview, other formats, the batch export, multiple pages, the file format options of the PNG.
+ * With several pages, the page area has a page list: export the chosen page, or all pages as
+ * one PNG each (named by their export hints or labels) into a folder.
+ * TODO: the preview, other formats, the batch export, the file format options of the PNG.
  */
 export function ExportDialog() {
   const desktop = useActiveDesktop();
@@ -76,6 +79,11 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
   const prefs = Preferences.get();
   useSelectionUpdates(desktop);
   useReprVersion(doc.rroot);
+  const pm = doc.getPageManager();
+  const selectedPage = useSyncExternalStore(
+    (cb) => pm.connectPageSelected(cb),
+    () => pm.getSelected(),
+  );
 
   const [area, setArea] = useState<ExportArea>(areaFromPrefs);
   const [dpi, setDpi] = useState(() => prefs.getDouble('/dialogs/export/defaultxdpi/value', DPI_BASE));
@@ -106,7 +114,7 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     if (!userFilename) setFilename(export_filename(desktop, shown, '.png'));
     const hint = export_hint_dpi(desktop, shown);
     if (hint) setDpi(hint);
-  }, [shown, doc]);
+  }, [shown, doc, selectedPage]);
 
   const chooseArea = (a: ExportArea) => {
     setArea(a);
@@ -152,7 +160,30 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     }
   };
 
+  /** Export each page as its own PNG (upstream: the pages of the batch export). */
+  const exportPages = async () => {
+    setBusy(true);
+    try {
+      const files = [];
+      for (const e of page_exports(pm.getPages(), dpi, '.png')) {
+        const { width, height } = export_bitmap_size(e.geometry);
+        if (width < 1 || height < 1) continue;
+        files.push({
+          name: e.filename,
+          data: await export_raster(desktop, e.geometry, { background: bg, only: null }),
+        });
+      }
+      await sp_file_save_blobs(files);
+    } catch (e) {
+      console.error(e);
+      alert(`${_('Export')}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const labels = AREA_LABELS();
+  const multipage = shown === 'page' && pm.getPageCount() > 1;
   return (
     <div className="export-dialog">
       <fieldset className="export-areas">
@@ -169,6 +200,23 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
           </button>
         ))}
       </fieldset>
+
+      {multipage && (
+        <label className="export-row">
+          <span>{_('Page')}</span>
+          <select
+            aria-label={_('Page')}
+            value={selectedPage ? pm.getPageIndex(selectedPage) : 0}
+            onChange={(e) => pm.selectPageIndex(Number(e.target.value))}
+          >
+            {pm.getPages().map((p, i) => (
+              <option key={objectKey(p)} value={i}>
+                {p.getLabel()}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {shown === 'custom' && (
         <div className="export-grid">
@@ -277,6 +325,11 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
         <button type="button" className="export-button" disabled={busy} onClick={() => void doExport()}>
           {busy ? _('Exporting') : label(_('Export'))}
         </button>
+        {multipage && (
+          <button type="button" className="export-button" disabled={busy} onClick={() => void exportPages()}>
+            {_('Export all pages')}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -15,8 +15,10 @@ import {
   export_area_bounds,
   export_bitmap_size,
   export_filename,
+  export_hint_target,
   get_export_bg_color,
   get_export_hints,
+  page_exports,
   save_export_hints,
   with_extension,
 } from './export.ts';
@@ -106,6 +108,24 @@ describe('export areas and hints', () => {
 
     DocumentUndo.undo(doc);
     expect(get_export_hints(root)).toEqual({ filename: '', dpi: 0 });
+  });
+
+  it('exports the selected page of a multipage document, and each page as its own image', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300">' +
+        '<defs><view viewBox="0 0 400 300"/><view id="p2" viewBox="410 0 100 50" inkscape:label="Back" inkscape:export-xdpi="192"/></defs></svg>',
+    );
+    if (!doc) throw new Error('parse failed');
+    const dt = new SPDesktop(new Canvas(document.createElement('div')), doc);
+    const r = export_area_bounds(dt, 'page');
+    expect(r && [r.left(), r.top(), r.right(), r.bottom()]).toEqual([410, 0, 510, 50]);
+    expect(export_filename(dt, 'page', '.png')).toBe('Back.png');
+    expect(export_hint_target(dt, 'page')).toBe(doc.getObjectById('p2'));
+    const exports = page_exports(doc.getPageManager().getPages(), 96, '.png');
+    expect(exports.map((e) => [e.filename, e.geometry.x0, e.geometry.x1, e.geometry.dpi])).toEqual([
+      ['Page 1.png', 0, 400, 96],
+      ['Back.png', 410, 510, 192],
+    ]);
   });
 
   it('changes the extension of a file name and reads the background color with the upstream default', () => {

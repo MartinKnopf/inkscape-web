@@ -20,7 +20,7 @@ const DASHES = '4 4';
 /**
  * A rectangle in desktop coordinates, drawn with screen-sized lines: outline,
  * stroke (optionally dashed, with the shadow color in the gaps) and fill.
- * TODO: rotated canvas (non axis-aligned rects), drop shadows of pages,
+ * TODO: rotated canvas (non axis-aligned rects),
  * fill patterns, inverted drawing.
  */
 export class CanvasItemRect extends CanvasItem {
@@ -138,7 +138,16 @@ export class CanvasItemRect extends CanvasItem {
       this.#stroke.removeAttribute('stroke-dashoffset');
     }
 
-    place(this.#fill, visible(this._fill));
+    // A drop shadow around a filled rectangle (pages). Upstream draws a gradient of 6 px per
+    // shadow width unit, see get_shadow_size(); a CSS blur of half that looks the same.
+    const dropShadow = !this._dashed && this._shadow_width > 0 && visible(this._shadow_color);
+    place(this.#fill, visible(this._fill) || dropShadow);
     this.#fill.setAttribute('fill', rgbaCss(this._fill));
+    if (dropShadow) {
+      const size = Math.min(this._shadow_width * 6, 120) / 2;
+      this.#fill.style.filter = `drop-shadow(0 0 ${size}px ${rgbaCss(this._shadow_color)})`;
+    } else {
+      this.#fill.style.removeProperty('filter');
+    }
   }
 }

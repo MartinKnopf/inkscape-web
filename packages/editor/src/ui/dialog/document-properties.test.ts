@@ -75,6 +75,39 @@ describe('page size', () => {
   });
 });
 
+describe('page size with pages', () => {
+  const multi = () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 100 50"><defs><view viewBox="0 0 100 50"/><view viewBox="110 0 30 20"/></defs></svg>',
+    );
+    if (!doc) throw new Error('parse failed');
+    return doc;
+  };
+  const size = (doc: SPDocument) => {
+    const { width, height, unit } = getPageSize(doc);
+    return { width: Math.round(width * 1e6) / 1e6, height: Math.round(height * 1e6) / 1e6, unit };
+  };
+
+  it('acts on the selected page when it is not the viewport page', () => {
+    const doc = multi();
+    expect(size(doc)).toEqual({ width: 30, height: 20, unit: 'mm' });
+    set_document_dimensions(doc, 40, 25, 'mm');
+    expect(doc.getPageManager().getSelected()?.getRepr().attribute('viewBox')).toBe('110 0 40 25');
+    expect(attrs(doc).width).toBe('100mm');
+    set_orientation(doc, false);
+    expect(size(doc)).toEqual({ width: 25, height: 40, unit: 'mm' });
+  });
+
+  it('resizes the document and the viewport page together', () => {
+    const doc = multi();
+    const pm = doc.getPageManager();
+    pm.selectPageIndex(0);
+    set_document_dimensions(doc, 80, 60, 'mm');
+    expect(attrs(doc)).toEqual({ width: '80mm', height: '60mm', viewBox: '0 0 80 60' });
+    expect(pm.getFirstPage()?.getRepr().attribute('viewBox')).toBe('0 0 80 60');
+  });
+});
+
 describe('page color', () => {
   it('writes pagecolor to the namedview, merging repeated changes into one undo step', () => {
     const doc = open('width="10" height="10"');

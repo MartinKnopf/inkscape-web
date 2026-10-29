@@ -13,6 +13,7 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * Copyright (C) 2006-2008 Johan Engelen
  */
+import { are_near } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
 import type { SPDocument } from '../document.ts';
@@ -57,7 +58,7 @@ export function sp_parse_document_units(value: string | null): string {
  * held here.
  * The guides and grids are its children; the snap tolerances (in screen px)
  * are read here and used by the SnapManager of the editor.
- * TODO: window geometry, clip to page, the viewport canvas item and pages.
+ * TODO: window geometry, clip to page, the viewport canvas item.
  */
 export class SPNamedView extends SPObject {
   editable = true;
@@ -68,8 +69,10 @@ export class SPNamedView extends SPObject {
   /** Page: border visible, on top, shadow, checkerboard, colors (page-manager.h). */
   border_show = new SVGBool(true);
   border_on_top = new SVGBool(true);
-  shadow_show = new SVGBool(false);
+  shadow_show = new SVGBool(true);
   checkerboard = new SVGBool(false);
+  /** Page label style on the canvas (labelstyle): "default" or "below". */
+  label_style = 'default';
   #background_color = DEFAULT_BACKGROUND_COLOR.clone();
   #border_color = DEFAULT_BORDER_COLOR.clone();
   /** Display unit abbreviation (inkscape:document-units). */
@@ -119,6 +122,7 @@ export class SPNamedView extends SPObject {
       SPAttr.BORDERCOLOR,
       SPAttr.BORDEROPACITY,
       SPAttr.PAGECOLOR,
+      SPAttr.PAGELABELSTYLE,
       SPAttr.INKSCAPE_DESK_COLOR,
       SPAttr.INKSCAPE_DESK_CHECKERBOARD,
       SPAttr.INKSCAPE_ZOOM,
@@ -235,6 +239,9 @@ export class SPNamedView extends SPObject {
       }
       case SPAttr.PAGECOLOR:
         this.#background_color = Color.parse(value) ?? DEFAULT_BACKGROUND_COLOR.clone();
+        break;
+      case SPAttr.PAGELABELSTYLE:
+        this.label_style = value ?? 'default';
         break;
       case SPAttr.INKSCAPE_DESK_COLOR:
         this.desk_color = Color.parse(value);
@@ -360,8 +367,28 @@ export class SPNamedView extends SPObject {
   setCheckerboard(on: boolean): void {
     this.repr.setAttributeBoolean('inkscape:pagecheckerboard', on);
   }
+  /** Show the page numbers below the pages (labelstyle="below") or the labels only ("default"). */
+  setLabelStyleBelow(below: boolean): void {
+    this.repr.setAttribute('labelstyle', below ? 'below' : 'default');
+  }
   setDisplayUnit(abbr: string): void {
     this.repr.setAttribute('inkscape:document-units', abbr);
+  }
+
+  /**
+   * Keep the viewport page (the page at the origin) at the size of the document. Returns true
+   * if no page covers the viewport, so the desktop shows the viewport as a page outline
+   * (upstream updateViewPort, which updates the viewport canvas item).
+   */
+  updateViewPort(): boolean {
+    const box = this.document.preferredBounds();
+    const page = this.document.getPageManager().getPageAt(box.corner(0));
+    if (!page) return true;
+    // This means the page is in the middle of being moved, so please don't move.
+    const rect = page.getDesktopRect();
+    const same = [0, 2].every((i) => are_near(rect.corner(i), box.corner(i), 1e-6));
+    if (page.isViewportPage() && !same) page.setDesktopRect(box);
+    return false;
   }
 
   override write(xmlDoc: XmlDocument, repr: Node | null, flags: number): Node | null {
