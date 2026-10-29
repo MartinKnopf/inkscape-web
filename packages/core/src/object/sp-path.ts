@@ -24,6 +24,7 @@ import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { spReprCssAttr, spReprCssSet, spReprCssUnsetProperty } from '../xml/repr-css.ts';
+import { SPConnEndPair, sp_conn_end_pair_build } from './sp-conn-end-pair.ts';
 import { lpeItemClasses, sp_lpe_item_update_patheffect } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
@@ -39,9 +40,12 @@ import { SPShape } from './sp-shape.ts';
 /**
  * svg:path (upstream SPPath).
  * With a path effect, inkscape:original-d is the path before the effects (curveBeforeLPE()).
- * TODO: markers, connectors (connEndPair), convert_to_guides, removeTransformsRecursively.
+ * TODO: markers, convert_to_guides, removeTransformsRecursively.
  */
 export class SPPath extends SPShape {
+  /** The connector ends and routing (inkscape:connector-type, inkscape:connection-start/-end). */
+  readonly connEndPair = new SPConnEndPair(this);
+
   nodesInPath(): number {
     return this._curve ? node_count(this._curve) : 0;
   }
@@ -68,6 +72,7 @@ export class SPPath extends SPShape {
   }
 
   protected override build(document: SPDocument, repr: Node): void {
+    sp_conn_end_pair_build(this);
     super.build(document, repr);
     // Our code depends on 'd' being an attribute (LPE's, etc.). To support 'd' as a property, we
     // check it here (after the style property has been evaluated, this allows us to properly
@@ -111,6 +116,14 @@ export class SPPath extends SPShape {
       case SPAttr.D:
         this.setCurve(value !== null ? sp_svg_read_pathv(value) : null);
         break;
+      case SPAttr.CONNECTOR_TYPE:
+      case SPAttr.CONNECTOR_CURVATURE:
+      case SPAttr.CONNECTION_START:
+      case SPAttr.CONNECTION_END:
+      case SPAttr.CONNECTION_START_POINT:
+      case SPAttr.CONNECTION_END_POINT:
+        this.connEndPair.setAttr(key, value);
+        break;
       default:
         super.set(key, value);
         break;
@@ -127,6 +140,7 @@ export class SPPath extends SPShape {
           repr.setAttribute('inkscape:original-d', sp_svg_write_path(this._curve_before_lpe));
         else repr.removeAttribute('inkscape:original-d');
       }
+      this.connEndPair.writeRepr(repr);
     }
     return super.write(xmlDoc, repr, flags);
   }
@@ -139,6 +153,12 @@ export class SPPath extends SPShape {
       flags &= ~SP_OBJECT_USER_MODIFIED_FLAG_B; // since we change the description, it's not a "just translation" anymore
     }
     super.update(ctx, flags);
+    this.connEndPair.update();
+  }
+
+  protected override release(): void {
+    this.connEndPair.release();
+    super.release();
   }
 
   /** Bake the transform into the path data; the stroke width is scaled with it. */

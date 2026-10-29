@@ -12,6 +12,7 @@
  */
 
 import { type PathVector, parse_svg_path, write_svg_path } from '@inkscape-web/geom';
+import type { AvoidRouter } from '../conn-avoid-ref.ts';
 
 /** Upstream: src/livarot/LivarotDefs.h enum BooleanOp. Same values as @inkscape-web/wasm. */
 export enum BooleanOp {
@@ -137,6 +138,8 @@ export interface PathBoolopBackend {
       zoom: number;
     },
   ): { changed: boolean; d: string };
+  /** A new libavoid router for the connectors (see conn-avoid-ref.ts). */
+  newAvoidRouter?(): AvoidRouter;
 }
 
 let backend: PathBoolopBackend | null = null;
@@ -167,6 +170,11 @@ export function flatten(pathv: PathVector, fill_rule: FillRule): PathVector {
 /** Whether the path operations are available (they are not in tests that do not load WASM). */
 export function hasPathBoolopBackend(): boolean {
   return backend !== null;
+}
+
+/** The implementation of the path operations, or null if none was set. */
+export function pathBoolopBackendOrNull(): PathBoolopBackend | null {
+  return backend;
 }
 
 /** The implementation of the path operations. Throws if none was set. */

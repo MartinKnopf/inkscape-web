@@ -16,6 +16,7 @@
  */
 
 import { Affine, Point, Rect, Translate } from '@inkscape-web/geom';
+import { type AvoidRouter, getRouter, process_router_transaction } from './conn-avoid-ref.ts';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { sp_file_fix_page_elements } from './document-update.ts';
 import { prevent_id_clashes } from './id-clash.ts';
@@ -265,17 +266,34 @@ export class SPDocument {
     });
   }
 
-  /** Run update and modified passes until the tree is up to date. Returns false after 32 passes. */
+  /**
+   * Run update and modified passes until the tree is up to date. Returns false after 32 passes.
+   * After the first round, libavoid routes the changed connectors; their redraws are
+   * processed in a second round (upstream ensureUpToDate).
+   */
   ensureUpToDate(objectModifiedTag = 0): boolean {
     let counter = 32;
-    while (!this.#updateDocument(0, objectModifiedTag)) {
-      if (counter-- === 0) {
-        console.warn(`More than 32 iteration while updating document '${this.documentFilename}'`);
-        break;
+    for (let pass = 1; pass <= 2; ++pass) {
+      // Process document updates.
+      while (!this.#updateDocument(0, objectModifiedTag)) {
+        if (counter-- === 0) {
+          console.warn(`More than 32 iteration while updating document '${this.documentFilename}'`);
+          break;
+        }
       }
+      if (counter <= 0) break;
+      // After updates on the first pass we get libavoid to process all the
+      // changed objects and provide new routings.  This may cause some objects
+      // to be modified, hence the second update pass.
+      if (pass === 1 && !process_router_transaction(this)) break;
     }
     this.#updatePending = false;
     return counter > 0;
+  }
+
+  /** The libavoid router of the connectors, or null without the WASM backend (upstream getRouter). */
+  getRouter(): AvoidRouter | null {
+    return getRouter(this);
   }
 
   #updateDocument(updateFlags: number, objectModifiedTag: number): boolean {

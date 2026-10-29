@@ -5,6 +5,7 @@
 export * from './attributes.ts';
 // Upstream namespace Inkscape::Colors.
 export * as Colors from './colors/index.ts';
+export * from './conn-avoid-ref.ts';
 export * from './display/cairo-utils.ts';
 export type * from './display/drawing.ts';
 export * from './document.ts';
@@ -54,6 +55,8 @@ export * from './object/filters/gaussian-blur.ts';
 export * from './object/filters/sp-filter-primitive.ts';
 export * from './object/object-set.ts';
 export * from './object/sp-clippath.ts';
+export * from './object/sp-conn-end.ts';
+export * from './object/sp-conn-end-pair.ts';
 export * from './object/sp-defs.ts';
 export * from './object/sp-dimensions.ts';
 export * from './object/sp-ellipse.ts';
