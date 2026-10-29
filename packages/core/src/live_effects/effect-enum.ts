@@ -203,6 +203,8 @@ const entry = (
   icon: string,
   description: string,
   category: LPECategory,
+  on_shape = true,
+  on_group = true,
 ): EnumEffectData<EffectType> => ({
   id,
   label,
@@ -211,8 +213,8 @@ const entry = (
   description,
   category,
   on_path: true,
-  on_shape: true,
-  on_group: true,
+  on_shape,
+  on_group,
   on_image: false,
   on_text: false,
   experimental: false,
@@ -270,6 +272,18 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
       'Create multiple rotated copies of an object, as in a kaleidoscope. The copies can be styled independently.',
     ),
     LPECategory.Generate,
+  ),
+  entry(
+    EffectType.FILLET_CHAMFER,
+    NC_('path effect', 'Corners'),
+    'fillet_chamfer',
+    'fillet-chamfer',
+    N_(
+      "Fillet/Chamfer: Adjust the shape of a path's corners, rounding them to a specified radius, or cutting them off",
+    ),
+    LPECategory.EditTools,
+    true,
+    false,
   ),
   /* 1.0 */
   entry(

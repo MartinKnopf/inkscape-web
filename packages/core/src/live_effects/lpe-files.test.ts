@@ -22,7 +22,7 @@ const dir = join(
 );
 
 /** The labels of the layers that test the ported effects. */
-const LAYERS = ['simplify', 'roughen', 'offset', 'mirror symmetry', 'rotate copies', 'bend'];
+const LAYERS = ['simplify', 'roughen', 'offset', 'mirror symmetry', 'rotate copies', 'bend', 'corners'];
 
 /**
  * Items that do not match yet (Inkscape_1_3.svg). All are inside a group with the effect and

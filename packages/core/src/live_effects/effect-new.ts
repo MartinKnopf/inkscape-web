@@ -8,6 +8,7 @@ import { type Effect, setEffectFactory } from './effect.ts';
 import { EffectType } from './effect-enum.ts';
 import { LPEBendPath } from './lpe-bendpath.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
+import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
 import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
 import { LPERoughen } from './lpe-roughen.ts';
@@ -31,6 +32,8 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPEMirrorSymmetry(lpeobj);
     case EffectType.COPY_ROTATE:
       return new LPECopyRotate(lpeobj);
+    case EffectType.FILLET_CHAMFER:
+      return new LPEFilletChamfer(lpeobj);
     case EffectType.OFFSET:
       return new LPEOffset(lpeobj);
     default:

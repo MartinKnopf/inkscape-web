@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Tests of the ported effects: the output geometry follows from the upstream math.
-import { type PathVector, type Point, PathVector as PV } from '@inkscape-web/geom';
+import { EllipticalArc, type PathVector, type Point, PathVector as PV } from '@inkscape-web/geom';
 import { loadGeom } from '@inkscape-web/wasm';
 import { describe, expect, it } from 'vitest';
 import { SPDocument } from '../document.ts';
 import { count_pathvector_nodes } from '../helper/geom.ts';
+import { type NodeSatelliteType, nodeSatelliteTypeFromKey } from '../helper/geom-nodesatellite.ts';
 import type { SPShape } from '../object/sp-shape.ts';
 import { setPathBoolopBackend } from '../path/path-boolop.ts';
 import { Effect } from './effect.ts';
+import type { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
 
 setPathBoolopBackend(await loadGeom());
 SPDocument.scheduleIdle = () => {};
@@ -180,5 +182,44 @@ describe('Bend', () => {
     const s = applied('M 0,0 H 10 V 4 H 0 Z', 'bend_path');
     expect(s.getCurrentLPE()?.getRepr()?.attribute('bendpath')).toBe('M 0,2 H 10');
     expect(bounds(curve(s))).toEqual([0, 0, 10, 4]);
+  });
+});
+
+describe('Corners', () => {
+  const square = 'M 0,0 H 10 V 10 H 0 Z';
+  const withRadius = (mode: string) => {
+    const s = applied(square, 'fillet_chamfer');
+    const lpe = s.getCurrentLPE() as LPEFilletChamfer;
+    lpe.radius.param_set_from_widget(2);
+    s.document.ensureUpToDate();
+    if (mode !== 'F') {
+      lpe.updateNodeSatelliteType(nodeSatelliteTypeFromKey(mode) as NodeSatelliteType);
+      s.document.ensureUpToDate();
+    }
+    return s;
+  };
+
+  it('rounds each corner with an arc that starts at the knot distance', () => {
+    const s = withRadius('F');
+    const p = curve(s)[0];
+    expect(p?.closed()).toBe(true);
+    const arcs = p?.curves().filter((c) => c instanceof EllipticalArc) ?? [];
+    expect(arcs).toHaveLength(4);
+    // The fillet at (10,0) runs from (8,0) to (10,2) with radius 2.
+    const arc = arcs.find((c) => c.initialPoint().x > 7 && c.initialPoint().y < 1) as EllipticalArc;
+    near(arc.initialPoint(), [8, 0]);
+    near(arc.finalPoint(), [10, 2]);
+    near(arc.pointAt(0.5), [8 + 2 * Math.SQRT1_2, 2 - 2 * Math.SQRT1_2]);
+    expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
+  });
+
+  it('cuts the corners with a chamfer line', () => {
+    const s = withRadius('C');
+    const p = curve(s)[0];
+    expect(p?.curves().every((c) => c.isLineSegment())).toBe(true);
+    expect(p?.size()).toBe(8);
+    expect(s.getCurrentLPE()?.getRepr()?.attribute('nodesatellites_param')).toBe(
+      'C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1',
+    );
   });
 });
