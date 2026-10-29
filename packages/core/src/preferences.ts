@@ -130,4 +130,8 @@ export class Preferences {
     this.#storage?.remove(path);
     this.changedSignal.emit(path);
   }
+  /** Whether path has a value (upstream getEntry(path).isSet()). */
+  isSet(path: string): boolean {
+    return this.#raw(path) !== undefined;
+  }
 }

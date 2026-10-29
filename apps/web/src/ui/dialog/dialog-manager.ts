@@ -9,6 +9,7 @@ import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
+import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { SwatchesDialog } from './swatches.tsx';
@@ -38,6 +39,7 @@ const DIALOGS: Record<string, DialogData> = {
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
+  LivePathEffect: { label: _('Path E_ffects'), component: LivePathEffectDialog },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
   Swatches: { label: _('S_watches'), component: SwatchesDialog },

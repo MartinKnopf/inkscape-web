@@ -21,6 +21,7 @@ import { parseNumberWithUnit, spSvgNumberReadD } from '../svg/svg-length.ts';
 import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
+import { lpeItemClasses } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_STYLE_MODIFIED_FLAG,
@@ -240,7 +241,7 @@ export class SPSpiral extends SPShape {
   }
 
   override set_shape(): void {
-    // TODO: checkBrokenPathEffect()
+    if (this.checkBrokenPathEffect()) return;
     const darray: Point[] = new Array<Point>(SAMPLE_SIZE + 1).fill(new Point(0, 0));
 
     this.requestModified(SP_OBJECT_MODIFIED_FLAG);
@@ -375,3 +376,5 @@ export class SPSpiral extends SPShape {
     return false;
   }
 }
+
+lpeItemClasses.SPSpiral = SPSpiral;

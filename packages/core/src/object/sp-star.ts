@@ -22,6 +22,7 @@ import { parseNumberWithUnit, readNumberPrefix } from '../svg/svg-length.ts';
 import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
+import { lpeItemClasses } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_STYLE_MODIFIED_FLAG,
@@ -298,7 +299,7 @@ export class SPStar extends SPShape {
   }
 
   override set_shape(): void {
-    // TODO: checkBrokenPathEffect()
+    if (this.checkBrokenPathEffect()) return;
     const sides = this.sides;
     const notRounded = Math.abs(this.rounded) < 1e-4;
     const xy = (point: SPStarPoint, i: number) => sp_star_get_xy(this, point, i, true);
@@ -452,3 +453,5 @@ export class SPStar extends SPShape {
     this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
   }
 }
+
+lpeItemClasses.SPStar = SPStar;

@@ -773,7 +773,7 @@ export class SPItem extends SPObject {
   /**
    * Set a new transform: compensate the stroke width as the preferences say, let
    * setTransform() embed it if allowed, and write the result to the repr.
-   * TODO: compensate rx/ry of rects, patterns, hatches and gradients; LPE.
+   * TODO: compensate rx/ry of rects, patterns, hatches and gradients.
    */
   doWriteTransform(transform: Affine, adv: Affine | null = null, compensate = true): void {
     // Transform delta between the transform currently in the repr and the new transform.
@@ -799,10 +799,14 @@ export class SPItem extends SPObject {
 
     const preserve = prefs.getBool('/options/preservetransform/value', false);
     let transformAttr = transform;
+    // (upstream calls notifyTransform on cast<SPLPEItem>(this); here SPItem has an empty one)
+    this.notifyTransform(transform);
+    const unoptimiced = this.unoptimized();
     // Run the object's setTransform (i.e. embed the transform) only if the user did not choose to
-    // preserve all transforms, and the object has no filter or the transform is a translation.
-    // TODO: no clip path, no mask, no LPE (unoptimized()), text on path.
-    if (!preserve && !(!transform.isTranslation() && this.style.getFilter())) {
+    // preserve all transforms, the object has no filter or the transform is a translation, and
+    // the object has no path effect.
+    // TODO: no clip path, no mask, text on path.
+    if (!preserve && !(!transform.isTranslation() && this.style.getFilter()) && !unoptimiced) {
       transformAttr = this.setTransform(transform);
     }
     if (this.freeze_stroke_width) {
@@ -824,6 +828,14 @@ export class SPItem extends SPObject {
     this.updateRepr();
 
     this.transformedSignal.emit(advertizedTransform, this);
+  }
+
+  /** Tell the path effects of the item about a new transform (SPLPEItem overrides it). */
+  notifyTransform(_postmul: Affine): void {}
+
+  /** True if the transform must stay in the transform attribute: the item has a path effect. TODO: satellites. */
+  unoptimized(): boolean {
+    return !!this.getAttribute('inkscape:path-effect');
   }
 
   /** Set the transform without writing it to the repr or compensating anything. */

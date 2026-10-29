@@ -19,6 +19,7 @@ import { C_ } from './i18n.ts';
 import type { ObjectSet } from './object/object-set.ts';
 import { SPItem } from './object/sp-item.ts';
 import { SPGroup } from './object/sp-item-group.ts';
+import { SPLPEItem } from './object/sp-lpe-item.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { SPPath } from './object/sp-path.ts';
 import { SPShape } from './object/sp-shape.ts';
@@ -232,7 +233,7 @@ function to_livarot(fill_rule: SPWindRule): FillRule {
  * Convert the items of set to paths, with the undo step "Object to path"
  * unless skip_undo (upstream ObjectSet::toCurves). The converted items take
  * the place of the originals in the set.
- * TODO: unlink clones (unlinkRecursive), text, 3D boxes, LPE items,
+ * TODO: unlink clones (unlinkRecursive), text, 3D boxes,
  * the messages in the status bar.
  */
 export function toCurves(set: ObjectSet, skip_undo = false): void {
@@ -272,9 +273,33 @@ export function sp_item_list_to_curves(
   to_select: Node[],
 ): boolean {
   let did = false;
-  for (const item of items) {
-    // TODO: 3D boxes, LPE items, connectors.
-    if (item instanceof SPPath) continue; // already a path
+  for (let item of items) {
+    // TODO: 3D boxes, connectors.
+    const document = item.document;
+    // remember id
+    const lpe_id = item.getRepr().attribute('id');
+    if (item instanceof SPLPEItem && item.hasPathEffect()) {
+      const lpeitem = item;
+      lpeitem.removeAllPathEffects(true);
+      const elemref = document.getObjectById(lpe_id);
+      if (elemref !== item) {
+        const index = selected.indexOf(item);
+        if (index >= 0) selected.splice(index, 1);
+        did = true;
+        if (elemref instanceof SPItem) {
+          //If the LPE item is a shape is converted to a path so we need to reupdate the item
+          item = elemref;
+          selected.push(item);
+        } else {
+          // item deleted. Possibly because original-d value has no segments
+          continue;
+        }
+      } else if (!lpeitem.hasPathEffect()) {
+        did = true;
+      }
+    }
+
+    if (item instanceof SPPath) continue; // already a path, and no path effect
 
     if (item instanceof SPGroup) {
       const item_list: SPItem[] = [];

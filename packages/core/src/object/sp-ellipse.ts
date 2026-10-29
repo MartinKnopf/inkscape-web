@@ -41,6 +41,7 @@ import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import type { SPItemCtx } from './sp-item.ts';
+import { lpeItemClasses } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_STYLE_MODIFIED_FLAG,
@@ -240,9 +241,9 @@ export class SPGenericEllipse extends SPShape {
   }
 
   override write(xmlDoc: XmlDocument, repr: Node | null, flags: number): Node | null {
-    // TODO: arc when a clip or mask has a path effect (hasPathEffectOnClipOrMaskRecursive).
     let newType: GenericEllipseType;
-    if (this.#isSlice()) newType = GenericEllipseType.SP_GENERIC_ELLIPSE_ARC;
+    if (this.#isSlice() || this.hasPathEffectOnClipOrMaskRecursive(this))
+      newType = GenericEllipseType.SP_GENERIC_ELLIPSE_ARC;
     else if (this.rx.computed === this.ry.computed) newType = GenericEllipseType.SP_GENERIC_ELLIPSE_CIRCLE;
     else newType = GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE;
 
@@ -395,7 +396,7 @@ export class SPGenericEllipse extends SPShape {
 
   /** Create the path for rendering the shape on screen. */
   override set_shape(): void {
-    // TODO: checkBrokenPathEffect()
+    if (this.checkBrokenPathEffect()) return;
     if (this.rx.computed <= EPSILON || this.ry.computed <= EPSILON) {
       this.setCurveInsync(null);
       return;
@@ -648,3 +649,5 @@ const ELEMENT_OF_TYPE: Partial<Record<GenericEllipseType, string>> = {
   [GenericEllipseType.SP_GENERIC_ELLIPSE_CIRCLE]: 'svg:circle',
   [GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE]: 'svg:ellipse',
 };
+
+lpeItemClasses.SPGenericEllipse = SPGenericEllipse;

@@ -33,7 +33,8 @@ describe('SPPath', () => {
     expect(p.curve()?.[0]?.size()).toBe(1);
     p.updateRepr();
     expect(p.getAttribute('d')).toBe('M 1,2 3,4');
-    expect(p.getAttribute('inkscape:original-d')).toBe('M 1,1');
+    // Without a path effect, inkscape:original-d is dropped (upstream SPShape::build).
+    expect(p.getAttribute('inkscape:original-d')).toBeNull();
   });
 
   it('adds an empty d when it is missing', () => {

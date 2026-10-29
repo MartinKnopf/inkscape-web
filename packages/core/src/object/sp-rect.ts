@@ -33,6 +33,7 @@ import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import type { SPItemCtx } from './sp-item.ts';
+import { lpeItemClasses } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_STYLE_MODIFIED_FLAG,
@@ -175,12 +176,14 @@ export class SPRect extends SPShape {
   }
 
   override write(xmlDoc: XmlDocument, repr: Node | null, flags: number): Node | null {
-    // TODO: svg:path with sodipodi:type="rect" when a clip or mask has a path effect.
-    const newType: GenericRectType = GenericRectType.SP_GENERIC_RECT;
-    if (flags & SP_OBJECT_WRITE_BUILD && !repr) repr = xmlDoc.createElement('svg:rect');
+    let newType: GenericRectType = GenericRectType.SP_GENERIC_RECT;
+    if (this.hasPathEffectOnClipOrMaskRecursive(this)) newType = GenericRectType.SP_GENERIC_PATH;
+    const element = newType === GenericRectType.SP_GENERIC_PATH ? 'svg:path' : 'svg:rect';
+    if (flags & SP_OBJECT_WRITE_BUILD && !repr) repr = xmlDoc.createElement(element);
     if (!repr) return null;
     if (this.type !== newType) {
-      repr.setCodeUnsafe('svg:rect');
+      repr.setCodeUnsafe(element);
+      if (newType === GenericRectType.SP_GENERIC_PATH) repr.setAttribute('sodipodi:type', 'rect');
       this.type = newType;
     }
     repr.setAttributeSvgLength('width', this.width);
@@ -197,7 +200,7 @@ export class SPRect extends SPShape {
   }
 
   override set_shape(): void {
-    // TODO: checkBrokenPathEffect()
+    if (this.checkBrokenPathEffect()) return;
     if (this.height.computed < 1e-18 || this.width.computed < 1e-18) {
       this.setCurveInsync(null);
       return;
@@ -472,3 +475,5 @@ export class SPRect extends SPShape {
     }
   }
 }
+
+lpeItemClasses.SPRect = SPRect;

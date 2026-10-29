@@ -73,6 +73,17 @@ export abstract class BezierCurve implements Curve {
     );
   }
 
+  /** Arc length within tolerance (upstream BezierCurve::length with bezier_length). */
+  length(tolerance = 0.01): Coord {
+    if (this.#points.length === 2) return (this.#points[0] as Point).sub(this.#points[1] as Point).length();
+    return bezier_length_internal([...this.#points], tolerance, 0);
+  }
+
+  /** The two halves split at time t (upstream subdivide()). */
+  subdivide(t: Coord): [BezierCurve, BezierCurve] {
+    return [this.portion(0, t), this.portion(t, 1)];
+  }
+
   /** Bounding box of the control points. */
   boundsFast(): Rect {
     return new Rect(bounds_fast(this.#points.map((p) => p.x)), bounds_fast(this.#points.map((p) => p.y)));
@@ -121,6 +132,33 @@ export abstract class BezierCurve implements Curve {
 
   /** Send the curve without its initial point to the sink. */
   protected abstract feedSegment(sink: PathSink): void;
+}
+
+/*
+ * The Bezier length algorithm used in 2Geom utilizes a simple fact:
+ * the Bezier curve is longer than the distance between its endpoints
+ * but shorter than the length of the polyline formed by its control
+ * points. When the difference between the two values is smaller than the
+ * error tolerance, we can be sure that the true value is no further than
+ * 0.5 * tolerance from their arithmetic mean. When it's larger, we recursively
+ * subdivide the Bezier curve into two parts and add their lengths.
+ *
+ * We cap the maximum number of subdivisions at 256, which corresponds to 8 levels.
+ */
+function bezier_length_internal(v1: Point[], tolerance: Coord, level: number): Coord {
+  const lower = (v1[0] as Point).sub(v1[v1.length - 1] as Point).length();
+  let upper = 0.0;
+  for (let i = 0; i < v1.length - 1; ++i) upper += (v1[i] as Point).sub(v1[i + 1] as Point).length();
+  if (upper - lower <= 2 * tolerance || level >= 8) return (lower + upper) / 2;
+  const v2 = [...v1];
+  for (let i = 1; i < v1.length; ++i) {
+    for (let j = i; j > 0; --j) v1[j - 1] = (v1[j - 1] as Point).add(v1[j] as Point).mul(0.5);
+    v2[i] = v1[0] as Point;
+  }
+  return (
+    bezier_length_internal(v1, 0.5 * tolerance, level + 1) +
+    bezier_length_internal(v2, 0.5 * tolerance, level + 1)
+  );
 }
 
 /** Straight line segment (order 1). */

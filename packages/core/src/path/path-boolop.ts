@@ -11,6 +11,8 @@
  * Copyright (C) 2018 Authors
  */
 
+import { type PathVector, parse_svg_path, write_svg_path } from '@inkscape-web/geom';
+
 /** Upstream: src/livarot/LivarotDefs.h enum BooleanOp. Same values as @inkscape-web/wasm. */
 export enum BooleanOp {
   bool_op_union = 0, // A OR B
@@ -46,6 +48,32 @@ export interface PathBoolopBackend {
   cutPath(pathv: string, lines: string): string[];
   /** split_non_intersecting_paths(paths, fill_rule) of helper/geom-pathstroke.cpp. */
   splitNonIntersectingPaths(d: string, fillRule: number): string[];
+  /** flatten(pathv, fill_rule): the path without self-intersections. */
+  flattenPath(d: string, fillRule: number): string;
+  /** Geom::crossings(a, b) of the first paths of a and b: [ta, tb, ta, tb, ...]. */
+  pathCrossings(a: string, b: string): number[];
+  /** The livarot part of the Simplify LPE (lpe-simplify.cpp doEffect); threshold is scaled already. */
+  simplifyPath(d: string, threshold: number, steps: number, justCoalesce: boolean): string;
+  /** do_offset() of helper/geom-pathstroke.cpp (Offset LPE). join is an Inkscape::LineJoinType. */
+  offsetPath(
+    d: string,
+    toOffset: number,
+    tolerance: number,
+    miterLimit: number,
+    fillRule: number,
+    join: number,
+    point: readonly [number, number],
+  ): { d: string; helper: string; mix: string };
+  /** The 2geom part of the Bend LPE (lpe-bendpath.cpp doEffect_pwd2); bbox is [x0, x1, y0, y1]. */
+  bendPath(
+    d: string,
+    bend: string,
+    bbox: readonly [number, number, number, number],
+    propScale: number,
+    scaleYRel: boolean,
+    vertical: boolean,
+    version15: boolean,
+  ): string;
 }
 
 let backend: PathBoolopBackend | null = null;
@@ -53,6 +81,24 @@ let backend: PathBoolopBackend | null = null;
 /** Set the implementation of the path operations (see PathBoolopBackend). */
 export function setPathBoolopBackend(b: PathBoolopBackend | null): void {
   backend = b;
+}
+
+/** Upstream sp_pathvector_boolop(). Note the operand order: bool_op_diff gives b minus a. */
+export function sp_pathvector_boolop(
+  pathva: PathVector,
+  pathvb: PathVector,
+  bop: BooleanOp,
+  fra: FillRule,
+  frb: FillRule,
+): PathVector {
+  return parse_svg_path(
+    pathBoolopBackend().boolop(write_svg_path(pathva), write_svg_path(pathvb), bop, fra, frb),
+  );
+}
+
+/** Upstream flatten(): remove the self-intersections of pathv with the fill rule. */
+export function flatten(pathv: PathVector, fill_rule: FillRule): PathVector {
+  return parse_svg_path(pathBoolopBackend().flattenPath(write_svg_path(pathv), fill_rule));
 }
 
 /** The implementation of the path operations. Throws if none was set. */

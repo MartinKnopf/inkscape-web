@@ -14,10 +14,14 @@ import {
   C_,
   DocumentUndo,
   type InputPoint,
+  LivePathEffectObject,
   type NodeObserver,
+  PathParam,
   Preferences,
   pathv_to_linear_and_cubic_beziers,
+  SP_OBJECT_MODIFIED_FLAG,
   SPPath,
+  sp_lpe_item_update_patheffect,
   type Node as XmlNode,
 } from '@inkscape-web/core';
 import {
@@ -110,13 +114,16 @@ function cubic_extrema(c: readonly [number, number, number, number]): number[] {
  * PathManipulator). Currently only cubic bezier and linear segments are
  * supported. Node and handle positions are in desktop coordinates; the path
  * data (_spcurve) is in item coordinates.
- * TODO: path outline and direction display, LPE paths (BSpline, LPE parameters),
+ * A path with a path effect is edited before the effect (inkscape:original-d). With an lpe_key,
+ * the manipulator edits the path parameter of that key of a LivePathEffectObject.
+ * TODO: path outline and direction display, BSpline and Spiro paths,
  * simplifyInvisible, copySelectedPath, single handle scaling and rotation with the keyboard.
  */
 export class PathManipulator extends PointManipulator {
   readonly _subpaths: SubpathList;
   readonly _multi_path_manipulator: MultiPathManipulator;
-  _path: SPPath | null;
+  _path: SPPath | LivePathEffectObject | null;
+  readonly _lpe_key: string;
   /** In item coordinates. */
   _spcurve: PathVector = [];
   /** an invisible control point hovering over curve */
@@ -135,11 +142,12 @@ export class PathManipulator extends PointManipulator {
   readonly #repr: XmlNode;
   readonly #disconnects: (() => void)[] = [];
 
-  constructor(mpm: MultiPathManipulator, path: SPPath, et: Affine) {
+  constructor(mpm: MultiPathManipulator, path: SPPath | LivePathEffectObject, et: Affine, lpe_key = '') {
     super(mpm._path_data.node_data.desktop, mpm._path_data.node_data.selection);
     this._subpaths = new SubpathList(this);
     this._multi_path_manipulator = mpm;
     this._path = path;
+    this._lpe_key = lpe_key;
     this._dragpoint = new CurveDragPoint(this);
     this.#edit_transform = et;
     // Notifies the path manipulator when something changes the path being edited (e.g. undo / redo)
@@ -148,14 +156,15 @@ export class PathManipulator extends PointManipulator {
         // do nothing if blocked
         if (this.#observer_blocked) return;
         // only react to "d" (path data) and "transform" attribute changes
-        if (name === 'd') this._externalChange(PathChange.PATH_CHANGE_D);
-        else if (name === 'transform') this._externalChange(PathChange.PATH_CHANGE_TRANSFORM);
+        if (name === 'd' || name === 'inkscape:original-d' || (this._lpe_key && name === this._lpe_key)) {
+          this._externalChange(PathChange.PATH_CHANGE_D);
+        } else if (name === 'transform') this._externalChange(PathChange.PATH_CHANGE_TRANSFORM);
       },
     };
     this.#repr = path.getRepr();
     this.#repr.addObserver(this.#observer);
 
-    this.#i2d_transform = path.i2dtAffine();
+    this.#i2d_transform = path instanceof SPPath ? path.i2dtAffine() : Affine.identity();
     this.#d2i_transform = this.#i2d_transform.inverse();
     this._dragpoint.setVisible(false);
 
@@ -201,7 +210,7 @@ export class PathManipulator extends PointManipulator {
     return !this._path || this._subpaths.empty();
   }
 
-  item(): SPPath | null {
+  item(): SPPath | LivePathEffectObject | null {
     return this._path;
   }
 
@@ -223,7 +232,7 @@ export class PathManipulator extends PointManipulator {
     this.#observer_blocked = true;
     if (!this.empty()) {
       this._path.updateRepr();
-      this._path.setAttribute('sodipodi:nodetypes', this._createTypeString());
+      this._path.setAttribute(this._nodetypesKey(), this._createTypeString());
     } else {
       // this manipulator will have to be destroyed right after this call
       this._path.deleteObject(true);
@@ -985,7 +994,7 @@ export class PathManipulator extends PointManipulator {
       }
       case PathChange.PATH_CHANGE_TRANSFORM: {
         const path = this._path;
-        if (!path?.parent) break;
+        if (!(path instanceof SPPath) || !path.parent) break;
         const i2d = path.i2dtAffine();
         // Document modifications without a change of the transform are common (every drag step).
         if (i2d.isNear(this.#i2d_transform, 1e-12)) break;
@@ -1055,7 +1064,7 @@ export class PathManipulator extends PointManipulator {
     // we need to set the nodetypes after all the handles are in place,
     // so that pickBestType works correctly
     // TODO maybe migrate to inkscape:node-types?
-    const nts_raw = this._path?.getAttribute('sodipodi:nodetypes') ?? '';
+    const nts_raw = this._path?.getAttribute(this._nodetypesKey()) ?? '';
     /* pad the string to required length with a bogus value.
      * 'b' and any other letter not recognized by the parser causes the best fit to be set
      * as the node type */
@@ -1125,15 +1134,42 @@ export class PathManipulator extends PointManipulator {
 
   /** Retrieve the geometry of the edited object from the object tree */
   _getGeometry(): void {
-    this._spcurve = this._path?.curve() ?? [];
+    if (this._path instanceof LivePathEffectObject) {
+      const pathparam = this._path.get_lpe()?.getParameter(this._lpe_key);
+      if (pathparam instanceof PathParam) this._spcurve = pathparam.get_pathvector();
+    } else {
+      this._spcurve = this._path?.curveForEdit() ?? [];
+    }
   }
 
   /** Set the geometry of the edited object in the object tree, but do not commit to XML */
   _setGeometry(): void {
     // return true to leave the decision on empty to the caller.
     // Maybe the path become empty and we want to update to empty
-    if (this.empty() || !this._path) return;
-    this._path.setCurve(this._spcurve);
+    const path = this._path;
+    if (path instanceof LivePathEffectObject) {
+      // NOTE: if we are editing an LPE param, _path is not actually an SPPath, it is
+      // a LivePathEffectObject. (mad laughter)
+      const pathparam = path.get_lpe()?.getParameter(this._lpe_key);
+      if (pathparam instanceof PathParam) {
+        if (pathvEquals(pathparam.get_pathvector(), this._spcurve)) return; //False we dont update LPE
+        pathparam.set_new_value(this._spcurve, false);
+        path.requestModified(SP_OBJECT_MODIFIED_FLAG);
+      }
+      return;
+    }
+    if (this.empty() || !path) return;
+    if (path.curveBeforeLPE()) {
+      path.setCurveBeforeLPE(this._spcurve);
+      if (path.hasPathEffectRecursive()) sp_lpe_item_update_patheffect(path, true, false);
+    } else {
+      path.setCurve(this._spcurve);
+    }
+  }
+
+  /** Figure out in what attribute to store the nodetype string. */
+  _nodetypesKey(): string {
+    return this._path instanceof LivePathEffectObject ? `${this._lpe_key}-nodetypes` : 'sodipodi:nodetypes';
   }
 
   /**
@@ -1283,7 +1319,7 @@ export class PathManipulator extends PointManipulator {
     /* Stroke event tolerance is equal to half the stroke's width plus the global
      * drag tolerance setting.  */
     let ret = Math.min(Math.max(Preferences.get().getInt('/options/dragtolerance/value', 2), 0), 100);
-    const style = this._path?.style;
+    const style = this._path instanceof SPPath ? this._path.style : null;
     if (style && !style.stroke.isNone()) {
       ret +=
         style.stroke_width.computed *

@@ -173,6 +173,69 @@ export class Path {
     else this.#start = p;
   }
 
+  /**
+   * The point at path time t: the integer part is the curve index, the fraction the time on that
+   * curve (the closing segment counts if it is not degenerate). Throws for t outside [0, size()].
+   */
+  pointAt(t: number): Point {
+    const [i, ct] = this.#factorTime(t);
+    return this.at(i).pointAt(ct);
+  }
+
+  /**
+   * The part of the path between the path times from and to (upstream Path::portion(Coord, Coord)
+   * with appendPortionTo). from > to wraps around the end, as upstream. The result is open.
+   */
+  portion(from: number, to: number): Path {
+    const ret = new Path();
+    if (!(from >= 0 && to >= 0)) throw new RangeError('from and to must be >=0 in Path::appendPortionTo');
+    const curves = this.curves();
+    if (to === 0) to = curves.length + 0.999999;
+    if (from === to) return ret;
+    let fi = Math.trunc(from);
+    let ti = Math.trunc(to);
+    const ff = from - fi;
+    let tf = to - ti;
+    if (tf === 0) {
+      ti--;
+      tf = 1;
+    }
+    const curve = (i: number) => {
+      const c = curves[i];
+      if (!c) throw new RangeError(`Path.portion: index ${i} out of range`);
+      return c;
+    };
+    if (fi === ti && from < to) {
+      ret.appendCurve(curve(fi).portion(ff, tf));
+      return ret;
+    }
+    if (ff !== 1) ret.appendCurve(curve(fi).portion(ff, 1));
+    if (from >= to) {
+      let ender = curves.length;
+      const closing = this.closingSegment();
+      if (ender === this.#curves.length && closing.initialPoint().equals(closing.finalPoint())) ender++;
+      for (fi++; fi < Math.min(ender, curves.length); fi++) ret.appendCurve(curve(fi));
+      for (let i = 0; i < ti; i++) ret.appendCurve(curve(i));
+    } else {
+      for (fi++; fi < ti; fi++) ret.appendCurve(curve(fi));
+    }
+    ret.appendCurve(curve(ti).portion(0, tf));
+    return ret;
+  }
+
+  /** Curve index and curve time of path time t (upstream Path::_factorTime). */
+  #factorTime(t: number): [number, number] {
+    const sz = this.size();
+    if (t < 0 || t > sz) throw new RangeError('parameter t out of bounds');
+    let k = Math.trunc(t);
+    let ct = t - k;
+    if (k === sz) {
+      k--;
+      ct = 1;
+    }
+    return [k, ct];
+  }
+
   /** Bounding box from the fast bounds of the curves; null for an empty path. */
   boundsFast(): OptRect {
     return this.#bounds((c) => c.boundsFast());

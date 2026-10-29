@@ -17,12 +17,15 @@ import { SPAttr } from '../attributes.ts';
 import type { Drawing, DrawingGroup, DrawingItem } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
 import { _, C_, ngettext } from '../i18n.ts';
+import type { Effect } from '../live_effects/effect.ts';
 import type { SnapCandidatePoint } from '../snap-candidate.ts';
 import type { SnapPreferences } from '../snap-preferences.ts';
+import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { sp_repr_is_meta_element } from '../xml/repr-util.ts';
 import { type BBoxType, i2anc_affine, SPItem, type SPItemCtx } from './sp-item.ts';
+import { can_have_lpe, lpeItemClasses, SPLPEItem, sp_lpe_item_update_patheffect } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_CHILD_MODIFIED_FLAG,
   SP_OBJECT_FLAGS_ALL,
@@ -44,9 +47,10 @@ export enum LayerMode {
 
 /**
  * svg:g and the base of svg:svg (upstream SPGroup).
- * TODO: LPE, layer resources in the document, insertBottom, title/desc in write().
+ * A path effect on a group applies to the shapes in it (update_patheffect).
+ * TODO: layer resources in the document, insertBottom, title/desc in write().
  */
-export class SPGroup extends SPItem {
+export class SPGroup extends SPLPEItem {
   _layer_mode = LayerMode.GROUP;
   /** Layer mode per display key, see setLayerDisplayMode(). */
   _display_modes = new Map<number, LayerMode>();
@@ -137,6 +141,44 @@ export class SPGroup extends SPItem {
   }
 
   // The views of a removed child are released in SPItem.release().
+
+  protected override removeChild(child: Node): void {
+    super.removeChild(child);
+    if (this.hasPathEffectRecursive()) {
+      sp_lpe_item_update_patheffect(this, true, true);
+      this.requestModified(SP_OBJECT_MODIFIED_FLAG);
+    }
+  }
+
+  /** Run the effects of the children, then the effects of the group on all shapes in it. */
+  override update_patheffect(write: boolean): void {
+    for (const sub_item of this.item_list()) {
+      // don't need lpe version < 1 (issue only reply on lower LPE on nested LPEs
+      // this doesn't happen because it's done at very first stage
+      // we need to be sure performed to inform lpe original bounds ok,
+      // if not original_bbox function fail on update groups
+      const SPShape = lpeItemClasses.SPShape;
+      if (SPShape && sub_item instanceof SPShape && sub_item.hasPathEffectRecursive()) {
+        sub_item.bbox_vis_cache_is_valid = false;
+        sub_item.bbox_geom_cache_is_valid = false;
+      }
+      if (sub_item instanceof SPLPEItem) sub_item.update_patheffect(write);
+    }
+    // avoid update lpe in each selection
+    // must be set also to non effect items (satellites or parents)
+    this.lpe_initialized = true;
+    if (this.hasPathEffect() && this.pathEffectsEnabled()) {
+      this.resetClipPathAndMaskLPE();
+      for (const lperef of [...this.path_effect_list]) {
+        const lpe = lperef.lpeobject?.get_lpe();
+        if (lpe?.isVisible()) {
+          lpe.doBeforeEffect_impl(this);
+          sp_group_perform_patheffect(this, this, lpe, write);
+          lpe.doAfterEffect_impl(this, null);
+        }
+      }
+    }
+  }
 
   protected override orderChanged(child: Node, oldRef: Node | null, newRef: Node | null): void {
     super.orderChanged(child, oldRef, newRef);
@@ -337,4 +379,46 @@ export function sp_item_group_ungroup(group: SPGroup, children: SPItem[]): void 
     children.unshift(item);
     item.requestModified(SP_OBJECT_MODIFIED_FLAG);
   }
+}
+
+lpeItemClasses.SPGroup = SPGroup;
+
+function sp_group_perform_patheffect(group: SPGroup, top_group: SPGroup, lpe: Effect, write: boolean): void {
+  for (const sub_item of group.item_list()) {
+    if (!can_have_lpe(sub_item)) {
+      // Reject things with curves that can't have path
+      // effects: polygons, paths with offsets, etc.
+      continue;
+    }
+    if (sub_item instanceof SPGroup) {
+      sp_group_perform_patheffect(sub_item, top_group, lpe, write);
+      continue;
+    }
+    top_group.applyToClipPath(sub_item, lpe);
+    top_group.applyToMask(sub_item, lpe);
+    const SPShape = lpeItemClasses.SPShape;
+    if (!SPShape || !(sub_item instanceof SPShape)) continue;
+    const sub_shape = sub_item;
+    // only run LPEs when the shape has a curve defined
+    const curve = sub_shape.curve();
+    if (!curve) continue;
+    lpe.pathvector_before_effect = curve;
+    const i2anc = i2anc_affine(sub_shape, top_group);
+    const c: [typeof curve] = [curve.map((p) => p.transformed(i2anc))];
+    sub_shape.setCurveInsync(c[0]);
+    const success = top_group.performOnePathEffect(c, sub_shape, lpe);
+    const result = c[0].map((p) => p.transformed(i2anc.inverse()));
+    if (success) {
+      sub_shape.setCurveInsync(result);
+      if (lpe.lpeversion.param_getSVGValue() !== '0') {
+        // we are on 1 or up
+        sub_shape.bbox_vis_cache_is_valid = false;
+        sub_shape.bbox_geom_cache_is_valid = false;
+      }
+      lpe.pathvector_after_effect = result;
+      if (write) sub_item.getRepr().setAttribute('d', sp_svg_write_path(lpe.pathvector_after_effect));
+    }
+  }
+  top_group.applyToClipPath(group, lpe);
+  top_group.applyToMask(group, lpe);
 }

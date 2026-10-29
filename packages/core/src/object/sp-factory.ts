@@ -6,6 +6,8 @@
  *
  * Copyright (C) 2013 Authors
  */
+import '../live_effects/effect-new.ts';
+import { LivePathEffectObject } from '../live_effects/lpeobject.ts';
 import { SPGaussianBlur } from './filters/gaussian-blur.ts';
 import { SPFilterPrimitive } from './filters/sp-filter-primitive.ts';
 import { SPClipPath } from './sp-clippath.ts';
@@ -86,6 +88,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['sodipodi:namedview', () => new SPNamedView()],
   ['sodipodi:guide', () => new SPGuide()],
   ['inkscape:grid', () => new SPGrid()],
+  ['inkscape:path-effect', () => new LivePathEffectObject()],
 
   // Filter primitives. TODO: the subclasses of SPFilterPrimitive (SPFeBlend, ...) and the
   // objects inside primitives (feFuncR, feMergeNode, lights); the drawing copies them as they are.

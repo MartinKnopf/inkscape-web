@@ -70,6 +70,8 @@ export * from './ui/dialog/export.ts';
 export * from './ui/dialog/fill-and-stroke.ts';
 export * from './ui/dialog/global-palettes.ts';
 export * from './ui/dialog/guides.ts';
+// Functions of the Path Effects dialog (upstream class LivePathEffectEditor).
+export * as LivePathEffectEditor from './ui/dialog/livepatheffect-editor.ts';
 export * from './ui/dialog/object-properties.ts';
 export * from './ui/dialog/objects.ts';
 export * from './ui/dialog/swatches.ts';
@@ -79,6 +81,8 @@ export * from './ui/dialog/transformation.ts';
 export * from './ui/dialog/undo-history.ts';
 export * from './ui/dialog/xml-tree.ts';
 export * from './ui/knot/knot.ts';
+export { KnotHolder } from './ui/knot/knot-holder.ts';
+export * from './ui/shape-editor.ts';
 export * from './ui/shortcuts.ts';
 export * from './ui/tool/commit-events.ts';
 export * from './ui/tool/control-point.ts';
