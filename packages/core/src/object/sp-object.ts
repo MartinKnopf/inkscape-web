@@ -146,6 +146,65 @@ export class SPObject implements NodeObserver {
   label(): string | null {
     return this.#label;
   }
+  /** The text of the first svg:title (or svg:desc) child element, or null if there is none. */
+  getTitleOrDesc(tagname: 'svg:title' | 'svg:desc'): string | null {
+    const elem = this.#findChildElement(tagname);
+    return elem ? textualContent(elem) : null;
+  }
+
+  title(): string | null {
+    return this.getTitleOrDesc('svg:title');
+  }
+
+  desc(): string | null {
+    return this.getTitleOrDesc('svg:desc');
+  }
+
+  /**
+   * Set the text of the svg:title (or svg:desc) child element; whitespace only
+   * (unless verbatim) or null removes the element. Returns whether anything changed.
+   */
+  setTitleOrDesc(value: string | null, tagname: 'svg:title' | 'svg:desc', verbatim = false): boolean {
+    if (!verbatim) {
+      // Whitespace only counts as no value.
+      if (value !== null && value.trim() === '') value = null;
+      // Do not stomp on mark-up if there is no real change.
+      if (value !== null && this.getTitleOrDesc(tagname) === value) return false;
+    }
+    let elem = this.#findChildElement(tagname);
+    if (value === null) {
+      if (!elem) return false;
+      while (elem) {
+        elem.parent()?.removeChild(elem);
+        elem = this.#findChildElement(tagname);
+      }
+      return true;
+    }
+    if (!elem) {
+      // Put the new element at the beginning, as the SVG specification recommends.
+      elem = this.repr.document().createElement(tagname);
+      this.repr.addChild(elem, null);
+    } else {
+      while (elem.firstChild()) elem.removeChild(elem.firstChild() as Node);
+    }
+    elem.appendChild(this.repr.document().createTextNode(value));
+    return true;
+  }
+
+  setTitle(title: string | null, verbatim = false): boolean {
+    return this.setTitleOrDesc(title, 'svg:title', verbatim);
+  }
+
+  setDesc(desc: string | null, verbatim = false): boolean {
+    return this.setTitleOrDesc(desc, 'svg:desc', verbatim);
+  }
+
+  #findChildElement(tagname: string): Node | null {
+    for (let c = this.repr.firstChild(); c; c = c.next())
+      if (c.type() === 'element' && c.name() === tagname) return c;
+    return null;
+  }
+
   getLanguage(): string | null {
     for (let o: SPObject | null = this; o; o = o.parent) if (o.#lang) return o.#lang;
     return null;
@@ -649,4 +708,14 @@ function checkRequestFlags(flags: number): void {
   if (flags & SP_OBJECT_PARENT_MODIFIED_FLAG || !(modified || child) || (modified && child)) {
     throw new Error('request flags must contain one of MODIFIED or CHILD_MODIFIED, and not PARENT_MODIFIED');
   }
+}
+
+/** The text of node and its descendants (upstream SPObject::textualContent, on the repr). */
+function textualContent(node: Node): string {
+  let text = '';
+  for (let c = node.firstChild(); c; c = c.next()) {
+    if (c.type() === 'text') text += c.content() ?? '';
+    else if (c.type() === 'element') text += textualContent(c);
+  }
+  return text;
 }

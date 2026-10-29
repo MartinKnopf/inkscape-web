@@ -43,6 +43,17 @@ for (const dir of SHARE_DIRS) {
   });
 }
 
+// The web has no directory listing: index.json names the palette and symbol files (relative to their folder).
+const listFiles = (dir: string, ext: string): string[] =>
+  (readdirSync(dir, { recursive: true, encoding: 'utf8' }) as string[]).filter((f) => f.endsWith(ext)).sort();
+for (const [dir, ext] of [
+  ['palettes', '.gpl'],
+  ['symbols', '.svg'],
+] as const) {
+  const folder = join(dist, 'share', dir);
+  writeFileSync(join(folder, 'index.json'), JSON.stringify(listFiles(folder, ext)));
+}
+
 // Translations: po/<lang>.po → po/<lang>.json
 mkdirSync(join(dist, 'po'));
 const languages: string[] = [];

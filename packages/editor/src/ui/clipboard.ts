@@ -24,8 +24,11 @@ import {
   SPGroup,
   SPItem,
   type SPObject,
+  SPSymbol,
   SPUse,
+  SPViewBox,
   SVG_NS_URI,
+  sanitize_id,
   saveBuf,
   sp_object_compare_position,
   sp_repr_lookup_descendant,
@@ -40,7 +43,7 @@ import {
   type XmlDocument,
   type Node as XmlNode,
 } from '@inkscape-web/core';
-import { type Rect, Scale } from '@inkscape-web/geom';
+import { type Point, type Rect, Scale } from '@inkscape-web/geom';
 import { have_viable_layer } from '../context-fns.ts';
 import type { SPDesktop } from '../desktop.ts';
 import { sp_desktop_set_style } from '../desktop-style.ts';
@@ -161,6 +164,95 @@ export class ClipboardManager {
     this.#createInternalClipboard(); // construct a new clipboard document
     this.#copySelection(set); // copy all items in the selection to the internal clipboard
     return this.#setClipboardTargets();
+  }
+
+  /**
+   * Copy a symbol to the clipboard document, as a symbol in the defs and a use of it.
+   * Upstream: ClipboardManagerImpl::copySymbol.
+   *
+   * @param symbol The symbol repr, in source.
+   * @param style The style for the use (the default style of the symbol).
+   * @param symbol_set The name of the symbol set, to tell the symbols of different sets apart.
+   * @param bbox The bounding box of the symbol on the page, in desktop coordinates.
+   * @param set_clipboard Whether to write the clipboard document to the system clipboard.
+   * TODO: scaling for documents with a viewBox scale other than 1.
+   */
+  copySymbol(
+    symbol: XmlNode,
+    style: string | null,
+    source: SPDocument,
+    symbol_set: string | null,
+    bbox: Rect,
+    set_clipboard: boolean,
+  ): Promise<void> {
+    this.#createInternalClipboard();
+    const doc = this.#doc;
+    const defs = this.#defs;
+    const root = this.#root;
+    const clipnode = this.#clipnode;
+    const clipdoc = this.#clipboardSPDoc;
+    if (!doc || !defs || !root || !clipnode || !clipdoc) return Promise.resolve();
+
+    // We add "_inkscape_duplicate" to have a well defined symbol name that bypasses the
+    // prevent_id_clashes routine. SPDocument.importDefs() removes it when the symbol is pasted.
+    const original = source.getObjectByRepr(symbol);
+    if (original instanceof SPItem) {
+      this.#cloned_elements.clear();
+      this.#copyUsedDefs(original);
+    }
+    const repr = symbol.duplicate(doc);
+    // Disambiguate the symbols of different symbol sets.
+    const prefix = symbol_set ? `${sanitize_id(`${symbol_set}:`)}` : '';
+    const symbol_name = `${prefix}${symbol.attribute('id')}_inkscape_duplicate`;
+    repr.setAttribute('id', symbol_name);
+    defs.appendChild(repr);
+
+    const nsymbol = clipdoc.getObjectById(symbol_name);
+    if (nsymbol instanceof SPSymbol) {
+      if (original instanceof SPItem) this.#copyCompleteStyle(original, repr, true);
+      if (nsymbol.title() === null) nsymbol.setTitle(nsymbol.label() ?? nsymbol.getId());
+      const href = `#${symbol_name.replace('_inkscape_duplicate', '')}`;
+      const use_repr = doc.createElement('svg:use');
+      use_repr.setAttribute('xlink:href', href);
+
+      // If the symbol has a viewBox but no width or height, then take the width and height from the
+      // viewBox and set them on the use. Otherwise, the use would have 100% of the document width
+      // and height.
+      const viewBoxAttr = symbol.attribute('viewBox');
+      if (viewBoxAttr && !(symbol.attribute('height') || symbol.attribute('width'))) {
+        const vb = new SPViewBox();
+        vb.set_viewBox(viewBoxAttr);
+        if (vb.viewBox_set) {
+          use_repr.setAttributeSvgDouble('width', vb.viewBox.width());
+          use_repr.setAttributeSvgDouble('height', vb.viewBox.height());
+        }
+      }
+      // Set a default style in the use rather than the symbol, so it can be changed.
+      use_repr.setAttribute('style', style);
+      root.appendChild(use_repr);
+
+      // Set min and max offsets based on the bounding rectangle.
+      clipnode.setAttributePoint('min', bbox.min());
+      clipnode.setAttributePoint('max', bbox.max());
+    }
+    return set_clipboard ? this.#setClipboardTargets() : Promise.resolve();
+  }
+
+  /**
+   * Insert the symbol of copySymbol() into the document of desktop (upstream
+   * insertSymbol, for the end of a drag) shifted by shift_dt, in desktop coordinates.
+   */
+  insertSymbol(desktop: SPDesktop, shift_dt: Point): void {
+    if (!have_viable_layer(desktop)) return;
+    const symbol = this.#clipboardSPDoc;
+    if (!symbol) return;
+    // Synthesize a clipboard position in order to paste the symbol where it got dropped.
+    const clipnode = sp_repr_lookup_name(symbol.getReprRoot(), 'inkscape:clipboard', 1);
+    if (clipnode) {
+      clipnode.setAttributePoint('min', clipnode.getAttributePoint('min').add(shift_dt));
+      clipnode.setAttributePoint('max', clipnode.getAttributePoint('max').add(shift_dt));
+    }
+    sp_import_document(desktop, symbol, true);
   }
 
   /**

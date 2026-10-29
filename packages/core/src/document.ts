@@ -94,6 +94,8 @@ export class SPDocument {
 
   readonly modifiedSignal = new Signal<[number]>();
   readonly commitSignal = new Signal<[]>();
+  /** Emitted when the undo or redo stack changes (upstream: the EventLog notifications). */
+  readonly undoStackChangedSignal = new Signal<[]>();
   readonly modifiedSinceSaveSignal = new Signal<[boolean]>();
   readonly idChangedSignals = new Map<string, Signal<[SPObject | null]>>();
 
@@ -609,7 +611,23 @@ export class SPDocument {
       /* Final pass: copy over those parts which are not duplicates  */
       for (let def = defs.firstChild(); def; def = def.next()) {
         if (def.type() !== 'element') continue;
-        target_defs.appendChild(def.duplicate(this.getReprDoc()));
+        // Prevent the duplication of symbols: ClipboardManager.copySymbol() adds "_inkscape_duplicate" to
+        // the id of its symbol. Drop the tag, unless the document has this symbol already.
+        const copy = def.duplicate(this.getReprDoc());
+        if (def.name() === 'svg:symbol') {
+          const id = def.attribute('id') ?? '';
+          const pos = id.indexOf('_inkscape_duplicate');
+          if (pos !== -1) {
+            const symbol_id = id.slice(0, pos);
+            let duplicate = false;
+            for (let c = target_defs.firstChild(); c; c = c.next()) {
+              if (c.name() === 'svg:symbol' && c.attribute('id') === symbol_id) duplicate = true;
+            }
+            if (duplicate) continue;
+            copy.setAttribute('id', symbol_id);
+          }
+        }
+        target_defs.appendChild(copy);
       }
     }
   }

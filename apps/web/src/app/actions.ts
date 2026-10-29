@@ -64,6 +64,31 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     N_('Edit properties of this document (to be saved with the document)'),
   ],
   [
+    "win.dialog-open('Transform')",
+    N_('Open Transform'),
+    SECTION_DIALOG,
+    N_("Precisely control objects' transformations"),
+  ],
+  [
+    "win.dialog-open('ObjectProperties')",
+    N_('Open Object Properties'),
+    SECTION_DIALOG,
+    N_('Edit the object attributes (context dependent)...'),
+  ],
+  ["win.dialog-open('UndoHistory')", N_('Open Undo History'), SECTION_DIALOG, N_('Undo History')],
+  [
+    "win.dialog-open('Swatches')",
+    N_('Open Swatches'),
+    SECTION_DIALOG,
+    N_('Select colors from a swatches palette'),
+  ],
+  [
+    "win.dialog-open('Symbols')",
+    N_('Open Symbols'),
+    SECTION_DIALOG,
+    N_('Select symbol from a symbols palette'),
+  ],
+  [
     "win.dialog-open('XMLEditor')",
     N_('Open XML Editor'),
     SECTION_DIALOG,

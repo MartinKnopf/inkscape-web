@@ -1,0 +1,168 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+.palette-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 40px;
+  padding: 2px 4px;
+  border-top: 1px solid #ccc;
+  background: #f4f4f4;
+}
+
+.palette-pinned {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+/* The colors flow down two rows and scroll sideways. */
+.palette-colors {
+  display: grid;
+  flex: 1;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 16px);
+  grid-auto-columns: 16px;
+  align-content: center;
+  gap: 1px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.palette-select {
+  align-self: center;
+  max-width: 160px;
+}
+
+.swatch {
+  position: relative;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+}
+
+.palette-pinned .swatch {
+  width: 24px;
+  height: 24px;
+}
+
+.swatch-color {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgb(0 0 0 / 20%);
+  box-sizing: border-box;
+}
+
+.swatch.paint-none .swatch-color {
+  background: linear-gradient(to top right, transparent 45%, #d40000 45%, #d40000 55%, transparent 55%) #fff;
+}
+
+.swatch.is-fill {
+  border-color: #333;
+}
+
+.swatch.is-stroke::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 2px solid #fff;
+  outline: 1px solid #333;
+}
+
+.swatch-spacer {
+  display: block;
+}
+
+.swatches-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+  font-size: 12px;
+}
+
+.swatches-header {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #ccc;
+}
+
+.swatches-header input[type="search"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.swatches-content {
+  flex: 1;
+  overflow: auto;
+  padding: 4px;
+}
+
+.swatches-content.grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 1px;
+}
+
+.swatches-content.list .swatch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+}
+
+.swatches-content.list .swatch-color {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.swatches-content.grid .swatch {
+  width: 20px;
+  height: 20px;
+}
+
+.swatch-group {
+  flex-basis: 100%;
+  margin: 4px 0 2px;
+  font-weight: 600;
+}
+
+.symbols-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 4px;
+}
+
+.symbol-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+  padding: 2px;
+  border: 1px solid transparent;
+  background: none;
+}
+
+.symbol-item img {
+  background: #fff;
+  border-radius: 3px;
+}
+
+.symbol-item[aria-pressed="true"] {
+  border-color: #3584e4;
+}
+
+.docprops .attr-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #bbb;
+  font: inherit;
+}
