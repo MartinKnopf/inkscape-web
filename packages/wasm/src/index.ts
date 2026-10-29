@@ -67,6 +67,15 @@ export interface Geom {
     vertical: boolean,
     version15: boolean,
   ): string;
+  /** Upstream pathvs_have_nonempty_overlap(): whether the two paths intersect or overlap. */
+  pathsOverlap(a: string, b: string): boolean;
+  /**
+   * The livarot part of the path modes of the tweak tool (upstream
+   * sp_tweak_dilate_recursive(): Shape::MakeTweak() and the simplification after it).
+   * See TweakPathParams. `changed` is false if MakeTweak() did not change the shape;
+   * `d` is '' if the result has no path.
+   */
+  tweakPath(d: string, params: TweakPathParams): { changed: boolean; d: string };
   /** Rewrite path data with absolute commands, no shorthands and the given precision. */
   normalizePath(d: string, precision: number): string;
   /** Bounds [left, top, right, bottom] of the path transformed by (a b c d e f); [] if the path is empty. */
@@ -84,18 +93,76 @@ export interface Geom {
   readPath(d: string, zSnapThreshold: number): { ok: boolean; d: string };
 }
 
+/** Upstream: src/livarot/Shape.h, the tweak modes of Shape::MakeTweak(). */
+export enum TweakMode {
+  Grow = 0,
+  Push = 1,
+  Repel = 2,
+  Roughen = 3,
+}
+
+/** Arguments of Geom.tweakPath(). */
+export interface TweakPathParams {
+  mode: TweakMode;
+  /** The `dec` argument of MakeTweak(). */
+  power: number;
+  fillRule: FillRule;
+  /** Brush center, document coordinates. */
+  center: readonly [number, number];
+  /** Push vector, document coordinates. */
+  vector: readonly [number, number];
+  radius: number;
+  /** Item to document transform; `d` is in item coordinates. */
+  i2doc: AffineMatrix;
+  /** 0..1 */
+  fidelity: number;
+  /** Tool force, for the simplification threshold. */
+  force: number;
+  /** Desktop zoom, for the simplification threshold. */
+  zoom: number;
+}
+
 /** Affine matrix coefficients (a, b, c, d, e, f) like Geom::Affine. */
 export type AffineMatrix = readonly [number, number, number, number, number, number];
 
 let module: Promise<MainModule> | undefined;
 
-export async function loadGeom(): Promise<Geom> {
-  module ??= createModule();
+/**
+ * Load the module (once). Tests in a DOM environment (happy-dom) pass the
+ * file path of dist/geom-module.wasm in locateFile: there the module gets an
+ * http URL from import.meta.url.
+ */
+export async function loadGeom(options?: { locateFile: (path: string) => string }): Promise<Geom> {
+  module ??= createModule(options);
   const m = await module;
   return {
     boolop: (a, b, op, fillA, fillB) => m.boolop(a, b, op, fillA, fillB),
     cutPath: (pathv, lines) => m.cutPath(pathv, lines) as string[],
     splitNonIntersectingPaths: (d, fillRule) => m.splitNonIntersectingPaths(d, fillRule) as string[],
+    pathsOverlap: (a, b) => m.pathsOverlap(a, b),
+    tweakPath: (d, p) => {
+      const [a, b, c, dd, e, f] = p.i2doc;
+      return m.tweakPath(
+        d,
+        p.mode,
+        p.power,
+        p.fillRule,
+        p.center[0],
+        p.center[1],
+        p.vector[0],
+        p.vector[1],
+        p.radius,
+        a,
+        b,
+        c,
+        dd,
+        e,
+        f,
+        p.fidelity,
+        p.force,
+        p.zoom,
+      ) as { changed: boolean; d: string };
+    },
     normalizePath: (d, precision) => m.normalizePath(d, precision),
     flattenPath: (d, fillRule) => m.flattenPath(d, fillRule),
     pathCrossings: (a, b) => m.pathCrossings(a, b) as number[],

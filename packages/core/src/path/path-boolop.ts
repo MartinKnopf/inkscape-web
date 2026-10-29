@@ -74,6 +74,27 @@ export interface PathBoolopBackend {
     vertical: boolean,
     version15: boolean,
   ): string;
+  /** pathvs_have_nonempty_overlap(a, b) of helper/geom.cpp (SPItem::collidesWith). */
+  pathsOverlap(a: string, b: string): boolean;
+  /**
+   * The livarot part of the path modes of the tweak tool (Shape::MakeTweak and
+   * the simplification after it); see TweakPathParams of @inkscape-web/wasm.
+   */
+  tweakPath(
+    d: string,
+    params: {
+      mode: number;
+      power: number;
+      fillRule: number;
+      center: readonly [number, number];
+      vector: readonly [number, number];
+      radius: number;
+      i2doc: readonly [number, number, number, number, number, number];
+      fidelity: number;
+      force: number;
+      zoom: number;
+    },
+  ): { changed: boolean; d: string };
 }
 
 let backend: PathBoolopBackend | null = null;

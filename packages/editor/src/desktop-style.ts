@@ -502,6 +502,39 @@ export function sp_desktop_query_style(
 }
 
 /**
+ * The opacity of the style for new objects of the tool (default 1), and
+ * whether the style sets it (upstream has_opacity).
+ */
+export function sp_desktop_get_master_opacity_tool(
+  desktop: SPDesktop,
+  tool: string,
+): { value: number; has_opacity: boolean } {
+  const css = desktop.getCurrentOrToolStyle(tool, true);
+  const value = css ? Number.parseFloat(spReprCssProperty(css, 'opacity', '1.000')) : Number.NaN;
+  return Number.isNaN(value) ? { value: 1.0, has_opacity: false } : { value, has_opacity: true };
+}
+
+/** The fill or stroke opacity of the style for new objects of the tool (default 1). */
+export function sp_desktop_get_opacity_tool(desktop: SPDesktop, tool: string, is_fill: boolean): number {
+  const css = desktop.getCurrentOrToolStyle(tool, true);
+  const value = css
+    ? Number.parseFloat(spReprCssProperty(css, is_fill ? 'fill-opacity' : 'stroke-opacity', '1.000'))
+    : Number.NaN;
+  return Number.isNaN(value) ? 1.0 : value;
+}
+
+/** The fill or stroke color of the style for new objects of the tool; undefined if it is not a color. */
+export function sp_desktop_get_color_tool(
+  desktop: SPDesktop,
+  tool: string,
+  is_fill: boolean,
+): Colors.Color | undefined {
+  const css = desktop.getCurrentOrToolStyle(tool, true);
+  if (!css) return undefined;
+  return Colors.Color.parse(spReprCssProperty(css, is_fill ? 'fill' : 'stroke', '#000'));
+}
+
+/**
  * The font size (px) of new text: the last used style if /tools/text/usecurrent
  * is set, else the text tool's style. Default 12.
  */

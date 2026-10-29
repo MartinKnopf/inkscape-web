@@ -217,6 +217,9 @@ importers:
         specifier: workspace:*
         version: link:../geom
     devDependencies:
+      '@inkscape-web/wasm':
+        specifier: workspace:*
+        version: link:../wasm
       happy-dom:
         specifier: ^21.0.4
         version: 21.0.4

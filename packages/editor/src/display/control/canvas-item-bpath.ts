@@ -10,6 +10,7 @@
  *
  * Rewrite of SPCanvasBPath
  */
+import { SPWindRule } from '@inkscape-web/core';
 import { type Affine, type PathVector, write_svg_path } from '@inkscape-web/geom';
 import { rgbaCss } from '../../ui/widget/canvas.ts';
 import { CanvasItem, type CanvasItemGroup } from './canvas-item.ts';
@@ -18,13 +19,14 @@ import { CanvasItem, type CanvasItemGroup } from './canvas-item.ts';
  * A path in desktop coordinates, drawn with a screen-sized stroke (upstream
  * CanvasItemBpath). The pen and pencil tools draw the path in progress with it.
  * A phantom line is drawn 2 px wide.
- * TODO: dashes, outline, fill rule.
+ * TODO: dashes, outline.
  */
 export class CanvasItemBpath extends CanvasItem {
   #path: PathVector = [];
   #phantom_line = false;
   #stroke = 0x0000ff7f;
   #fill = 0x0;
+  #fill_rule = SPWindRule.SP_WIND_RULE_EVENODD;
   readonly #element: SVGPathElement;
 
   constructor(group: CanvasItemGroup, path: PathVector = [], phantom_line = false) {
@@ -48,8 +50,9 @@ export class CanvasItemBpath extends CanvasItem {
     this.request_update();
   }
 
-  set_fill(rgba: number): void {
+  set_fill(rgba: number, fill_rule = SPWindRule.SP_WIND_RULE_EVENODD): void {
     this.#fill = rgba;
+    this.#fill_rule = fill_rule;
     this.request_update();
   }
 
@@ -59,5 +62,9 @@ export class CanvasItemBpath extends CanvasItem {
     this.#element.setAttribute('stroke', rgbaCss(this.#stroke));
     this.#element.setAttribute('stroke-width', this.#phantom_line ? '2' : '1');
     this.#element.setAttribute('fill', (this.#fill & 0xff) > 0 ? rgbaCss(this.#fill) : 'none');
+    this.#element.setAttribute(
+      'fill-rule',
+      this.#fill_rule === SPWindRule.SP_WIND_RULE_EVENODD ? 'evenodd' : 'nonzero',
+    );
   }
 }

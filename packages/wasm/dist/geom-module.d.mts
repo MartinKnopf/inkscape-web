@@ -7,6 +7,8 @@ interface EmbindModule {
   boolop(_0: EmbindString, _1: EmbindString, _2: number, _3: number, _4: number): string;
   cutPath(_0: EmbindString, _1: EmbindString): any;
   splitNonIntersectingPaths(_0: EmbindString, _1: number): any;
+  pathsOverlap(_0: EmbindString, _1: EmbindString): boolean;
+  tweakPath(_0: EmbindString, _1: number, _2: number, _3: number, _4: number, _5: number, _6: number, _7: number, _8: number, _9: number, _10: number, _11: number, _12: number, _13: number, _14: number, _15: number, _16: number, _17: number): any;
   normalizePath(_0: EmbindString, _1: number): string;
   flattenPath(_0: EmbindString, _1: number): string;
   pathCrossings(_0: EmbindString, _1: EmbindString): any;

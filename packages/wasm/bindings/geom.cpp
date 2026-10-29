@@ -14,6 +14,7 @@
 #include "helper/geom.h"
 #include "helper/geom-pathstroke.h"
 #include "livarot/Path.h"
+#include "livarot/Shape.h"
 #include "path/path-boolop.h"
 
 // Upstream: src/path/path-boolop.cpp sp_pathvector_boolop()
@@ -46,6 +47,57 @@ emscripten::val split_non_intersecting(std::string const &d, int fill_rule)
 {
     return write_paths(Inkscape::split_non_intersecting_paths(Geom::parse_svg_path(d.c_str()),
                                                               static_cast<FillRule>(fill_rule)));
+}
+
+// Upstream: src/helper/geom.cpp pathvs_have_nonempty_overlap(), used by SPItem::collidesWith().
+bool paths_overlap(std::string const &a, std::string const &b)
+{
+    return pathvs_have_nonempty_overlap(Geom::parse_svg_path(a.c_str()), Geom::parse_svg_path(b.c_str()));
+}
+
+// Upstream: src/ui/tools/tweak-tool.cpp sp_tweak_dilate_recursive(), the livarot part of the path
+// modes (push, shrink/grow, attract/repel, roughen). `d` is in item coordinates, (cx, cy) and the
+// vector in document coordinates, i2doc is (a b c dd e f). Returns { changed, d }: changed is false
+// when Shape::MakeTweak() left the shape as it was; d is "" when the result has no path.
+emscripten::val tweak_path(std::string const &d, int mode, double power, int fill_rule, double cx, double cy,
+                           double vx, double vy, double radius, double a, double b, double c, double dd, double e,
+                           double f, double fidelity, double force, double zoom)
+{
+    auto out = emscripten::val::object();
+    out.set("changed", false);
+    out.set("d", std::string());
+
+    Path orig;
+    orig.LoadPathVector(Geom::parse_svg_path(d.c_str()));
+    Path res;
+    res.SetBackData(false);
+    Shape theShape;
+    Shape theRes;
+    Geom::Affine i2doc(a, b, c, dd, e, f);
+
+    orig.ConvertWithBackData((0.08 - (0.07 * fidelity)) / i2doc.descrim()); // default 0.059
+    orig.Fill(&theShape, 0);
+    theRes.ConvertToShape(&theShape, static_cast<FillRule>(fill_rule));
+
+    if (theShape.MakeTweak(mode, &theRes, power, join_straight, 4.0, true, Geom::Point(cx, cy), Geom::Point(vx, vy),
+                           radius, &i2doc) != 0) {
+        return out; // 0 means the shape was actually changed
+    }
+    out.set("changed", true);
+
+    theRes.ConvertToShape(&theShape, fill_positive);
+    res.Reset();
+    theRes.ConvertToForme(&res);
+
+    double th_max = (0.6 - 0.59 * sqrt(fidelity)) / i2doc.descrim();
+    double threshold = std::max(th_max, th_max * force);
+    res.ConvertEvenLines(threshold);
+    res.Simplify(threshold / zoom);
+
+    if (res.descr_cmd.size() > 1) {
+        out.set("d", res.svg_dump_path());
+    }
+    return out;
 }
 
 // Parse and write path data with fixed precision, absolute commands and no shorthands.
@@ -224,6 +276,8 @@ EMSCRIPTEN_BINDINGS(geom)
     emscripten::function("boolop", &boolop);
     emscripten::function("cutPath", &cut_path);
     emscripten::function("splitNonIntersectingPaths", &split_non_intersecting);
+    emscripten::function("pathsOverlap", &paths_overlap);
+    emscripten::function("tweakPath", &tweak_path);
     emscripten::function("normalizePath", &normalize_path);
     emscripten::function("flattenPath", &flatten_path);
     emscripten::function("pathCrossings", &path_crossings);

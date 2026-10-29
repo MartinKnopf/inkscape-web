@@ -485,11 +485,16 @@ export function spdc_create_single_dot(
   // find out stroke width (TODO: units other than px)
   const stroke_width = Number.parseFloat(spReprCssProperty(tool_css, 'stroke-width', '1')) || 1;
 
-  // Not calligraphic: Make a dot with no stroke and filled with current stroke color
-  // TODO: calligraphic (keeps fill and stroke).
   const css = spReprCssAttrNew();
-  spReprCssSetProperty(css, 'fill', spReprCssProperty(tool_css, 'stroke', 'none'));
-  spReprCssSetProperty(css, 'stroke', 'none');
+  if (path === '/tools/calligraphic') {
+    // Calligraphic: Preserve fill and stroke
+    spReprCssSetProperty(css, 'fill', spReprCssProperty(tool_css, 'fill', 'none'));
+    spReprCssSetProperty(css, 'stroke', spReprCssProperty(tool_css, 'stroke', 'none'));
+  } else {
+    // Not calligraphic: Make a dot with no stroke and filled with current stroke color
+    spReprCssSetProperty(css, 'fill', spReprCssProperty(tool_css, 'stroke', 'none'));
+    spReprCssSetProperty(css, 'stroke', 'none');
+  }
   spReprCssSet(repr, css, 'style');
 
   // put the circle where the mouse click occurred and set the diameter to the

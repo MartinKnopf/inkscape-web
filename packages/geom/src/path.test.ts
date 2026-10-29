@@ -117,3 +117,19 @@ describe('parse_svg_path', () => {
     }
   });
 });
+
+describe('Path.fromRect', () => {
+  it('is the closed outline of the rectangle', () => {
+    expect(write_svg_path([Path.fromRect(new Rect(1, 2, 3, 4))])).toBe('M 1 2 H 3 V 4 H 1 z');
+  });
+});
+
+describe('Path.fromCircle', () => {
+  it('is a closed path of two arcs around the center', () => {
+    const p = Path.fromCircle(new Point(10, 20), 5);
+    expect(p.closed()).toBe(true);
+    expect(p.size()).toBe(2);
+    expect(p.boundsExact()).toEqual(new Rect(5, 15, 15, 25));
+    expect(write_svg_path([p])).toBe('M 15 20 A 5 5 0 0 1 5 20 A 5 5 0 0 1 15 20 z');
+  });
+});
