@@ -15,6 +15,7 @@ import { CalligraphicTool } from './tools/calligraphic-tool.ts';
 import { ConnectorTool } from './tools/connector-tool.ts';
 import { DropperTool } from './tools/dropper-tool.ts';
 import { EraserTool } from './tools/eraser-tool.ts';
+import { FloodTool } from './tools/flood-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
@@ -40,6 +41,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/freehand/pencil': PencilTool,
   '/tools/calligraphic': CalligraphicTool,
   '/tools/eraser': EraserTool,
+  '/tools/paintbucket': FloodTool,
   '/tools/tweak': TweakTool,
   '/tools/spray': SprayTool,
   '/tools/gradient': GradientTool,

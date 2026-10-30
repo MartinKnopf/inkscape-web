@@ -43,7 +43,10 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Text', 'draw-text'],
   ],
   [['Gradient', 'color-gradient']],
-  [['Dropper', 'color-picker']],
+  [
+    ['Dropper', 'color-picker'],
+    ['PaintBucket', 'color-fill'],
+  ],
   [
     ['Tweak', 'tool-tweak'],
     ['Spray', 'tool-spray'],

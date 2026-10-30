@@ -107,6 +107,7 @@ export * from './ui/tools/connector-tool.ts';
 export * from './ui/tools/dropper-tool.ts';
 export * from './ui/tools/dynamic-base.ts';
 export * from './ui/tools/eraser-tool.ts';
+export * from './ui/tools/flood-tool.ts';
 export * from './ui/tools/gradient-tool.ts';
 export * from './ui/tools/measure-tool.ts';
 export * from './ui/tools/node-tool.ts';
