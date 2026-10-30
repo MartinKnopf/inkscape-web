@@ -31,7 +31,7 @@ import {
   sp_conn_reroute_path_immediate,
   sp_svg_write_path,
 } from '@inkscape-web/core';
-import { LineSegment, Path, type PathVector, Point, PathVector as PV } from '@inkscape-web/geom';
+import { L2, LineSegment, Path, type PathVector, Point, PathVector as PV } from '@inkscape-web/geom';
 import { have_viable_layer } from '../../context-fns.ts';
 import type { SPDesktop } from '../../desktop.ts';
 import { CanvasItemBpath } from '../../display/control/canvas-item-bpath.ts';
@@ -296,6 +296,15 @@ export class ConnectorTool extends ToolBase {
     if (this.state === S.SP_CONNECTOR_CONTEXT_IDLE || this.state === S.SP_CONNECTOR_CONTEXT_DRAGGING) {
       const item = this._desktop.getItemAtPoint(event_w, false);
       if (item && cc_item_is_shape(item)) this.#setActiveShape(item);
+    }
+    // While the canvas has the pointer capture (dragging), the handles get no pointerenter:
+    // a connection point within a few screen px counts as hovered (upstream: all enter events).
+    if (e.buttons & 1) {
+      const p_dt = this._desktopPoint(event_w);
+      const near = this.knots.find(
+        (k) => k.ctrl.is_visible() && L2(this._desktop.d2w(k.pos).sub(this._desktop.d2w(p_dt))) < 8,
+      );
+      this.active_handle = near ?? null;
     }
 
     if (!this.checkDragMoved(event_w)) return false;
