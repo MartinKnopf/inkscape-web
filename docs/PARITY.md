@@ -5,22 +5,22 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 13 | 26 | 50 |
+| Tools | 18 | 26 | 69 |
 | Dialogs | 16 | 29 | 55 |
-| Actions | 122 | 409 | 30 |
+| Actions | 133 | 409 | 33 |
 | Live path effects | 13 | 56 | 23 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (13/26)</summary>
+<details><summary>Tools (18/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
 - [ ] `box3d-tool.cpp`
-- [ ] `calligraphic-tool.cpp`
+- [x] `calligraphic-tool.cpp`
 - [ ] `connector-tool.cpp`
 - [x] `dropper-tool.cpp`
-- [ ] `eraser-tool.cpp`
+- [x] `eraser-tool.cpp`
 - [ ] `flood-tool.cpp`
 - [x] `gradient-tool.cpp`
 - [ ] `lpe-tool.cpp`
@@ -29,16 +29,16 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `mesh-tool.cpp`
 - [x] `node-tool.cpp`
 - [ ] `object-picker-tool.cpp`
-- [ ] `pages-tool.cpp`
+- [x] `pages-tool.cpp`
 - [x] `pen-tool.cpp`
 - [x] `pencil-tool.cpp`
 - [x] `rect-tool.cpp`
 - [x] `select-tool.cpp`
 - [x] `spiral-tool.cpp`
-- [ ] `spray-tool.cpp`
+- [x] `spray-tool.cpp`
 - [x] `star-tool.cpp`
 - [x] `text-tool.cpp`
-- [ ] `tweak-tool.cpp`
+- [x] `tweak-tool.cpp`
 - [x] `zoom-tool.cpp`
 
 </details>
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (122/409)</summary>
+<details><summary>Actions (133/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -178,7 +178,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.object-to-pattern`
 - [ ] `app.object-unlink-clones`
 - [ ] `app.open-page`
-- [ ] `app.page-fit-to-selection`
+- [x] `app.page-fit-to-selection`
 - [ ] `app.page-rotate`
 - [x] `app.paste-height`
 - [x] `app.paste-height-separately`
@@ -288,7 +288,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `doc.clip-to-page`
 - [x] `doc.create-guides-around-page`
 - [x] `doc.delete-all-guides`
-- [ ] `doc.fit-canvas-to-drawing`
+- [x] `doc.fit-canvas-to-drawing`
 - [ ] `doc.insert-bounding-boxes`
 - [ ] `doc.insert-hatch-polyfill`
 - [ ] `doc.insert-mesh-polyfill`
@@ -296,12 +296,12 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `doc.insert-text-fallback`
 - [x] `doc.lock-all-guides`
 - [ ] `doc.normalize-all-paths`
-- [ ] `doc.page-delete`
-- [ ] `doc.page-duplicate`
-- [ ] `doc.page-move-backward`
-- [ ] `doc.page-move-forward`
-- [ ] `doc.page-move-objects`
-- [ ] `doc.page-new`
+- [x] `doc.page-delete`
+- [x] `doc.page-duplicate`
+- [x] `doc.page-move-backward`
+- [x] `doc.page-move-forward`
+- [x] `doc.page-move-objects`
+- [x] `doc.page-new`
 - [ ] `doc.prune-inkscape-namespaces`
 - [ ] `doc.prune-proprietary-namespaces`
 - [x] `doc.redo`
@@ -413,9 +413,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.node-segments-to-curves`
 - [x] `win.node-segments-to-lines`
 - [x] `win.node-simplify`
-- [ ] `win.page-delete`
-- [ ] `win.page-duplicate`
-- [ ] `win.page-new`
+- [x] `win.page-delete`
+- [x] `win.page-duplicate`
+- [x] `win.page-new`
 - [x] `win.paste`
 - [x] `win.paste-in-place`
 - [ ] `win.paste-on-page`
