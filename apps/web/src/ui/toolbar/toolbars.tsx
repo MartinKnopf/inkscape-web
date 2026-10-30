@@ -16,6 +16,7 @@ import type { SPDesktop } from '@inkscape-web/editor';
 import type { FunctionComponent } from 'react';
 import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts';
 import { ArcToolbar } from './arc-toolbar.tsx';
+import { Box3DToolbar } from './box3d-toolbar.tsx';
 import { CalligraphyToolbar } from './calligraphy-toolbar.tsx';
 import { ConnectorToolbar } from './connector-toolbar.tsx';
 import { DropperToolbar } from './dropper-toolbar.tsx';
@@ -53,6 +54,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Zoom: ZoomToolbar,
   Pages: PageToolbar,
   Connector: ConnectorToolbar,
+  '3DBox': Box3DToolbar,
   Text: TextToolbar,
 };
 

@@ -33,6 +33,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Rect', 'draw-rectangle'],
     ['Arc', 'draw-ellipse'],
     ['Star', 'draw-polygon-star'],
+    ['3DBox', 'draw-cuboid'],
     ['Spiral', 'draw-spiral'],
   ],
   [
