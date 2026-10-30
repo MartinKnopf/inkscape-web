@@ -254,6 +254,16 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Distort,
   ),
   entry(
+    EffectType.TAPER_STROKE,
+    NC_('path effect', 'Taper stroke'),
+    'taper_stroke',
+    'taper-stroke',
+    N_("Let the path's ends narrow down to a tip"),
+    LPECategory.EditTools,
+    true,
+    false,
+  ),
+  entry(
     EffectType.MIRROR_SYMMETRY,
     NC_('path effect', 'Mirror symmetry'),
     'mirror_symmetry',

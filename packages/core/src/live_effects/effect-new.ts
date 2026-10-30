@@ -13,6 +13,7 @@ import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
 import { LPERoughen } from './lpe-roughen.ts';
 import { LPESimplify } from './lpe-simplify.ts';
+import { LPETaperStroke } from './lpe-taperstroke.ts';
 import type { LivePathEffectObject } from './lpeobject.ts';
 
 /**
@@ -34,6 +35,8 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPECopyRotate(lpeobj);
     case EffectType.FILLET_CHAMFER:
       return new LPEFilletChamfer(lpeobj);
+    case EffectType.TAPER_STROKE:
+      return new LPETaperStroke(lpeobj);
     case EffectType.OFFSET:
       return new LPEOffset(lpeobj);
     default:

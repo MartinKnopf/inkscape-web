@@ -10,6 +10,7 @@ import type { SPShape } from '../object/sp-shape.ts';
 import { setPathBoolopBackend } from '../path/path-boolop.ts';
 import { Effect } from './effect.ts';
 import type { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
+import type { LPETaperStroke } from './lpe-taperstroke.ts';
 
 setPathBoolopBackend(await loadGeom());
 SPDocument.scheduleIdle = () => {};
@@ -221,5 +222,27 @@ describe('Corners', () => {
     expect(s.getCurrentLPE()?.getRepr()?.attribute('nodesatellites_param')).toBe(
       'C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1',
     );
+  });
+});
+
+describe('Taper stroke', () => {
+  it('draws the stroke as a filled outline that narrows to the ends', () => {
+    const s = applied('M 0,0 H 100', 'taper_stroke', {}, 'fill:none;stroke:#ff0000;stroke-width:4');
+    const pv = curve(s);
+    expect(pv).toHaveLength(1);
+    expect(pv[0]?.closed()).toBe(true);
+    // Full width in the middle, tips at the ends.
+    expect(bounds(pv)).toEqual([0, -2, 100, 2]);
+    // The stroke became the fill.
+    expect(s.getAttribute('style')).toContain('fill:#ff0000');
+    expect(s.getAttribute('style')).toContain('stroke:none');
+    expect(s.getCurrentLPE()?.getRepr()?.attribute('stroke_width')).toBe('4');
+  });
+
+  it('places the taper knots at the attach times', () => {
+    const s = applied('M 0,0 H 100', 'taper_stroke', {}, 'stroke:#000;stroke-width:4');
+    const lpe = s.getCurrentLPE() as LPETaperStroke;
+    near(lpe.start_attach_point[0] as Point, [20, 0]);
+    near(lpe.end_attach_point[0] as Point, [80, 0]);
   });
 });
