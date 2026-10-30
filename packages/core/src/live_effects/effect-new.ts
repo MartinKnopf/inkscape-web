@@ -8,9 +8,11 @@ import { type Effect, setEffectFactory } from './effect.ts';
 import { EffectType } from './effect-enum.ts';
 import { LPEBendPath } from './lpe-bendpath.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
+import { LPEEnvelope } from './lpe-envelope.ts';
 import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
 import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
+import { LPEPatternAlongPath } from './lpe-patternalongpath.ts';
 import { LPERoughen } from './lpe-roughen.ts';
 import { LPESimplify } from './lpe-simplify.ts';
 import { LPETaperStroke } from './lpe-taperstroke.ts';
@@ -25,6 +27,10 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
   switch (lpenr) {
     case EffectType.BEND_PATH:
       return new LPEBendPath(lpeobj);
+    case EffectType.PATTERN_ALONG_PATH:
+      return new LPEPatternAlongPath(lpeobj);
+    case EffectType.ENVELOPE:
+      return new LPEEnvelope(lpeobj);
     case EffectType.SIMPLIFY:
       return new LPESimplify(lpeobj);
     case EffectType.ROUGHEN:

@@ -24,8 +24,8 @@ import { SpinButton } from '../widget/spinbutton.tsx';
 import { objectKey, useReprVersion, useSelectionVersion } from './use-repr.ts';
 import './livepatheffect-editor.css';
 
-/** A GTK label without the mnemonic marker. */
-const label = (s: string) => s.replace('_', '');
+/** A GTK label without the mnemonic marker and markup entities (e.g. "&amp;"). */
+const label = (s: string) => s.replace('_', '').replaceAll('&amp;', '&');
 
 function Icon({ name }: { name: string }) {
   return <img className="lpe-icon" src={iconUrl(name)} onError={iconFallback(name)} alt="" />;

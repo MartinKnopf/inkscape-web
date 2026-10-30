@@ -246,3 +246,47 @@ describe('Taper stroke', () => {
     near(lpe.end_attach_point[0] as Point, [80, 0]);
   });
 });
+
+describe('Envelope Deformation', () => {
+  it('starts with the sides of the bounding box, which keep the path', () => {
+    const s = applied('M 0,0 H 10 V 10 H 0 Z', 'envelope');
+    expect(s.getCurrentLPE()?.getRepr()?.attribute('bendpath1')).toBe('M 0,0 H 10');
+    expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
+  });
+
+  it('follows a moved side', () => {
+    const s = applied('M 0,0 H 10 V 10 H 0 Z', 'envelope', { xx: 'false', bendpath1: 'M 0,-5 H 10' });
+    // Only the top and bottom paths: the top edge moves up by 5.
+    expect(bounds(curve(s))).toEqual([0, -5, 10, 10]);
+  });
+});
+
+describe('Pattern Along Path', () => {
+  const pattern = 'M 0,-1 H 10 V 1 H 0 Z';
+
+  it('stretches a single copy of the pattern along the path', () => {
+    const s = applied('M 0,0 H 100', 'skeletal', { pattern });
+    expect(curve(s)).toHaveLength(1);
+    expect(bounds(curve(s))).toEqual([0, -1, 100, 1]);
+  });
+
+  it('repeats the pattern as many times as it fits', () => {
+    const s = applied('M 0,0 H 100', 'skeletal', { pattern, copytype: 'repeated' });
+    expect(curve(s)).toHaveLength(10);
+  });
+
+  it('uses a linked path as pattern and follows its changes', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/><path id="pat" d="${pattern}"/><path id="p" d="M 0,0 H 100"/></svg>`,
+    ) as SPDocument;
+    doc.ensureUpToDate();
+    const s = doc.getObjectById('p') as SPShape;
+    Effect.createAndApply('skeletal', doc, s);
+    s.getCurrentLPE()?.getRepr()?.setAttribute('pattern', '#pat');
+    doc.ensureUpToDate();
+    expect(bounds(curve(s))).toEqual([0, -1, 100, 1]);
+    doc.getObjectById('pat')?.setAttribute('d', 'M 0,-3 H 10 V 3 H 0 Z');
+    doc.ensureUpToDate();
+    expect(bounds(curve(s))).toEqual([0, -3, 100, 3]);
+  });
+});

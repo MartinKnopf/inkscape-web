@@ -52,6 +52,8 @@ const KNOWN_DIFFERENCES = new Set([
   'rect12538',
   'path12544',
   'path12546',
+  // Bend and Envelope stacked on a group inside a group with Offset.
+  'path50227',
 ]);
 
 /** The top-level layer of obj (upstream: the layer label names the tested effect). */

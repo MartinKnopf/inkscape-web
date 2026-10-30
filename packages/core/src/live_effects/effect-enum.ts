@@ -236,6 +236,22 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Bend an object along the curvature of another path'),
     LPECategory.Distort,
   ),
+  entry(
+    EffectType.PATTERN_ALONG_PATH,
+    NC_('path effect', 'Pattern Along Path'),
+    'skeletal',
+    'skeletal',
+    N_('Place one or more copies of another path along the path'),
+    LPECategory.Distort,
+  ),
+  entry(
+    EffectType.ENVELOPE,
+    NC_('path effect', 'Envelope Deformation'),
+    'envelope',
+    'envelope',
+    N_('Adjust the shape of an object by transforming paths on its four sides'),
+    LPECategory.Distort,
+  ),
   /* 0.91 */
   entry(
     EffectType.SIMPLIFY,
