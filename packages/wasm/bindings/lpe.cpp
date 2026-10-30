@@ -5,7 +5,7 @@
 // are ported to TypeScript (packages/core/src/live_effects). Geometry is SVG path data.
 //
 // Upstream: src/live_effects/effect.cpp (doEffect_path), src/live_effects/lpe-taperstroke.cpp,
-// src/live_effects/lpe-envelope.cpp, src/live_effects/lpe-patternalongpath.cpp
+// src/live_effects/lpe-envelope.cpp, src/live_effects/lpe-patternalongpath.cpp, src/live_effects/lpe-spiro.cpp
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 #include <2geom/bezier-to-sbasis.h>
@@ -19,6 +19,7 @@
 #include <2geom/svg-path-writer.h>
 #include <functional>
 #include "helper/geom-pathstroke.h"
+#include "live_effects/spiro.h"
 
 using namespace Geom;
 using Pwd2 = Piecewise<D2<SBasis>>;
@@ -356,8 +357,21 @@ std::string pattern_along_path(std::string const &d, std::string const &pattern_
     });
 }
 
+// lpe-spiro.cpp sp_spiro_do_effect(): Spiro::spiro_run() of one subpath. xy is [x0, y0, x1, y1, ...],
+// ty has one spiro_cp type character per point.
+static std::string spiro_run_path(emscripten::val xy, std::string const &ty)
+{
+    auto const v = emscripten::vecFromJSArray<double>(xy);
+    std::vector<Spiro::spiro_cp> cp(ty.size());
+    for (size_t i = 0; i < ty.size(); i++) {
+        cp[i] = {v[2 * i], v[2 * i + 1], ty[i]};
+    }
+    return write_svg_path(Geom::PathVector(Spiro::spiro_run(cp.data(), static_cast<int>(cp.size()))));
+}
+
 EMSCRIPTEN_BINDINGS(lpe)
 {
+    emscripten::function("spiroRun", &spiro_run_path);
     emscripten::function("taperStretchAlong", &taper_stretch_along);
     emscripten::function("halfOutline", &half_outline_path);
     emscripten::function("envelopePath", &envelope_path);

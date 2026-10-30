@@ -244,6 +244,19 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Place one or more copies of another path along the path'),
     LPECategory.Distort,
   ),
+  /* 0.47 */
+  entry(
+    EffectType.SPIRO,
+    NC_('path effect', 'Spiro spline'),
+    'spiro',
+    'spiro',
+    N_(
+      'Make the path curl like wire, using Spiro B-Splines. This effect is usually used directly on the canvas with the Spiro mode of the drawing tools.',
+    ),
+    LPECategory.Convert,
+    false,
+    false,
+  ),
   entry(
     EffectType.ENVELOPE,
     NC_('path effect', 'Envelope Deformation'),

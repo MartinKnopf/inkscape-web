@@ -310,3 +310,21 @@ describe('Perspective/Envelope', () => {
     });
   }
 });
+
+describe('Spiro spline', () => {
+  it('runs a spline through the nodes of the path', () => {
+    const s = applied('M 0,0 C 0,5 5,10 10,10 C 15,10 20,5 20,0', 'spiro');
+    const pv = curve(s);
+    expect(pv).toHaveLength(1);
+    near(pv[0]?.initialPoint() as Point, [0, 0]);
+    near(pv[0]?.finalPoint() as Point, [20, 0]);
+    // The spline is symmetric and has its top at the smooth node.
+    expect(bounds(pv)).toEqual([0, 0, 20, 10]);
+  });
+
+  it('keeps corners: a polygon stays the same', () => {
+    const s = applied('M 0,0 H 10 V 10 H 0 Z', 'spiro');
+    expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
+    expect(curve(s)[0]?.closed()).toBe(true);
+  });
+});

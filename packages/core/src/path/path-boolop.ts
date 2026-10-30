@@ -66,6 +66,7 @@ export interface PathBoolopBackend {
   taperStretchAlong(d: string, pattern: string, width: number): string;
   /** helper/geom-pathstroke.cpp half_outline() of the first path of d. join is a LineJoinType. */
   halfOutline(d: string, width: number, miter: number, join: number): string;
+  spiroRun(xy: readonly number[], ty: string): string;
   /**
    * The 2geom part of the Envelope Deformation LPE (lpe-envelope.cpp doEffect_pwd2). bends are the
    * top, right, bottom and left paths; bbox is [x0, x1, y0, y1].
