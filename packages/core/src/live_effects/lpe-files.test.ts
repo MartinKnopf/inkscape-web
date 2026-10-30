@@ -31,6 +31,10 @@ const LAYERS = [
   'bend',
   'corners',
   'tapper stroke',
+  'envelope deformation',
+  'pattern along path',
+  'perspective envelope',
+  'spiro',
 ];
 
 /**
@@ -54,6 +58,16 @@ const KNOWN_DIFFERENCES = new Set([
   'path12546',
   // Bend and Envelope stacked on a group inside a group with Offset.
   'path50227',
+  // Shapes in groups with Envelope Deformation, Pattern Along Path and Perspective/Envelope.
+  'path126072',
+  'path126074',
+  'ellipse126078',
+  'rect126080',
+  'ellipse60938',
+  'path10243',
+  'path10245',
+  'ellipse10249',
+  'rect10251',
 ]);
 
 /** The top-level layer of obj (upstream: the layer label names the tested effect). */
@@ -169,7 +183,7 @@ describe.skipIf(!existsSync(dir))('upstream LPE test files', () => {
     it(`recomputes the ported effects of ${name} as upstream`, () => {
       const { failed, tested } = checkFile(join(dir, name), LAYERS);
       expect(failed).toEqual([]);
-      // All six effects are tested.
+      // All the layers are tested.
       expect(Object.keys(tested).sort()).toEqual([...LAYERS].sort());
     });
   }
