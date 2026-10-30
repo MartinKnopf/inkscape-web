@@ -7,7 +7,13 @@
  *
  * Authors: bulia byak <buliabyak@users.sf.net>
  */
-import { type Node, type NodeObserver, type SPItem, SPLPEItem } from '@inkscape-web/core';
+import {
+  type Node,
+  type NodeObserver,
+  NodeSatelliteArrayParam,
+  type SPItem,
+  SPLPEItem,
+} from '@inkscape-web/core';
 import type { Affine } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
 import { KnotHolder } from './knot/knot-holder.ts';
@@ -53,6 +59,14 @@ export class ShapeEditor {
     this.unset_item();
     this.#item = item;
     this.lpeknotholder = createLPEKnotHolder(item, this.desktop);
+    // Parameters whose knots change with the path rebuild the holder (upstream
+    // NodeSatelliteArrayParam::reloadKnots resets the shape editors of the node tool).
+    const lpe = item instanceof SPLPEItem ? item.getCurrentLPE() : null;
+    for (const param of lpe?.param_vector ?? []) {
+      if (param instanceof NodeSatelliteArrayParam) {
+        param.onReloadKnots = () => queueMicrotask(() => this.#item === item && this.reset_item());
+      }
+    }
     if (this.lpeknotholder && this.#edit_transform) this.lpeknotholder.setEditTransform(this.#edit_transform);
     this.#repr = item.getRepr();
     this.#repr.addObserver(this.#observer);

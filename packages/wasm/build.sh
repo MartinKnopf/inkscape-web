@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Build upstream lib2geom + livarot + path operations to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
+# Upstream: src/3rdparty/2geom, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -69,6 +69,10 @@ SRCS="$SRCS $INK/src/path/path-boolop.cpp $INK/src/svg/stringstream.cpp $INK/src
 SRCS="$SRCS $INK/src/helper/geom-pathstroke.cpp $INK/src/helper/geom.cpp $INK/src/util/treeify.cpp"
 # Replaces src/util/numeric/precision.cpp (it reads the preferences).
 SRCS="$SRCS $HERE/shim/precision.cpp"
+# Arc length helpers of the Corners (Fillet/Chamfer) LPE.
+SRCS="$SRCS $INK/src/helper/geom-nodesatellite.cpp"
+# Spiro splines (Spiro LPE and the Spiro mode of the drawing tools).
+SRCS="$SRCS $INK/src/live_effects/spiro.cpp $INK/src/live_effects/spiro-converters.cpp"
 
 # WASM has no FP rounding-mode control, so Boost.Interval gets its default (no-op)
 # rounding: we skip its hw_rounding.hpp (only used by 2geom/geometric-intersection.cpp).
@@ -86,7 +90,7 @@ OBJS=""
 for s in $SRCS; do OBJS="$OBJS $(obj "$s")"; done
 mkdir -p dist
 # shellcheck disable=SC2086
-em++ $FLAGS -lembind bindings/geom.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
+em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit

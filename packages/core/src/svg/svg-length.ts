@@ -219,6 +219,11 @@ export enum SVGLengthUnit {
 /** Unit abbreviations by SVGLengthUnit. Upstream: svg_length_lookup in units.cpp */
 const SVG_LENGTH_ABBR = ['', 'px', 'pt', 'pc', 'mm', 'cm', 'in', 'em', 'ex', '%'] as const;
 
+/** The abbreviation of an SVG length unit; px for none (upstream SPDocument::getWidth().unit->abbr). */
+export function svgLengthUnitAbbr(u: SVGLengthUnit): string {
+  return SVG_LENGTH_ABBR[u] || 'px';
+}
+
 /** Upstream: Unit::svgUnit. Units without an SVG length unit (ft, m, ...) give NONE. */
 export function svgUnitOf(abbr: string): SVGLengthUnit {
   const i = SVG_LENGTH_ABBR.indexOf(abbr as (typeof SVG_LENGTH_ABBR)[number]);

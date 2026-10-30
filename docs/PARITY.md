@@ -8,7 +8,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Tools | 18 | 26 | 69 |
 | Dialogs | 16 | 29 | 55 |
 | Actions | 133 | 409 | 33 |
-| Live path effects | 8 | 56 | 14 |
+| Live path effects | 13 | 56 | 23 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
@@ -491,7 +491,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (8/56)</summary>
+<details><summary>Live path effects (13/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
@@ -510,11 +510,11 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `dynastroke`
 - [ ] `ellipse_5pts`
 - [ ] `embrodery_stitch`
-- [ ] `envelope`
+- [x] `envelope`
 - [ ] `extrude`
 - [ ] `fill_between_many`
 - [ ] `fill_between_strokes`
-- [ ] `fillet_chamfer`
+- [x] `fillet_chamfer`
 - [ ] `gears`
 - [ ] `interpolate`
 - [ ] `interpolate_points`
@@ -539,12 +539,12 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `ruler`
 - [x] `show_handles`
 - [x] `simplify`
-- [ ] `skeletal`
+- [x] `skeletal`
 - [ ] `sketch`
 - [x] `slice`
-- [ ] `spiro`
+- [x] `spiro`
 - [ ] `tangent_to_curve`
-- [ ] `taper_stroke`
+- [x] `taper_stroke`
 - [ ] `text_label`
 - [ ] `tiling`
 - [ ] `transform_2pts`

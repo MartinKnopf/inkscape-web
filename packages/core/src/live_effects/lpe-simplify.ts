@@ -14,12 +14,13 @@ import {
   rad_from_deg,
   Scale,
   Translate,
+  write_svg_path,
 } from '@inkscape-web/geom';
 import { _ } from '../i18n.ts';
 import type { SPLPEItem } from '../object/sp-lpe-item.ts';
 import { pathBoolopBackend } from '../path/path-boolop.ts';
 import { closepath_current } from '../path/path-curve.ts';
-import { sp_svg_read_pathv, sp_svg_write_path } from '../svg/svg-path.ts';
+import { sp_svg_read_pathv } from '../svg/svg-path.ts';
 import { Effect } from './effect.ts';
 import type { LivePathEffectObject } from './lpeobject.ts';
 import { BoolParam } from './parameter/bool.ts';
@@ -160,9 +161,10 @@ export class LPESimplify extends Effect {
     if (this.sp_lpe_item) size /= this.sp_lpe_item.i2docAffine().descrim();
     const factor = this.lpeversion.param_getSVGValue() < '1.3' ? 1 : 10000;
     const d = pathBoolopBackend().simplifyPath(
-      sp_svg_write_path(curve),
+      write_svg_path(curve),
       (this.threshold.get_value() / factor) * size,
-      this.steps.get_value(),
+      // upstream loops "for (i = 0; i < steps; ++i)" with a double steps
+      Math.ceil(this.steps.get_value()),
       this.simplify_just_coalesce.get_value(),
     );
     const result = this.generateHelperPathAndSmooth(sp_svg_read_pathv(d));

@@ -136,6 +136,7 @@ export abstract class Parameter {
     const doc = this.param_effect.getSPDoc();
     if (!repr || !doc) return;
     repr.setAttribute(this.param_key, svgstr);
+    this.param_effect.onParamWidgetChanged(this);
     DocumentUndo.done(doc, event_description, 'dialog-path-effects');
   }
 }

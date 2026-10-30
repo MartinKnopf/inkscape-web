@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Tests of the ported effects: the output geometry follows from the upstream math.
-import { type PathVector, type Point, PathVector as PV } from '@inkscape-web/geom';
+import { EllipticalArc, type Path, type PathVector, type Point, PathVector as PV } from '@inkscape-web/geom';
 import { loadGeom } from '@inkscape-web/wasm';
 import { describe, expect, it } from 'vitest';
 import { SPDocument } from '../document.ts';
 import { count_pathvector_nodes } from '../helper/geom.ts';
+import { type NodeSatelliteType, nodeSatelliteTypeFromKey } from '../helper/geom-nodesatellite.ts';
 import type { SPShape } from '../object/sp-shape.ts';
 import { setPathBoolopBackend } from '../path/path-boolop.ts';
 import { Effect } from './effect.ts';
+import type { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
+import type { LPETaperStroke } from './lpe-taperstroke.ts';
 
 setPathBoolopBackend(await loadGeom());
 SPDocument.scheduleIdle = () => {};
@@ -180,5 +183,148 @@ describe('Bend', () => {
     const s = applied('M 0,0 H 10 V 4 H 0 Z', 'bend_path');
     expect(s.getCurrentLPE()?.getRepr()?.attribute('bendpath')).toBe('M 0,2 H 10');
     expect(bounds(curve(s))).toEqual([0, 0, 10, 4]);
+  });
+});
+
+describe('Corners', () => {
+  const square = 'M 0,0 H 10 V 10 H 0 Z';
+  const withRadius = (mode: string) => {
+    const s = applied(square, 'fillet_chamfer');
+    const lpe = s.getCurrentLPE() as LPEFilletChamfer;
+    lpe.radius.param_set_from_widget(2);
+    s.document.ensureUpToDate();
+    if (mode !== 'F') {
+      lpe.updateNodeSatelliteType(nodeSatelliteTypeFromKey(mode) as NodeSatelliteType);
+      s.document.ensureUpToDate();
+    }
+    return s;
+  };
+
+  it('rounds each corner with an arc that starts at the knot distance', () => {
+    const s = withRadius('F');
+    const p = curve(s)[0];
+    expect(p?.closed()).toBe(true);
+    const arcs = p?.curves().filter((c) => c instanceof EllipticalArc) ?? [];
+    expect(arcs).toHaveLength(4);
+    // The fillet at (10,0) runs from (8,0) to (10,2) with radius 2.
+    const arc = arcs.find((c) => c.initialPoint().x > 7 && c.initialPoint().y < 1) as EllipticalArc;
+    near(arc.initialPoint(), [8, 0]);
+    near(arc.finalPoint(), [10, 2]);
+    near(arc.pointAt(0.5), [8 + 2 * Math.SQRT1_2, 2 - 2 * Math.SQRT1_2]);
+    expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
+  });
+
+  it('cuts the corners with a chamfer line', () => {
+    const s = withRadius('C');
+    const p = curve(s)[0];
+    expect(p?.curves().every((c) => c.isLineSegment())).toBe(true);
+    expect(p?.size()).toBe(8);
+    expect(s.getCurrentLPE()?.getRepr()?.attribute('nodesatellites_param')).toBe(
+      'C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1 @ C,0,0,1,0,2,100,1',
+    );
+  });
+});
+
+describe('Taper stroke', () => {
+  it('draws the stroke as a filled outline that narrows to the ends', () => {
+    const s = applied('M 0,0 H 100', 'taper_stroke', {}, 'fill:none;stroke:#ff0000;stroke-width:4');
+    const pv = curve(s);
+    expect(pv).toHaveLength(1);
+    expect(pv[0]?.closed()).toBe(true);
+    // Full width in the middle, tips at the ends.
+    expect(bounds(pv)).toEqual([0, -2, 100, 2]);
+    // The stroke became the fill.
+    expect(s.getAttribute('style')).toContain('fill:#ff0000');
+    expect(s.getAttribute('style')).toContain('stroke:none');
+    expect(s.getCurrentLPE()?.getRepr()?.attribute('stroke_width')).toBe('4');
+  });
+
+  it('places the taper knots at the attach times', () => {
+    const s = applied('M 0,0 H 100', 'taper_stroke', {}, 'stroke:#000;stroke-width:4');
+    const lpe = s.getCurrentLPE() as LPETaperStroke;
+    near(lpe.start_attach_point[0] as Point, [20, 0]);
+    near(lpe.end_attach_point[0] as Point, [80, 0]);
+  });
+});
+
+describe('Envelope Deformation', () => {
+  it('starts with the sides of the bounding box, which keep the path', () => {
+    const s = applied('M 0,0 H 10 V 10 H 0 Z', 'envelope');
+    expect(s.getCurrentLPE()?.getRepr()?.attribute('bendpath1')).toBe('M 0,0 H 10');
+    expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
+  });
+
+  it('follows a moved side', () => {
+    const s = applied('M 0,0 H 10 V 10 H 0 Z', 'envelope', { xx: 'false', bendpath1: 'M 0,-5 H 10' });
+    // Only the top and bottom paths: the top edge moves up by 5.
+    expect(bounds(curve(s))).toEqual([0, -5, 10, 10]);
+  });
+});
+
+describe('Pattern Along Path', () => {
+  const pattern = 'M 0,-1 H 10 V 1 H 0 Z';
+
+  it('stretches a single copy of the pattern along the path', () => {
+    const s = applied('M 0,0 H 100', 'skeletal', { pattern });
+    expect(curve(s)).toHaveLength(1);
+    expect(bounds(curve(s))).toEqual([0, -1, 100, 1]);
+  });
+
+  it('repeats the pattern as many times as it fits', () => {
+    const s = applied('M 0,0 H 100', 'skeletal', { pattern, copytype: 'repeated' });
+    expect(curve(s)).toHaveLength(10);
+  });
+
+  it('uses a linked path as pattern and follows its changes', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/><path id="pat" d="${pattern}"/><path id="p" d="M 0,0 H 100"/></svg>`,
+    ) as SPDocument;
+    doc.ensureUpToDate();
+    const s = doc.getObjectById('p') as SPShape;
+    Effect.createAndApply('skeletal', doc, s);
+    s.getCurrentLPE()?.getRepr()?.setAttribute('pattern', '#pat');
+    doc.ensureUpToDate();
+    expect(bounds(curve(s))).toEqual([0, -1, 100, 1]);
+    doc.getObjectById('pat')?.setAttribute('d', 'M 0,-3 H 10 V 3 H 0 Z');
+    doc.ensureUpToDate();
+    expect(bounds(curve(s))).toEqual([0, -3, 100, 3]);
+  });
+});
+
+describe('Perspective/Envelope', () => {
+  for (const deform_type of ['perspective', 'envelope_deformation']) {
+    it(`maps the corners of the bounding box to the handles (${deform_type})`, () => {
+      const s = applied('M 0,0 H 10 V 10 H 0 Z', 'perspective-envelope', {
+        deform_type,
+        up_left_point: '0,0',
+        up_right_point: '12,-2',
+        down_left_point: '0,10',
+        down_right_point: '10,10',
+      });
+      const p = curve(s)[0] as Path;
+      const nodes = p.curves().map((c) => c.initialPoint());
+      near(nodes[0] as Point, [0, 0], 1e-6);
+      near(nodes[1] as Point, [12, -2], 1e-6);
+      near(nodes[2] as Point, [10, 10], 1e-6);
+      near(nodes[3] as Point, [0, 10], 1e-6);
+    });
+  }
+});
+
+describe('Spiro spline', () => {
+  it('runs a spline through the nodes of the path', () => {
+    const s = applied('M 0,0 C 0,5 5,10 10,10 C 15,10 20,5 20,0', 'spiro');
+    const pv = curve(s);
+    expect(pv).toHaveLength(1);
+    near(pv[0]?.initialPoint() as Point, [0, 0]);
+    near(pv[0]?.finalPoint() as Point, [20, 0]);
+    // The spline is symmetric and has its top at the smooth node.
+    expect(bounds(pv)).toEqual([0, 0, 20, 10]);
+  });
+
+  it('keeps corners: a polygon stays the same', () => {
+    const s = applied('M 0,0 H 10 V 10 H 0 Z', 'spiro');
+    expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
+    expect(curve(s)[0]?.closed()).toBe(true);
   });
 });

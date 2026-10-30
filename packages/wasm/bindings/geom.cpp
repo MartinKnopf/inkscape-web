@@ -12,6 +12,7 @@
 #include <2geom/sbasis-geometric.h>
 #include <2geom/sbasis-to-bezier.h>
 #include "helper/geom.h"
+#include "helper/geom-nodesatellite.h"
 #include "helper/geom-pathstroke.h"
 #include "livarot/Path.h"
 #include "livarot/Shape.h"
@@ -148,6 +149,19 @@ std::string simplify_path(std::string const &d, double threshold, int steps, boo
     return Geom::write_svg_path(pathliv.MakePathVector());
 }
 
+// Upstream: src/path/path-outline.cpp item_find_paths() with bbox_only: the livarot outline of the
+// stroke (no dashes). join and butt are livarot JoinType and ButtType.
+std::string stroke_outline(std::string const &d, double width, int join, int butt, double miter)
+{
+    Geom::PathVector const pathv = pathv_to_linear_and_cubic_beziers(Geom::parse_svg_path(d.c_str()));
+    Path origin;
+    Path offset;
+    origin.LoadPathVector(pathv);
+    offset.SetBackData(false);
+    origin.Outline(&offset, 0.5 * width, static_cast<JoinType>(join), static_cast<ButtType>(butt), 0.5 * miter);
+    return Geom::write_svg_path(offset.MakePathVector());
+}
+
 // Upstream: src/helper/geom-pathstroke.cpp do_offset() (Offset LPE). Returns { d, helper, mix }.
 emscripten::val offset_path(std::string const &d, double to_offset, double tolerance, double miter_limit,
                             int fill_rule, int join, double px, double py)
@@ -209,6 +223,41 @@ std::string bend_path(std::string const &d, std::string const &bend, double bbox
     }
     Piecewise<D2<SBasis>> output = compose(uskeleton, x) + y * compose(n, x);
     return write_svg_path(path_from_piecewise(output, 0.01 /* LPE_CONVERSION_TOLERANCE */));
+}
+
+static Geom::Curve const &first_curve(Geom::PathVector const &pv)
+{
+    return pv.at(0).at(0);
+}
+
+// Upstream: src/helper/geom-nodesatellite.cpp timeAtArcLength(): the time on the first curve of `d`
+// at arc length A.
+double nodesat_time_at_arc_length(std::string const &d, double a)
+{
+    return timeAtArcLength(a, first_curve(Geom::parse_svg_path(d.c_str())));
+}
+
+// Upstream: src/helper/geom-nodesatellite.cpp arcLengthAt(): the arc length of the first curve of `d`
+// at time A.
+double nodesat_arc_length_at(std::string const &d, double a)
+{
+    return arcLengthAt(a, first_curve(Geom::parse_svg_path(d.c_str())));
+}
+
+// Upstream: NodeSatellite::radToLen(): the knot distance on curve_out of a fillet with radius A.
+double nodesat_rad_to_len(double a, std::string const &curve_in, std::string const &curve_out)
+{
+    NodeSatellite s;
+    return s.radToLen(a, first_curve(Geom::parse_svg_path(curve_in.c_str())),
+                      first_curve(Geom::parse_svg_path(curve_out.c_str())));
+}
+
+// Upstream: NodeSatellite::lenToRad(): the radius of a fillet with knot distance A.
+double nodesat_len_to_rad(double a, std::string const &curve_in, std::string const &curve_out)
+{
+    NodeSatellite s;
+    return s.lenToRad(a, first_curve(Geom::parse_svg_path(curve_in.c_str())),
+                      first_curve(Geom::parse_svg_path(curve_out.c_str())), s);
 }
 
 // The functions below are reference implementations for the TypeScript port in packages/geom
@@ -283,6 +332,11 @@ EMSCRIPTEN_BINDINGS(geom)
     emscripten::function("pathCrossings", &path_crossings);
     emscripten::function("simplifyPath", &simplify_path);
     emscripten::function("offsetPath", &offset_path);
+    emscripten::function("strokeOutline", &stroke_outline);
+    emscripten::function("nodesatTimeAtArcLength", &nodesat_time_at_arc_length);
+    emscripten::function("nodesatArcLengthAt", &nodesat_arc_length_at);
+    emscripten::function("nodesatRadToLen", &nodesat_rad_to_len);
+    emscripten::function("nodesatLenToRad", &nodesat_len_to_rad);
     emscripten::function("bendPath", &bend_path);
     emscripten::function("pathBounds", &path_bounds);
     emscripten::function("transformPath", &transform_path);

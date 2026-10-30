@@ -54,6 +54,48 @@ export interface PathBoolopBackend {
   pathCrossings(a: string, b: string): number[];
   /** The livarot part of the Simplify LPE (lpe-simplify.cpp doEffect); threshold is scaled already. */
   simplifyPath(d: string, threshold: number, steps: number, justCoalesce: boolean): string;
+  /** helper/geom-nodesatellite.cpp timeAtArcLength() on the first curve of d. */
+  nodesatTimeAtArcLength(d: string, a: number): number;
+  /** helper/geom-nodesatellite.cpp arcLengthAt() on the first curve of d. */
+  nodesatArcLengthAt(d: string, a: number): number;
+  /** NodeSatellite::radToLen() (curves as path data with one curve). */
+  nodesatRadToLen(a: number, curveIn: string, curveOut: string): number;
+  /** NodeSatellite::lenToRad() (curves as path data with one curve). */
+  nodesatLenToRad(a: number, curveIn: string, curveOut: string): number;
+  /** The 2geom part of the Taper stroke LPE: stretch_along() of d with pattern, as one path. */
+  taperStretchAlong(d: string, pattern: string, width: number): string;
+  /** helper/geom-pathstroke.cpp half_outline() of the first path of d. join is a LineJoinType. */
+  halfOutline(d: string, width: number, miter: number, join: number): string;
+  spiroRun(xy: readonly number[], ty: string): string;
+  /**
+   * The 2geom part of the Envelope Deformation LPE (lpe-envelope.cpp doEffect_pwd2). bends are the
+   * top, right, bottom and left paths; bbox is [x0, x1, y0, y1].
+   */
+  envelopePath(
+    d: string,
+    bends: readonly [string, string, string, string],
+    bbox: readonly [number, number, number, number],
+    xx: boolean,
+    yy: boolean,
+  ): string;
+  /** The 2geom part of the Pattern Along Path LPE (lpe-patternalongpath.cpp doEffect_pwd2). */
+  patternAlongPath(
+    d: string,
+    pattern: string,
+    params: {
+      copytype: number;
+      spacing: number;
+      normal_offset: number;
+      tang_offset: number;
+      prop_units: boolean;
+      vertical_pattern: boolean;
+      prop_scale: number;
+      scale_y_rel: boolean;
+      fuse_tolerance: number;
+    },
+  ): string;
+  /** The livarot outline of the stroke of d (path-outline.cpp item_find_paths with bbox_only). */
+  strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** do_offset() of helper/geom-pathstroke.cpp (Offset LPE). join is an Inkscape::LineJoinType. */
   offsetPath(
     d: string,
@@ -120,6 +162,11 @@ export function sp_pathvector_boolop(
 /** Upstream flatten(): remove the self-intersections of pathv with the fill rule. */
 export function flatten(pathv: PathVector, fill_rule: FillRule): PathVector {
   return parse_svg_path(pathBoolopBackend().flattenPath(write_svg_path(pathv), fill_rule));
+}
+
+/** Whether the path operations are available (they are not in tests that do not load WASM). */
+export function hasPathBoolopBackend(): boolean {
+  return backend !== null;
 }
 
 /** The implementation of the path operations. Throws if none was set. */

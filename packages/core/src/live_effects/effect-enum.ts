@@ -203,6 +203,8 @@ const entry = (
   icon: string,
   description: string,
   category: LPECategory,
+  on_shape = true,
+  on_group = true,
 ): EnumEffectData<EffectType> => ({
   id,
   label,
@@ -211,8 +213,8 @@ const entry = (
   description,
   category,
   on_path: true,
-  on_shape: true,
-  on_group: true,
+  on_shape,
+  on_group,
   on_image: false,
   on_text: false,
   experimental: false,
@@ -234,6 +236,35 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Bend an object along the curvature of another path'),
     LPECategory.Distort,
   ),
+  entry(
+    EffectType.PATTERN_ALONG_PATH,
+    NC_('path effect', 'Pattern Along Path'),
+    'skeletal',
+    'skeletal',
+    N_('Place one or more copies of another path along the path'),
+    LPECategory.Distort,
+  ),
+  /* 0.47 */
+  entry(
+    EffectType.SPIRO,
+    NC_('path effect', 'Spiro spline'),
+    'spiro',
+    'spiro',
+    N_(
+      'Make the path curl like wire, using Spiro B-Splines. This effect is usually used directly on the canvas with the Spiro mode of the drawing tools.',
+    ),
+    LPECategory.Convert,
+    false,
+    false,
+  ),
+  entry(
+    EffectType.ENVELOPE,
+    NC_('path effect', 'Envelope Deformation'),
+    'envelope',
+    'envelope',
+    N_('Adjust the shape of an object by transforming paths on its four sides'),
+    LPECategory.Distort,
+  ),
   /* 0.91 */
   entry(
     EffectType.SIMPLIFY,
@@ -244,12 +275,32 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.EditTools,
   ),
   entry(
+    EffectType.PERSPECTIVE_ENVELOPE,
+    NC_('path effect', 'Perspective/Envelope'),
+    'perspective-envelope', // wrong key with "-" retain because historic
+    'perspective-envelope',
+    N_(
+      'Transform the object to fit into a shape with four corners, either by stretching it or creating the illusion of a 3D-perspective',
+    ),
+    LPECategory.Distort,
+  ),
+  entry(
     EffectType.ROUGHEN,
     NC_('path effect', 'Roughen'),
     'roughen',
     'roughen',
     N_('Roughen an object by adding and randomly shifting new nodes'),
     LPECategory.Distort,
+  ),
+  entry(
+    EffectType.TAPER_STROKE,
+    NC_('path effect', 'Taper stroke'),
+    'taper_stroke',
+    'taper-stroke',
+    N_("Let the path's ends narrow down to a tip"),
+    LPECategory.EditTools,
+    true,
+    false,
   ),
   entry(
     EffectType.MIRROR_SYMMETRY,
@@ -270,6 +321,18 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
       'Create multiple rotated copies of an object, as in a kaleidoscope. The copies can be styled independently.',
     ),
     LPECategory.Generate,
+  ),
+  entry(
+    EffectType.FILLET_CHAMFER,
+    NC_('path effect', 'Corners'),
+    'fillet_chamfer',
+    'fillet-chamfer',
+    N_(
+      "Fillet/Chamfer: Adjust the shape of a path's corners, rounding them to a specified radius, or cutting them off",
+    ),
+    LPECategory.EditTools,
+    true,
+    false,
   ),
   /* 1.0 */
   entry(

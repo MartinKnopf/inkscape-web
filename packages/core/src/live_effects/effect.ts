@@ -513,6 +513,12 @@ export abstract class Effect {
     return widgets;
   }
 
+  /**
+   * Called after the dialog wrote a parameter value (upstream: some effects connect to the
+   * value_changed signal of a widget, e.g. the radius of Corners).
+   */
+  onParamWidgetChanged(_param: Parameter): void {}
+
   /** Set this LPE defaults */
   setDefaultParameters(): void {
     const prefs = Preferences.get();
