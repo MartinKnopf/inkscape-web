@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Build upstream lib2geom + livarot + path operations + libavoid to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp
+# Build upstream lib2geom + livarot + path operations + libavoid + potrace and the trace filters to WebAssembly.
+# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -46,11 +46,23 @@ fetch https://ftp.gnu.org/gnu/gsl/gsl-2.8.tar.gz \
     6a99eeed15632c6354895b1dd542ed5a855c0f15d9ad1326c6fe2b2c9e423190 gsl
 fetch https://github.com/google/double-conversion/archive/refs/tags/v3.4.0.tar.gz \
     42fd4d980ea86426e457b24bdfa835a6f5ad9517ddb01cdb42b99ab9c8dd5dc9 double-conversion
+# Upstream links the system libpotrace (find_package(Potrace), no pinned version): use the latest release.
+fetch https://potrace.sourceforge.net/download/1.16/potrace-1.16.tar.gz \
+    be8248a17dedd6ccbaab2fcc45835bb0502d062e40fbded3bc56028ce5eb7acc potrace
 
 if [ ! -f "$P/lib/libdouble-conversion.a" ]; then
     mkdir -p "$B/double-conversion" && (cd "$B/double-conversion" &&
         emcmake cmake "$B/vendor/double-conversion" -DCMAKE_INSTALL_PREFIX="$P" -DCMAKE_BUILD_TYPE=Release >/dev/null &&
         emmake make -j"$JOBS" install >/dev/null)
+fi
+# libpotrace: the library sources of potrace's src/Makefile.am (libsources), without its config.h.
+if [ ! -f "$P/lib/libpotrace.a" ]; then
+    mkdir -p "$B/potrace" "$P/lib" "$P/include" && (cd "$B/potrace" &&
+        for f in curve trace decompose potracelib; do
+            emcc -O3 -DVERSION='"1.16"' -DHAVE_INTTYPES_H -c "$B/vendor/potrace/src/$f.c" -o "$f.o"
+        done &&
+        emar rcs "$P/lib/libpotrace.a" curve.o trace.o decompose.o potracelib.o &&
+        cp "$B/vendor/potrace/src/potracelib.h" "$P/include/")
 fi
 if [ ! -f "$P/lib/libgsl.a" ]; then
     mkdir -p "$B/gsl" && (cd "$B/gsl" &&
@@ -78,6 +90,8 @@ SRCS="$SRCS $HERE/shim/precision.cpp"
 SRCS="$SRCS $INK/src/helper/geom-nodesatellite.cpp"
 # Spiro splines (Spiro LPE and the Spiro mode of the drawing tools).
 SRCS="$SRCS $INK/src/live_effects/spiro.cpp $INK/src/live_effects/spiro-converters.cpp"
+# The filters and color quantization of Trace Bitmap and the paint bucket (shim/gdkmm for their headers).
+SRCS="$SRCS $INK/src/trace/imagemap.cpp $INK/src/trace/filterset.cpp $INK/src/trace/quantize.cpp"
 
 # WASM has no FP rounding-mode control, so Boost.Interval gets its default (no-op)
 # rounding: we skip its hw_rounding.hpp (only used by 2geom/geometric-intersection.cpp).
@@ -95,7 +109,7 @@ OBJS=""
 for s in $SRCS; do OBJS="$OBJS $(obj "$s")"; done
 mkdir -p dist
 # shellcheck disable=SC2086
-em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/avoid.cpp $OBJS "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
+em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/avoid.cpp bindings/trace.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit
@@ -108,4 +122,5 @@ cp "$G/COPYING-LGPL-2.1" "$G/COPYING-MPL-1.1" dist/licenses/
 cp "$A/libavoid/LICENSE.LGPL" dist/licenses/libavoid-LICENSE.LGPL
 cp "$B/vendor/gsl/COPYING" dist/licenses/gsl-COPYING
 cp "$B/vendor/double-conversion/LICENSE" dist/licenses/double-conversion-LICENSE
+cp "$B/vendor/potrace/COPYING" dist/licenses/potrace-COPYING
 echo "wasm: $(du -h dist/geom-module.wasm | cut -f1) ($(gzip -9c dist/geom-module.wasm | wc -c | tr -d ' ') bytes gzip)"

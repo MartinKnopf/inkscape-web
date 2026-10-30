@@ -204,10 +204,71 @@ let module: Promise<MainModule> | undefined;
  * file path of dist/geom-module.wasm in locateFile: there the module gets an
  * http URL from import.meta.url.
  */
-export async function loadGeom(options?: { locateFile: (path: string) => string }): Promise<Geom> {
+/**
+ * A node of the potrace path tree (upstream potrace_path_t): the segment tags
+ * (POTRACE_CURVETO = 1, POTRACE_CORNER = 2), 6 numbers per segment (the 3 points
+ * of potrace_curve_t.c), and the child paths (holes).
+ */
+export interface PotracePath {
+  tags: number[];
+  c: number[];
+  children: PotracePath[];
+}
+
+/** The potrace parameters (upstream potrace_param_t, without progress). */
+export interface PotraceParams {
+  turdsize: number;
+  alphamax: number;
+  opticurve: boolean;
+  opttolerance: number;
+}
+
+/** A color quantized image (upstream IndexedMap): color index per pixel and the colors (r, g, b, ...). */
+export interface IndexedMapData {
+  pixels: Uint32Array;
+  clut: number[];
+  nrColors: number;
+}
+
+/**
+ * Upstream potrace and the filters of src/trace/. RGB images have 3 bytes per pixel, gray maps
+ * one number per pixel in 0..765 (upstream GrayMap), both row by row.
+ */
+export interface Trace {
+  /** potrace_trace() of a bitmap with one byte per pixel (non-zero: black); null on failure. */
+  potraceTrace(bits: Uint8Array, width: number, height: number, params: PotraceParams): PotracePath[] | null;
+  /** Upstream rgbMapQuantize(). */
+  rgbMapQuantize(rgb: Uint8Array, width: number, height: number, nrColors: number): IndexedMapData;
+  /** Upstream rgbMapGaussian(). */
+  rgbMapGaussian(rgb: Uint8Array, width: number, height: number): Uint8Array;
+  /** Upstream grayMapGaussian(). */
+  grayMapGaussian(gray: Uint32Array, width: number, height: number): Uint32Array;
+  /** Upstream grayMapCanny(). */
+  grayMapCanny(gray: Uint32Array, width: number, height: number, low: number, high: number): Uint32Array;
+  /** Upstream quantizeBand(). */
+  quantizeBand(rgb: Uint8Array, width: number, height: number, nrColors: number): Uint32Array;
+  /**
+   * The livarot part of the paint bucket (upstream flood-tool.cpp do_trace()): the path data
+   * as livarot writes it, inset or outset by offset when not 0; '' if nothing is left.
+   */
+  floodPathData(d: string, offset: number): string;
+}
+
+export async function loadGeom(options?: { locateFile: (path: string) => string }): Promise<Geom & Trace> {
   module ??= createModule(options);
   const m = await module;
   return {
+    potraceTrace: (bits, width, height, p) =>
+      m.potraceTrace(bits, width, height, p.turdsize, p.alphamax, p.opticurve ? 1 : 0, p.opttolerance) as
+        | PotracePath[]
+        | null,
+    rgbMapQuantize: (rgb, width, height, n) => m.rgbMapQuantize(rgb, width, height, n) as IndexedMapData,
+    rgbMapGaussian: (rgb, width, height) => m.rgbMapGaussian(rgb, width, height) as Uint8Array,
+    grayMapGaussian: (gray, width, height) => m.grayMapGaussian(gray, width, height) as Uint32Array,
+    grayMapCanny: (gray, width, height, low, high) =>
+      m.grayMapCanny(gray, width, height, low, high) as Uint32Array,
+    quantizeBand: (rgb, width, height, n) => m.quantizeBand(rgb, width, height, n) as Uint32Array,
+    floodPathData: (d, offset) => m.floodPathData(d, offset),
     boolop: (a, b, op, fillA, fillB) => m.boolop(a, b, op, fillA, fillB),
     cutPath: (pathv, lines) => m.cutPath(pathv, lines) as string[],
     splitNonIntersectingPaths: (d, fillRule) => m.splitNonIntersectingPaths(d, fillRule) as string[],
