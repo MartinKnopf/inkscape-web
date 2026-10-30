@@ -5,23 +5,23 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 20 | 26 | 77 |
-| Dialogs | 16 | 29 | 55 |
+| Tools | 19 | 26 | 73 |
+| Dialogs | 17 | 29 | 59 |
 | Actions | 133 | 409 | 33 |
 | Live path effects | 13 | 56 | 23 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (20/26)</summary>
+<details><summary>Tools (19/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
-- [x] `box3d-tool.cpp`
+- [ ] `box3d-tool.cpp`
 - [x] `calligraphic-tool.cpp`
-- [x] `connector-tool.cpp`
+- [ ] `connector-tool.cpp`
 - [x] `dropper-tool.cpp`
 - [x] `eraser-tool.cpp`
-- [ ] `flood-tool.cpp`
+- [x] `flood-tool.cpp`
 - [x] `gradient-tool.cpp`
 - [ ] `lpe-tool.cpp`
 - [ ] `marker-tool.cpp`
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (16/29)</summary>
+<details><summary>Dialogs (17/29)</summary>
 
 - [x] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -70,7 +70,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `Swatches`
 - [x] `Symbols`
 - [x] `Text`
-- [ ] `Trace`
+- [x] `Trace`
 - [x] `Transform`
 - [x] `UndoHistory`
 - [x] `XMLEditor`
