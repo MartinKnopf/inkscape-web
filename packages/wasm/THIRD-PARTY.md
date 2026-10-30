@@ -4,6 +4,7 @@
 |---|---|---|
 | Inkscape (livarot, `src/path`, `src/svg`) | upstream checkout | GPL-2.0-or-later |
 | lib2geom | upstream `src/3rdparty/2geom` | LGPL-2.1-or-later OR MPL-1.1 |
+| libavoid (Adaptagrams) | upstream `src/3rdparty/adaptagrams/libavoid` | LGPL-2.1-or-later |
 | GNU Scientific Library 2.8 | ftp.gnu.org | GPL-3.0-or-later |
 | double-conversion 3.4.0 | github.com/google/double-conversion | BSD-3-Clause |
 | Boost (headers only) | system / Homebrew | BSL-1.0 |

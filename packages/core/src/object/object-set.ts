@@ -791,6 +791,9 @@ export class ObjectSet {
    * live drag, when the items already show the new transform and only the
    * reprs need the update.
    */
+  /** The 3D box part of applyAffine(): transform the perspectives; set by box3d.ts. */
+  static applyAffineToPerspectives: ((set: ObjectSet, affine: Affine) => void) | null = null;
+
   applyAffine(affine: Affine, set_i2d = true, compensate = true, adjust_transf_center = true): void {
     if (this.isEmpty()) return;
     this.#lastAffine = affine;
@@ -801,7 +804,7 @@ export class ObjectSet {
         // TODO: flash "Cannot transform an embedded SVG." in the message stack.
         break;
       }
-      // TODO: connectors, offsets, text on path, flowed text, 3D box perspectives.
+      // TODO: connectors, offsets, text on path, flowed text.
       const old_center = item.isCenterSet() ? item.getCenter() : null;
 
       // "clones are unmoved when original is moved" preference
@@ -858,6 +861,9 @@ export class ObjectSet {
         item.updateRepr();
       }
     }
+    // For each perspective with a box in selection, check whether all boxes are selected and
+    // unlink all non-selected boxes.
+    ObjectSet.applyAffineToPerspectives?.(this, affine);
   }
 
   /** Scale the visual bounds to (x0, y0)–(x1, y1). */

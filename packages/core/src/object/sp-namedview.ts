@@ -75,6 +75,8 @@ export class SPNamedView extends SPObject {
   label_style = 'default';
   #background_color = DEFAULT_BACKGROUND_COLOR.clone();
   #border_color = DEFAULT_BORDER_COLOR.clone();
+  /** Space around the shapes that connectors avoid, in px (inkscape:connector-spacing). */
+  connector_spacing = 3.0;
   /** Display unit abbreviation (inkscape:document-units). */
   display_units = 'px';
   zoom = 0;
@@ -130,6 +132,7 @@ export class SPNamedView extends SPObject {
       SPAttr.INKSCAPE_CY,
       SPAttr.INKSCAPE_CURRENT_LAYER,
       SPAttr.INKSCAPE_LOCKGUIDES,
+      SPAttr.INKSCAPE_CONNECTOR_SPACING,
     ]) {
       this.readAttr(key);
     }
@@ -239,6 +242,10 @@ export class SPNamedView extends SPObject {
       }
       case SPAttr.PAGECOLOR:
         this.#background_color = Color.parse(value) ?? DEFAULT_BACKGROUND_COLOR.clone();
+        break;
+      case SPAttr.INKSCAPE_CONNECTOR_SPACING:
+        // Upstream defaultConnSpacing (conn-avoid-ref.h).
+        this.connector_spacing = value ? Number.parseFloat(value) || 0 : 3.0;
         break;
       case SPAttr.PAGELABELSTYLE:
         this.label_style = value ?? 'default';

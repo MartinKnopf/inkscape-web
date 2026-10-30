@@ -3,6 +3,30 @@ interface WasmModule {
 }
 
 type EmbindString = ArrayBuffer|Uint8Array|Uint8ClampedArray|Int8Array|string;
+export interface ClassHandle {
+  isAliasOf(other: ClassHandle): boolean;
+  delete(): void;
+  deleteLater(): this;
+  isDeleted(): boolean;
+  // @ts-ignore - If targeting lower than ESNext, this symbol might not exist.
+  [Symbol.dispose](): void;
+  clone(): this;
+}
+export interface AvoidRouter extends ClassHandle {
+  addShape(_0: number, _1: any): void;
+  moveShape(_0: number, _1: any): void;
+  deleteShape(_0: number): void;
+  addConnector(_0: number, _1: boolean): void;
+  setRoutingType(_0: number, _1: boolean): void;
+  setEndpoints(_0: number, _1: number, _2: number, _3: number, _4: number): void;
+  makePathInvalid(_0: number): void;
+  isInitialised(_0: number): boolean;
+  deleteConnector(_0: number): void;
+  processTransaction(): boolean;
+  takeChanged(): any;
+  route(_0: number, _1: number): any;
+}
+
 interface EmbindModule {
   boolop(_0: EmbindString, _1: EmbindString, _2: number, _3: number, _4: number): string;
   cutPath(_0: EmbindString, _1: EmbindString): any;
@@ -30,6 +54,9 @@ interface EmbindModule {
   halfOutline(_0: EmbindString, _1: number, _2: number, _3: number): string;
   envelopePath(_0: EmbindString, _1: EmbindString, _2: EmbindString, _3: EmbindString, _4: EmbindString, _5: number, _6: number, _7: number, _8: number, _9: boolean, _10: boolean): string;
   patternAlongPath(_0: EmbindString, _1: EmbindString, _2: number, _3: number, _4: number, _5: number, _6: boolean, _7: boolean, _8: number, _9: boolean, _10: number): string;
+  AvoidRouter: {
+    new(): AvoidRouter;
+  };
 }
 
 export type MainModule = WasmModule & EmbindModule;

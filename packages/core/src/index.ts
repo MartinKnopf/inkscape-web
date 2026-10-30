@@ -3,8 +3,10 @@
 // No DOM, no React.
 
 export * from './attributes.ts';
+export * from './axis-manip.ts';
 // Upstream namespace Inkscape::Colors.
 export * as Colors from './colors/index.ts';
+export * from './conn-avoid-ref.ts';
 export * from './display/cairo-utils.ts';
 export type * from './display/drawing.ts';
 export * from './document.ts';
@@ -21,6 +23,14 @@ export * from './id-clash.ts';
 export * from './libnrtype/Layout-TNG.ts';
 export * from './libnrtype/Layout-TNG-Compute.ts';
 export * from './libnrtype/text-measurer.ts';
+export {
+  coordinates,
+  determinant,
+  Line as Box3DLine,
+  lies_in_quadrangle,
+  lies_in_sector,
+  side_of_intersection,
+} from './line-geometry.ts';
 export * from './live_effects/effect.ts';
 export * from './live_effects/effect-enum.ts';
 export { LPEBendPath } from './live_effects/lpe-bendpath.ts';
@@ -50,10 +60,16 @@ export * from './live_effects/parameter/scalararray.ts';
 export * from './live_effects/parameter/togglebutton.ts';
 export * from './live_effects/parameter/unit.ts';
 export * from './number-opt-number.ts';
+export * from './object/box3d.ts';
+export * from './object/box3d-side.ts';
 export * from './object/filters/gaussian-blur.ts';
 export * from './object/filters/sp-filter-primitive.ts';
 export * from './object/object-set.ts';
+export * from './object/persp3d.ts';
+export * from './object/persp3d-reference.ts';
 export * from './object/sp-clippath.ts';
+export * from './object/sp-conn-end.ts';
+export * from './object/sp-conn-end-pair.ts';
 export * from './object/sp-defs.ts';
 export * from './object/sp-dimensions.ts';
 export * from './object/sp-ellipse.ts';
@@ -107,8 +123,10 @@ export * from './path/path-curve.ts';
 export * from './path/path-object-set.ts';
 export * from './path/splinefit/bezier-fit.ts';
 export * from './path-chemistry.ts';
+export * from './perspective-line.ts';
 export * from './preferences.ts';
 export * from './preferences-skeleton.ts';
+export * from './proj_pt.ts';
 export * from './selection.ts';
 export * from './snap-candidate.ts';
 export * from './snap-enums.ts';
@@ -126,8 +144,10 @@ export * from './svg/svg-bool.ts';
 export * from './svg/svg-box.ts';
 export * from './svg/svg-length.ts';
 export * from './svg/svg-path.ts';
+export * from './syseq.ts';
 export * from './text-chemistry.ts';
 export * from './text-editing.ts';
+export * from './transf_mat_3x4.ts';
 export * from './ui/knot/knot-holder-entity.ts';
 export * from './util/enums.ts';
 export * from './util/paper.ts';

@@ -15,6 +15,7 @@
 import { Affine, are_near, type OptRect, Point, Rect, Scale, Translate } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { Color } from '../colors/color.ts';
+import type { SPAvoidRef } from '../conn-avoid-ref.ts';
 import type { Drawing, DrawingItem } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
 import { SPContentUnits } from '../enums.ts';
@@ -148,6 +149,20 @@ export class SPItem extends SPObject {
   /** Emitted by doWriteTransform with the relative transform. */
   readonly transformedSignal = new Signal<[Affine, SPItem]>();
 
+  /** The connector obstacle of the item (upstream avoidRef), created by getAvoidRef(). */
+  avoidRef: SPAvoidRef | null = null;
+  /** Creates the SPAvoidRef; set by conn-avoid-ref.ts, which imports this module. */
+  static avoidRefFactory: ((item: SPItem) => SPAvoidRef) | null = null;
+
+  getAvoidRef(): SPAvoidRef {
+    if (!this.avoidRef) {
+      const factory = SPItem.avoidRefFactory;
+      if (!factory) throw new Error('conn-avoid-ref.ts is not loaded');
+      this.avoidRef = factory(this);
+    }
+    return this.avoidRef;
+  }
+
   isLocked(): boolean {
     for (let o: SPObject | null = this; o; o = o.parent) {
       if (o instanceof SPItem && !o.sensitive) return true;
@@ -234,6 +249,7 @@ export class SPItem extends SPObject {
     this.readAttr(SPAttr.TRANSFORM_CENTER_X);
     this.readAttr(SPAttr.TRANSFORM_CENTER_Y);
     this.readAttr(SPAttr.INKSCAPE_HIGHLIGHT_COLOR);
+    this.readAttr(SPAttr.CONNECTOR_AVOID);
     // SPObject.build() reads the style.
     super.build(document, repr);
   }
@@ -244,6 +260,8 @@ export class SPItem extends SPObject {
     this.clip_ref = null;
     this.mask_ref?.detach();
     this.mask_ref = null;
+    this.avoidRef?.release();
+    this.avoidRef = null;
     super.release();
     for (const v of this.views) v.drawingitem.unlink();
     this.views = [];
@@ -281,8 +299,11 @@ export class SPItem extends SPObject {
         this.transform_center_y = value ? (Number.parseFloat(value) || 0) * -this.document.yaxisdir() : 0;
         this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
         break;
+      case SPAttr.CONNECTOR_AVOID:
+        if (value || this.avoidRef) this.getAvoidRef().setAvoid(value);
+        break;
       default:
-        // TODO: connector-avoid, conditional attributes.
+        // TODO: conditional attributes.
         super.set(key, value);
         break;
     }
@@ -327,6 +348,9 @@ export class SPItem extends SPObject {
       const bbox = this.geometricBounds();
       for (const v of this.views) v.drawingitem.setItemBounds(bbox);
     }
+
+    // Update libavoid with item geometry (for connector routing).
+    this.avoidRef?.handleSettingChange();
   }
 
   override write(xmlDoc: XmlDocument, repr: Node | null, flags: number): Node | null {
