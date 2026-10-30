@@ -10,6 +10,7 @@
  */
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
+import { Box3dTool } from './tools/box3d-tool.ts';
 import { CalligraphicTool } from './tools/calligraphic-tool.ts';
 import { ConnectorTool } from './tools/connector-tool.ts';
 import { DropperTool } from './tools/dropper-tool.ts';
@@ -50,6 +51,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/select': SelectTool,
   '/tools/shapes/spiral': SpiralTool,
   '/tools/shapes/star': StarTool,
+  '/tools/shapes/3dbox': Box3dTool,
   '/tools/text': TextTool,
 };
 
