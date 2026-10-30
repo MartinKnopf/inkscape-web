@@ -15,6 +15,7 @@ import { ObjectsDialog } from './objects.tsx';
 import { SwatchesDialog } from './swatches.tsx';
 import { SymbolsDialog } from './symbols.tsx';
 import { TextEditDialog } from './text-edit.tsx';
+import { TraceDialog } from './tracedialog.tsx';
 import { TransformationDialog } from './transformation.tsx';
 import { UndoHistoryDialog } from './undo-history.tsx';
 import { XmlTreeDialog } from './xml-tree.tsx';
@@ -45,6 +46,7 @@ const DIALOGS: Record<string, DialogData> = {
   Swatches: { label: _('S_watches'), component: SwatchesDialog },
   Symbols: { label: _('S_ymbols'), component: SymbolsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
+  Trace: { label: _('_Trace Bitmap'), component: TraceDialog },
   Transform: { label: _('Transfor_m'), component: TransformationDialog },
   UndoHistory: { label: _('Undo _History'), component: UndoHistoryDialog },
   XMLEditor: { label: _('_XML Editor'), component: XmlTreeDialog },
