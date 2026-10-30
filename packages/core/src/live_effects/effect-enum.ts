@@ -262,6 +262,16 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.EditTools,
   ),
   entry(
+    EffectType.PERSPECTIVE_ENVELOPE,
+    NC_('path effect', 'Perspective/Envelope'),
+    'perspective-envelope', // wrong key with "-" retain because historic
+    'perspective-envelope',
+    N_(
+      'Transform the object to fit into a shape with four corners, either by stretching it or creating the illusion of a 3D-perspective',
+    ),
+    LPECategory.Distort,
+  ),
+  entry(
     EffectType.ROUGHEN,
     NC_('path effect', 'Roughen'),
     'roughen',

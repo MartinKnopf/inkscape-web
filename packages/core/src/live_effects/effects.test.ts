@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Tests of the ported effects: the output geometry follows from the upstream math.
-import { EllipticalArc, type PathVector, type Point, PathVector as PV } from '@inkscape-web/geom';
+import { EllipticalArc, type Path, type PathVector, type Point, PathVector as PV } from '@inkscape-web/geom';
 import { loadGeom } from '@inkscape-web/wasm';
 import { describe, expect, it } from 'vitest';
 import { SPDocument } from '../document.ts';
@@ -289,4 +289,24 @@ describe('Pattern Along Path', () => {
     doc.ensureUpToDate();
     expect(bounds(curve(s))).toEqual([0, -3, 100, 3]);
   });
+});
+
+describe('Perspective/Envelope', () => {
+  for (const deform_type of ['perspective', 'envelope_deformation']) {
+    it(`maps the corners of the bounding box to the handles (${deform_type})`, () => {
+      const s = applied('M 0,0 H 10 V 10 H 0 Z', 'perspective-envelope', {
+        deform_type,
+        up_left_point: '0,0',
+        up_right_point: '12,-2',
+        down_left_point: '0,10',
+        down_right_point: '10,10',
+      });
+      const p = curve(s)[0] as Path;
+      const nodes = p.curves().map((c) => c.initialPoint());
+      near(nodes[0] as Point, [0, 0], 1e-6);
+      near(nodes[1] as Point, [12, -2], 1e-6);
+      near(nodes[2] as Point, [10, 10], 1e-6);
+      near(nodes[3] as Point, [0, 10], 1e-6);
+    });
+  }
 });

@@ -30,6 +30,7 @@ export { LPEFilletChamfer } from './live_effects/lpe-fillet-chamfer.ts';
 export { LPEMirrorSymmetry } from './live_effects/lpe-mirror_symmetry.ts';
 export { LPEOffset } from './live_effects/lpe-offset.ts';
 export { LPEPatternAlongPath } from './live_effects/lpe-patternalongpath.ts';
+export { LPEPerspectiveEnvelope } from './live_effects/lpe-perspective-envelope.ts';
 export { LPERoughen } from './live_effects/lpe-roughen.ts';
 export { LPESimplify } from './live_effects/lpe-simplify.ts';
 export { LPETaperStroke } from './live_effects/lpe-taperstroke.ts';
