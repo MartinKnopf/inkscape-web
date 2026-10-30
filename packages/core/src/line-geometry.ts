@@ -56,7 +56,14 @@ export class Line {
 
   /** The intersection with the border of area (upstream: the display area of the desktop). */
   intersection_with_viewbox(vb: Rect): Point | null {
-    const e = side_of_intersection(vb.corner(0), vb.corner(1), vb.corner(2), vb.corner(3), this.pt, this.v_dir);
+    const e = side_of_intersection(
+      vb.corner(0),
+      vb.corner(1),
+      vb.corner(2),
+      vb.corner(3),
+      this.pt,
+      this.v_dir,
+    );
     // perspective line lies outside the canvas
     if (e[0].equals(e[1])) return null;
     return this.intersect(new Line(e[0], e[1]));
@@ -127,7 +134,14 @@ function pos_angle(v: Point, w: Point): number {
  * starting at pt and going into direction dir.
  * If none of the sides is hit, it returns a pair containing two identical points.
  */
-export function side_of_intersection(A: Point, B: Point, C: Point, D: Point, pt: Point, dir: Point): [Point, Point] {
+export function side_of_intersection(
+  A: Point,
+  B: Point,
+  C: Point,
+  D: Point,
+  pt: Point,
+  dir: Point,
+): [Point, Point] {
   const corners = [A, B, C, D];
   let result: [Point, Point] = [A, A];
   let angle = -1;

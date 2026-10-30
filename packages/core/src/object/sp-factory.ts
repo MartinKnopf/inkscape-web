@@ -8,8 +8,11 @@
  */
 import '../live_effects/effect-new.ts';
 import { LivePathEffectObject } from '../live_effects/lpeobject.ts';
+import { SPBox3D } from './box3d.ts';
+import { Box3DSide } from './box3d-side.ts';
 import { SPGaussianBlur } from './filters/gaussian-blur.ts';
 import { SPFilterPrimitive } from './filters/sp-filter-primitive.ts';
+import { Persp3D } from './persp3d.ts';
 import { SPClipPath } from './sp-clippath.ts';
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
@@ -51,6 +54,9 @@ function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
 
 /** Constructors by type string (element name or sodipodi:type). null: known, but no object. */
 const map = new Map<string, (() => SPObject) | null>([
+  ['inkscape:box3d', () => new SPBox3D()],
+  ['inkscape:box3dside', () => new Box3DSide()],
+  ['inkscape:persp3d', () => new Persp3D()],
   ['svg:clipPath', () => new SPClipPath()],
   ['svg:defs', () => new SPDefs()],
   ['svg:ellipse', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE)],

@@ -112,7 +112,20 @@ export namespace Box3D {
    * does not specify a face. A face can either be given by its plane (e.g, XY)
    * or by the axis that is orthogonal to it (e.g., Z).
    */
-  const FACE_TO_INT: Record<number, number> = { 1: 0, 2: 1, 4: 2, 3: 2, 5: 1, 6: 0, 9: 3, 10: 4, 12: 5, 11: 5, 13: 4, 14: 3 };
+  const FACE_TO_INT: Record<number, number> = {
+    1: 0,
+    2: 1,
+    4: 2,
+    3: 2,
+    5: 1,
+    6: 0,
+    9: 3,
+    10: 4,
+    12: 5,
+    11: 5,
+    13: 4,
+    14: 3,
+  };
   export function face_to_int(face_id: number): number {
     return FACE_TO_INT[face_id] ?? -1;
   }
