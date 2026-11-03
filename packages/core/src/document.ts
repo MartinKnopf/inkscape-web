@@ -96,6 +96,9 @@ export class SPDocument {
   modifiedSinceAutoSave = false;
 
   readonly modifiedSignal = new Signal<[number]>();
+  /** Emitted before and after rebase() replaces the content (upstream ReconstructionStart/Finish). */
+  readonly reconstructionStartSignal = new Signal<[]>();
+  readonly reconstructionFinishSignal = new Signal<[]>();
   readonly commitSignal = new Signal<[]>();
   /** Emitted when the undo or redo stack changes (upstream: the EventLog notifications). */
   readonly undoStackChangedSignal = new Signal<[]>();
@@ -494,6 +497,7 @@ export class SPDocument {
     const origin_root = this.getReprRoot();
     const new_root = new_xmldoc.root();
     if (!new_root) return;
+    this.reconstructionStartSignal.emit();
     let namedview: Node | null = null;
     for (let child = origin_root.lastChild(); child !== null; ) {
       const prevchild = child.prev();
@@ -508,6 +512,7 @@ export class SPDocument {
     }
     // Copy svg root attributes
     for (const [key, value] of new_root.attributeList()) origin_root.setAttribute(key, value);
+    this.reconstructionFinishSignal.emit();
   }
 
   /**

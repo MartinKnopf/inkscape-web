@@ -72,7 +72,8 @@ class FakeRunner {
 
 function setup() {
   const doc = SPDocument.createNewDocFromMem(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect id="r" width="10" height="10"/><path d="M0 0L5 5"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="100" height="100">' +
+      '<g id="l1" inkscape:groupmode="layer"><rect id="r" width="10" height="10"/><path d="M0 0L5 5"/></g></svg>',
   );
   if (!doc) throw new Error('parse failed');
   const host = document.createElement('div');
@@ -174,8 +175,11 @@ describe('running effects', () => {
   it('runs the script with the parameters, the selection and the document, then replaces the document', async () => {
     const { doc, dt, runner, lastUndo, circles } = setup();
     const ext = build_from_mem(ADD_NODES, null, '/share/extensions/addnodes.inx') as Effect;
+    dt.layerManager().setCurrentLayer(doc.getObjectById('l1') as SPItem);
     dt.getSelection().set(doc.getObjectById('r') as SPItem);
     await ext.effect(dt);
+    // The current layer is the new layer object with the same id.
+    expect(dt.layerManager().currentLayer()).toBe(doc.getObjectById('l1'));
     expect(runner.calls[0]?.command).toEqual({
       interpreter: 'python',
       script: '/share/extensions/addnodes.py',
@@ -188,6 +192,7 @@ describe('running effects', () => {
       '--hidden=x y',
     ]);
     expect(runner.calls[0]?.input).toContain('id="r"');
+    expect(doc.getObjectById('r')).not.toBe(null);
     expect(circles()).toBe(1);
     expect(lastUndo()).toBe('Add Nodes');
     expect(Effect.get_last_effect()).toBe(ext);

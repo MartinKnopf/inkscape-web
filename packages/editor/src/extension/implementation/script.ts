@@ -12,7 +12,7 @@
  * Copyright (C) 2002-2007 Authors
  */
 import { _, readMem, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
-import type { SPDesktop } from '../../desktop.ts';
+import { type SPDesktop, sp_namedview_document_from_window } from '../../desktop.ts';
 import type { Effect } from '../effect.ts';
 import type { ExecutionEnv } from '../execution-env.ts';
 import type { Extension } from '../extension.ts';
@@ -150,6 +150,8 @@ export class Script extends Implementation {
     desktop: SPDesktop | null,
     document: SPDocument,
   ): Promise<void> {
+    if (desktop) sp_namedview_document_from_window(desktop);
+
     if (module.no_doc) {
       // this is a no-doc extension, e.g. a Help menu command;
       // just run the command without any files, ignoring errors
