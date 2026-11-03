@@ -7,8 +7,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 22 | 26 | 85 |
 | Dialogs | 19 | 29 | 66 |
-| Actions | 136 | 409 | 33 |
-| Live path effects | 13 | 56 | 23 |
+| Actions | 137 | 409 | 33 |
+| Live path effects | 23 | 56 | 41 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (136/409)</summary>
+<details><summary>Actions (137/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -87,7 +87,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.chameleon-fill`
 - [x] `app.clone`
 - [ ] `app.clone-link`
-- [ ] `app.clone-link-lpe`
+- [x] `app.clone-link-lpe`
 - [x] `app.clone-unlink`
 - [x] `app.clone-unlink-recursively`
 - [ ] `app.convert-dpi-method`
@@ -491,34 +491,34 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (13/56)</summary>
+<details><summary>Live path effects (23/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
 - [x] `bend_path`
 - [ ] `bool_op`
-- [ ] `bounding_box`
-- [ ] `bspline`
+- [x] `bounding_box`
+- [x] `bspline`
 - [ ] `circle_3pts`
 - [ ] `circle_with_radius`
-- [ ] `clone_original`
+- [x] `clone_original`
 - [ ] `construct_grid`
 - [x] `copy_rotate`
 - [ ] `curvestitching`
-- [ ] `dashed_stroke`
+- [x] `dashed_stroke`
 - [ ] `doeffectstacktest`
 - [ ] `dynastroke`
 - [ ] `ellipse_5pts`
 - [ ] `embrodery_stitch`
 - [x] `envelope`
 - [ ] `extrude`
-- [ ] `fill_between_many`
-- [ ] `fill_between_strokes`
+- [x] `fill_between_many`
+- [x] `fill_between_strokes`
 - [x] `fillet_chamfer`
 - [ ] `gears`
-- [ ] `interpolate`
+- [x] `interpolate`
 - [ ] `interpolate_points`
-- [ ] `join_type`
+- [x] `join_type`
 - [ ] `knot`
 - [ ] `lattice`
 - [ ] `lattice2`
@@ -531,7 +531,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `perp_bisector`
 - [ ] `powerclip`
 - [ ] `powermask`
-- [ ] `powerstroke`
+- [x] `powerstroke`
 - [ ] `pts2ellipse`
 - [ ] `recursive_skeleton`
 - [ ] `rough_hatches`
@@ -540,7 +540,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `show_handles`
 - [x] `simplify`
 - [x] `skeletal`
-- [ ] `sketch`
+- [x] `sketch`
 - [x] `slice`
 - [x] `spiro`
 - [ ] `tangent_to_curve`
