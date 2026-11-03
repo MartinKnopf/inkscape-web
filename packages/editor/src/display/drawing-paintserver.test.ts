@@ -86,4 +86,23 @@ describe('DrawingPaintServers', () => {
     expect(drawing.defs.children.length).toBe(1);
     expect(element('a').style.getPropertyValue('fill')).toBe('none');
   });
+
+  it('mirrors a pattern with the attributes of its href chain and shows the content of the root pattern', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs>' +
+        '<pattern id="root" patternUnits="userSpaceOnUse" width="10" height="20" style="fill:#ff0000"><circle r="3"/></pattern>' +
+        '<pattern id="link" xlink:href="#root" patternTransform="translate(5,0)"/></defs>' +
+        '<rect id="a" width="100" height="10" style="fill:url(#link)"/></svg>',
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const { drawing, element } = show(doc);
+    const id = /^url\(#(.+)\)$/.exec(element('a').style.getPropertyValue('fill'))?.[1];
+    const mirror = drawing.defs.querySelector(`#${id}`);
+    expect(mirror?.tagName).toBe('pattern');
+    expect(
+      ['patternUnits', 'width', 'height', 'patternTransform', 'fill'].map((a) => mirror?.getAttribute(a)),
+    ).toEqual(['userSpaceOnUse', '10', '20', 'matrix(1,0,0,1,5,0)', '#ff0000']);
+    expect(mirror?.querySelector('path')).not.toBeNull();
+  });
 });

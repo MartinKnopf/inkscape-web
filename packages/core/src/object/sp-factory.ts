@@ -52,6 +52,7 @@ import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPage } from './sp-page.ts';
 import { SPPath } from './sp-path.ts';
+import { SPPattern } from './sp-pattern.ts';
 import { SPPolygon } from './sp-polygon.ts';
 import { SPPolyLine } from './sp-polyline.ts';
 import { SPRadialGradient } from './sp-radial-gradient.ts';
@@ -90,6 +91,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:marker', () => new SPMarker()],
   ['svg:mask', () => new SPMask()],
   ['svg:path', () => new SPPath()],
+  ['svg:pattern', () => new SPPattern()],
   ['svg:polygon', () => new SPPolygon()],
   ['svg:polyline', () => new SPPolyLine()],
   ['svg:radialGradient', () => new SPRadialGradient()],

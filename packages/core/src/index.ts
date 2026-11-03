@@ -130,6 +130,7 @@ export * from './object/sp-paint-server.ts';
 export * from './object/sp-paint-server-data.ts';
 export * from './object/sp-paint-server-reference.ts';
 export * from './object/sp-path.ts';
+export * from './object/sp-pattern.ts';
 export * from './object/sp-polygon.ts';
 export * from './object/sp-polyline.ts';
 export * from './object/sp-radial-gradient.ts';

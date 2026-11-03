@@ -16,6 +16,8 @@ export enum PaintServerType {
   LINEAR_GRADIENT,
   RADIAL_GRADIENT,
   MESH_GRADIENT,
+  /** Not in upstream (its patterns are DrawingPatterns): an SPPattern. */
+  PATTERN,
 }
 
 export enum SPGradientSpread {
