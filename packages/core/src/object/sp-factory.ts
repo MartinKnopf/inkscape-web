@@ -10,8 +10,28 @@ import '../live_effects/effect-new.ts';
 import { LivePathEffectObject } from '../live_effects/lpeobject.ts';
 import { SPBox3D } from './box3d.ts';
 import { Box3DSide } from './box3d-side.ts';
+import { SPFeBlend } from './filters/blend.ts';
+import { SPFeColorMatrix } from './filters/colormatrix.ts';
+import { SPFeComponentTransfer } from './filters/componenttransfer.ts';
+import { SPFeFuncNode } from './filters/componenttransfer-funcnode.ts';
+import { SPFeComposite } from './filters/composite.ts';
+import { SPFeConvolveMatrix } from './filters/convolvematrix.ts';
+import { SPFeDiffuseLighting } from './filters/diffuselighting.ts';
+import { SPFeDisplacementMap } from './filters/displacementmap.ts';
+import { SPFeDistantLight } from './filters/distantlight.ts';
+import { SPFeDropShadow } from './filters/dropshadow.ts';
+import { SPFeFlood } from './filters/flood.ts';
 import { SPGaussianBlur } from './filters/gaussian-blur.ts';
-import { SPFilterPrimitive } from './filters/sp-filter-primitive.ts';
+import { SPFeImage } from './filters/image.ts';
+import { SPFeMerge } from './filters/merge.ts';
+import { SPFeMergeNode } from './filters/mergenode.ts';
+import { SPFeMorphology } from './filters/morphology.ts';
+import { SPFeOffset } from './filters/offset.ts';
+import { SPFePointLight } from './filters/pointlight.ts';
+import { SPFeSpecularLighting } from './filters/specularlighting.ts';
+import { SPFeSpotLight } from './filters/spotlight.ts';
+import { SPFeTile } from './filters/tile.ts';
+import { SPFeTurbulence } from './filters/turbulence.ts';
 import { Persp3D } from './persp3d.ts';
 import { SPClipPath } from './sp-clippath.ts';
 import { SPDefs } from './sp-defs.ts';
@@ -98,37 +118,32 @@ const map = new Map<string, (() => SPObject) | null>([
   ['inkscape:grid', () => new SPGrid()],
   ['inkscape:path-effect', () => new LivePathEffectObject()],
 
-  // Filter primitives. TODO: the subclasses of SPFilterPrimitive (SPFeBlend, ...) and the
-  // objects inside primitives (feFuncR, feMergeNode, lights); the drawing copies them as they are.
+  // Filter primitives
+  ['svg:feBlend', () => new SPFeBlend()],
+  ['svg:feColorMatrix', () => new SPFeColorMatrix()],
+  ['svg:feComponentTransfer', () => new SPFeComponentTransfer()],
+  ['svg:feFuncR', () => new SPFeFuncNode(SPFeFuncNode.R)],
+  ['svg:feFuncG', () => new SPFeFuncNode(SPFeFuncNode.G)],
+  ['svg:feFuncB', () => new SPFeFuncNode(SPFeFuncNode.B)],
+  ['svg:feFuncA', () => new SPFeFuncNode(SPFeFuncNode.A)],
+  ['svg:feComposite', () => new SPFeComposite()],
+  ['svg:feConvolveMatrix', () => new SPFeConvolveMatrix()],
+  ['svg:feDiffuseLighting', () => new SPFeDiffuseLighting()],
+  ['svg:feDisplacementMap', () => new SPFeDisplacementMap()],
+  ['svg:feDistantLight', () => new SPFeDistantLight()],
+  ['svg:feDropShadow', () => new SPFeDropShadow()],
+  ['svg:feFlood', () => new SPFeFlood()],
   ['svg:feGaussianBlur', () => new SPGaussianBlur()],
-  ...[
-    'feBlend',
-    'feColorMatrix',
-    'feComponentTransfer',
-    'feComposite',
-    'feConvolveMatrix',
-    'feDiffuseLighting',
-    'feDisplacementMap',
-    'feDropShadow',
-    'feFlood',
-    'feImage',
-    'feMerge',
-    'feMorphology',
-    'feOffset',
-    'feSpecularLighting',
-    'feTile',
-    'feTurbulence',
-  ].map((name): [string, () => SPObject] => [`svg:${name}`, () => new SPFilterPrimitive()]),
-  ...[
-    'feFuncR',
-    'feFuncG',
-    'feFuncB',
-    'feFuncA',
-    'feMergeNode',
-    'feDistantLight',
-    'fePointLight',
-    'feSpotLight',
-  ].map((name): [string, null] => [`svg:${name}`, null]),
+  ['svg:feImage', () => new SPFeImage()],
+  ['svg:feMerge', () => new SPFeMerge()],
+  ['svg:feMergeNode', () => new SPFeMergeNode()],
+  ['svg:feMorphology', () => new SPFeMorphology()],
+  ['svg:feOffset', () => new SPFeOffset()],
+  ['svg:fePointLight', () => new SPFePointLight()],
+  ['svg:feSpecularLighting', () => new SPFeSpecularLighting()],
+  ['svg:feSpotLight', () => new SPFeSpotLight()],
+  ['svg:feTile', () => new SPFeTile()],
+  ['svg:feTurbulence', () => new SPFeTurbulence()],
 
   // ignore
   ['rdf:RDF', null], // no SP node yet
