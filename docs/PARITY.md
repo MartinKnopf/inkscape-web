@@ -5,14 +5,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 21 | 26 | 81 |
+| Tools | 22 | 26 | 85 |
 | Dialogs | 19 | 29 | 66 |
-| Actions | 135 | 409 | 33 |
-| Live path effects | 23 | 56 | 41 |
+| Actions | 136 | 409 | 33 |
+| Live path effects | 13 | 56 | 23 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (21/26)</summary>
+<details><summary>Tools (22/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
@@ -26,7 +26,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `lpe-tool.cpp`
 - [ ] `marker-tool.cpp`
 - [x] `measure-tool.cpp`
-- [ ] `mesh-tool.cpp`
+- [x] `mesh-tool.cpp`
 - [x] `node-tool.cpp`
 - [ ] `object-picker-tool.cpp`
 - [x] `pages-tool.cpp`
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (135/409)</summary>
+<details><summary>Actions (136/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -87,7 +87,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.chameleon-fill`
 - [x] `app.clone`
 - [ ] `app.clone-link`
-- [x] `app.clone-link-lpe`
+- [ ] `app.clone-link-lpe`
 - [x] `app.clone-unlink`
 - [x] `app.clone-unlink-recursively`
 - [ ] `app.convert-dpi-method`
@@ -175,7 +175,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.object-to-guides`
 - [ ] `app.object-to-marker`
 - [x] `app.object-to-path`
-- [ ] `app.object-to-pattern`
+- [x] `app.object-to-pattern`
 - [ ] `app.object-unlink-clones`
 - [ ] `app.open-page`
 - [x] `app.page-fit-to-selection`
@@ -203,7 +203,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.path-simplify`
 - [x] `app.path-split`
 - [x] `app.path-union`
-- [ ] `app.pattern-to-object`
+- [x] `app.pattern-to-object`
 - [x] `app.preferences`
 - [ ] `app.query-all`
 - [ ] `app.query-height`
@@ -491,34 +491,34 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (23/56)</summary>
+<details><summary>Live path effects (13/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
 - [x] `bend_path`
 - [ ] `bool_op`
-- [x] `bounding_box`
-- [x] `bspline`
+- [ ] `bounding_box`
+- [ ] `bspline`
 - [ ] `circle_3pts`
 - [ ] `circle_with_radius`
-- [x] `clone_original`
+- [ ] `clone_original`
 - [ ] `construct_grid`
 - [x] `copy_rotate`
 - [ ] `curvestitching`
-- [x] `dashed_stroke`
+- [ ] `dashed_stroke`
 - [ ] `doeffectstacktest`
 - [ ] `dynastroke`
 - [ ] `ellipse_5pts`
 - [ ] `embrodery_stitch`
 - [x] `envelope`
 - [ ] `extrude`
-- [x] `fill_between_many`
-- [x] `fill_between_strokes`
+- [ ] `fill_between_many`
+- [ ] `fill_between_strokes`
 - [x] `fillet_chamfer`
 - [ ] `gears`
-- [x] `interpolate`
+- [ ] `interpolate`
 - [ ] `interpolate_points`
-- [x] `join_type`
+- [ ] `join_type`
 - [ ] `knot`
 - [ ] `lattice`
 - [ ] `lattice2`
@@ -531,7 +531,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `perp_bisector`
 - [ ] `powerclip`
 - [ ] `powermask`
-- [x] `powerstroke`
+- [ ] `powerstroke`
 - [ ] `pts2ellipse`
 - [ ] `recursive_skeleton`
 - [ ] `rough_hatches`
@@ -540,7 +540,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `show_handles`
 - [x] `simplify`
 - [x] `skeletal`
-- [x] `sketch`
+- [ ] `sketch`
 - [x] `slice`
 - [x] `spiro`
 - [ ] `tangent_to_curve`
