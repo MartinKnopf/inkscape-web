@@ -68,6 +68,19 @@ export interface PathBoolopBackend {
   /** helper/geom-pathstroke.cpp half_outline() of the first path of d. join is a LineJoinType. */
   halfOutline(d: string, width: number, miter: number, join: number): string;
   spiroRun(xy: readonly number[], ty: string): string;
+  interpolatePath(d: string, trajectory: string, steps: number, equidistant: boolean): string;
+  sketchPath(
+    d: string,
+    rnd: (k: number) => number,
+    values: readonly number[],
+    nbiter_approxstrokes: number,
+    strokelength: number,
+    strokeoverlap: number,
+    tremble_frequency: number,
+    nbtangents: number,
+    tgtscale: number,
+    tgtlength: number,
+  ): string;
   powerstrokePath(
     d: string,
     ts: readonly number[],

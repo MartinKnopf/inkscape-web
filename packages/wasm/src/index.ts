@@ -56,6 +56,24 @@ export interface Geom {
   taperStretchAlong(d: string, pattern: string, width: number): string;
   /** live_effects/spiro.cpp spiro_run(): xy is [x0, y0, x1, y1, ...], ty one spiro_cp type per point. */
   spiroRun(xy: readonly number[], ty: string): string;
+  /** lpe-interpolate.cpp doEffect_path; trajectory is already in the item's coordinates. */
+  interpolatePath(d: string, trajectory: string, steps: number, equidistant: boolean): string;
+  /**
+   * lpe-sketch.cpp doEffect_pwd2 on all paths of d. rnd(k) is the next random number of the k-th
+   * RandomParam, values[k] its value. Returns '!' when the upstream code throws.
+   */
+  sketchPath(
+    d: string,
+    rnd: (k: number) => number,
+    values: readonly number[],
+    nbiter_approxstrokes: number,
+    strokelength: number,
+    strokeoverlap: number,
+    tremble_frequency: number,
+    nbtangents: number,
+    tgtscale: number,
+    tgtlength: number,
+  ): string;
   /**
    * The Power stroke outline of the first path of d (lpe-powerstroke.cpp doEffect_path loop body).
    * ts is [x0, y0, ...]: the width points of the subpath, x relative to its start, y scaled.
@@ -321,6 +339,32 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     nodesatLenToRad: (a, ci, co) => m.nodesatLenToRad(a, ci, co),
     taperStretchAlong: (d, pattern, width) => m.taperStretchAlong(d, pattern, width),
     spiroRun: (xy, ty) => m.spiroRun(xy, ty),
+    interpolatePath: (d, trajectory, steps, equidistant) =>
+      m.interpolatePath(d, trajectory, steps, equidistant),
+    sketchPath: (
+      d,
+      rnd,
+      values,
+      nbiter,
+      strokelength,
+      strokeoverlap,
+      tremble_frequency,
+      nbtangents,
+      tgtscale,
+      tgtlength,
+    ) =>
+      m.sketchPath(
+        d,
+        rnd,
+        values,
+        nbiter,
+        strokelength,
+        strokeoverlap,
+        tremble_frequency,
+        nbtangents,
+        tgtscale,
+        tgtlength,
+      ),
     powerstrokePath: (d, ts, legacy, sortPoints, interpolator, beta, startCap, endCap, join, miterLimit) =>
       m.powerstrokePath(d, ts, legacy, sortPoints, interpolator, beta, startCap, endCap, join, miterLimit),
     halfOutline: (d, width, miter, join) => m.halfOutline(d, width, miter, join),
