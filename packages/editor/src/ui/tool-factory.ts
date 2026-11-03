@@ -18,6 +18,7 @@ import { EraserTool } from './tools/eraser-tool.ts';
 import { FloodTool } from './tools/flood-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
+import { MeshTool } from './tools/mesh-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
 import { PagesTool } from './tools/pages-tool.ts';
 import { PenTool } from './tools/pen-tool.ts';
@@ -45,6 +46,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/tweak': TweakTool,
   '/tools/spray': SprayTool,
   '/tools/gradient': GradientTool,
+  '/tools/mesh': MeshTool,
   '/tools/dropper': DropperTool,
   '/tools/connector': ConnectorTool,
   '/tools/measure': MeasureTool,

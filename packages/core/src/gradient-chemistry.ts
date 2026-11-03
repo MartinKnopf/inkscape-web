@@ -43,6 +43,7 @@ import {
 } from './object/sp-gradient.ts';
 import type { SPItem } from './object/sp-item.ts';
 import { SPLinearGradient } from './object/sp-linear-gradient.ts';
+import { SPMeshGradient } from './object/sp-mesh-gradient.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { SPGradientSpread, SPGradientUnits } from './object/sp-paint-server-data.ts';
 import { SPRadialGradient } from './object/sp-radial-gradient.ts';
@@ -52,7 +53,12 @@ import { spStyleSetPropertyUrl } from './style.ts';
 import { cssNumber } from './svg/css-ostringstream.ts';
 import { sp_svg_transform_write } from './svg/svg-affine.ts';
 import type { Node } from './xml/node.ts';
-import { type SPCSSAttr, spReprCssChange } from './xml/repr-css.ts';
+import {
+  type SPCSSAttr,
+  spReprCssChange,
+  spReprCssDoubleProperty,
+  spReprCssProperty,
+} from './xml/repr-css.ts';
 
 export { sp_gradient_ensure_vector_normalized };
 
@@ -259,6 +265,10 @@ export function sp_gradient_reset_to_userspace(gr: SPGradient, item: SPItem): SP
 /** Convert an item's gradient to userspace if necessary, also fork it if necessary. */
 export function sp_gradient_convert_to_userspace(gr: SPGradient, item: SPItem, property: string): SPGradient {
   if (gr.isSolid()) return gr;
+  // TODO: fork shared meshes and convert meshes in objectBoundingBox units (upstream
+  // sp_gradient_fork_private_if_necessary with SP_GRADIENT_TYPE_MESH). The meshes made by the
+  // mesh tool are private and in user space.
+  if (gr instanceof SPMeshGradient) return gr;
   // First, fork it if it is shared
   gr = sp_gradient_fork_private_if_necessary(
     gr,
@@ -587,6 +597,12 @@ export function sp_item_gradient_stop_query_style(
   point_i: number,
   fill_or_stroke: PaintTarget,
 ): Color {
+  const gradient = getGradient(item, fill_or_stroke);
+  if (gradient instanceof SPMeshGradient) {
+    // Mesh gradient: handles and tensors don't have color
+    if (point_type !== GrPointType.POINT_MG_CORNER) return new Color(0x000000ff);
+    return gradient.array.corners[point_i]?.color?.clone() ?? new Color(0x000000ff);
+  }
   return (
     sp_item_gradient_get_stop(item, point_type, point_i, fill_or_stroke)?.getColor() ?? new Color(0x000000ff)
   );
@@ -600,6 +616,22 @@ export function sp_item_gradient_stop_set_style(
   stop: SPCSSAttr,
 ): void {
   const gradient = getGradient(item, fill_or_stroke);
+  if (gradient instanceof SPMeshGradient) {
+    // Mesh gradient: handles and tensors don't have colors.
+    if (point_type !== GrPointType.POINT_MG_CORNER) return;
+    const corner = gradient.array.corners[point_i];
+    // Update mesh array (which is not updated automatically when stop is changed?)
+    const color = Color.parse(spReprCssProperty(stop, 'stop-color', null));
+    if (!corner || !color) return;
+    color.addOpacity(spReprCssDoubleProperty(stop, 'stop-opacity', 1.0));
+    if (!corner.color || !color.equals(corner.color)) {
+      corner.color = color;
+      // Update stop
+      if (corner.stop) spReprCssChange(corner.stop.getRepr(), stop, 'style');
+      else console.error('sp_item_gradient_stop_set_style: null stopi');
+    }
+    return;
+  }
   if (!(gradient instanceof SPLinearGradient || gradient instanceof SPRadialGradient)) return;
   const vector = sp_gradient_get_forked_vector_if_necessary(gradient);
   const s = stop_for_point(vector, point_type, point_i);
@@ -809,6 +841,25 @@ export function sp_item_gradient_set_coords(
         modified();
       }
     }
+  } else if (gradient instanceof SPMeshGradient) {
+    const mg = gradient;
+    const nodes =
+      point_type === GrPointType.POINT_MG_CORNER
+        ? mg.array.corners
+        : point_type === GrPointType.POINT_MG_HANDLE
+          ? mg.array.handles
+          : point_type === GrPointType.POINT_MG_TENSOR
+            ? mg.array.tensors
+            : null;
+    const node = nodes?.[point_i];
+    if (node) {
+      node.p = p;
+      // Handles are moved in gradient-drag.ts
+      modified();
+    } else {
+      console.error('sp_item_gradient_set_coords: bad point number');
+    }
+    if (write_repr) mg.array.write(mg);
   }
 }
 
@@ -883,6 +934,15 @@ export function getGradientCoords(
         console.warn('Bad radial gradient handle type');
         break;
     }
+  } else if (gradient instanceof SPMeshGradient) {
+    const array = gradient.array;
+    const nodes =
+      point_type === GrPointType.POINT_MG_CORNER
+        ? array.corners
+        : point_type === GrPointType.POINT_MG_HANDLE
+          ? array.handles
+          : array.tensors;
+    p = nodes[point_i]?.p ?? p;
   }
 
   if (gradient.getUnits() === SPGradientUnits.SP_GRADIENT_UNITS_OBJECTBOUNDINGBOX) {
@@ -1012,4 +1072,42 @@ export function sp_item_get_gradient(item: SPItem, fillorstroke: boolean): SPGra
     return (server as SPGradient).getVector();
   }
   return null;
+}
+
+/**
+ * Set a mesh gradient on the fill or stroke of item (upstream sp_item_apply_mesh): a new mesh on
+ * the bounding box, or a copy of mesh fitted to the bounding box if the item already has a mesh.
+ */
+export function sp_item_apply_mesh(
+  item: SPItem,
+  mesh: SPMeshGradient | null,
+  document: SPDocument,
+  fill: boolean,
+): SPMeshGradient | null {
+  const server = fill ? item.style.getFillPaintServer() : item.style.getStrokePaintServer();
+  const has_mesh = server instanceof SPMeshGradient;
+  const xml_doc = document.getReprDoc();
+  const defs = document.getDefs();
+  if (!defs) return null;
+  let mesh_gradient: SPMeshGradient;
+  if (!mesh || !has_mesh) {
+    // No mesh in document or object does not already have mesh -> create new mesh.
+    const repr = xml_doc.createElement('svg:meshgradient');
+    // privates are garbage-collectable
+    repr.setAttribute('inkscape:collect', 'always');
+    defs.getRepr().appendChild(repr);
+    mesh_gradient = document.getObjectByRepr(repr) as SPMeshGradient;
+    mesh_gradient.array.create(mesh_gradient, item, fill ? item.geometricBounds() : item.visualBounds());
+  } else {
+    // Using found mesh: duplicate
+    const copy_repr = mesh.getRepr().duplicate(xml_doc);
+    copy_repr.setAttribute('inkscape:collect', 'always');
+    defs.getRepr().appendChild(copy_repr);
+    mesh_gradient = document.getObjectByRepr(copy_repr) as SPMeshGradient;
+    mesh_gradient.array.read(mesh_gradient);
+    const item_bbox = fill ? item.geometricBounds() : item.visualBounds();
+    if (item_bbox) mesh_gradient.array.fill_box(mesh_gradient, item_bbox);
+  }
+  spStyleSetPropertyUrl(item, fill ? 'fill' : 'stroke', mesh_gradient, false);
+  return mesh_gradient;
 }

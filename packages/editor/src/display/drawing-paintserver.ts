@@ -263,8 +263,9 @@ function renderMesh(mesh: SPMeshGradient, element: SVGElement): void {
   if (!url) return;
   const image = doc.createElementNS(SVG_NS, 'image');
   image.setAttribute('href', url);
-  image.setAttribute('x', String(bounds.left()));
-  image.setAttribute('y', String(bounds.top()));
+  // The content of a pattern is relative to the tile origin (x, y): the mesh is in the middle tile.
+  image.setAttribute('x', String(w));
+  image.setAttribute('y', String(h));
   image.setAttribute('width', String(w));
   image.setAttribute('height', String(h));
   image.setAttribute('preserveAspectRatio', 'none');
