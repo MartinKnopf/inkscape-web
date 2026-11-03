@@ -56,6 +56,23 @@ export interface Geom {
   taperStretchAlong(d: string, pattern: string, width: number): string;
   /** live_effects/spiro.cpp spiro_run(): xy is [x0, y0, x1, y1, ...], ty one spiro_cp type per point. */
   spiroRun(xy: readonly number[], ty: string): string;
+  /** lpe-jointype.cpp and lpe-dashed-stroke.cpp doEffect_path. */
+  joinTypePath(
+    d: string,
+    width: number,
+    miterLimit: number,
+    forceJoin: boolean,
+    join: number,
+    cap: number,
+  ): string;
+  dashedStrokePath(
+    d: string,
+    numberdashes: number,
+    holefactor: number,
+    splitsegments: boolean,
+    halfextreme: boolean,
+    unifysegment: boolean,
+  ): string;
   /** lpe-interpolate.cpp doEffect_path; trajectory is already in the item's coordinates. */
   interpolatePath(d: string, trajectory: string, steps: number, equidistant: boolean): string;
   /**
@@ -339,6 +356,10 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     nodesatLenToRad: (a, ci, co) => m.nodesatLenToRad(a, ci, co),
     taperStretchAlong: (d, pattern, width) => m.taperStretchAlong(d, pattern, width),
     spiroRun: (xy, ty) => m.spiroRun(xy, ty),
+    joinTypePath: (d, width, miterLimit, forceJoin, join, cap) =>
+      m.joinTypePath(d, width, miterLimit, forceJoin, join, cap),
+    dashedStrokePath: (d, numberdashes, holefactor, splitsegments, halfextreme, unifysegment) =>
+      m.dashedStrokePath(d, numberdashes, holefactor, splitsegments, halfextreme, unifysegment),
     interpolatePath: (d, trajectory, steps, equidistant) =>
       m.interpolatePath(d, trajectory, steps, equidistant),
     sketchPath: (

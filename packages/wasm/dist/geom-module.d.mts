@@ -54,6 +54,8 @@ interface EmbindModule {
   halfOutline(_0: EmbindString, _1: number, _2: number, _3: number): string;
   envelopePath(_0: EmbindString, _1: EmbindString, _2: EmbindString, _3: EmbindString, _4: EmbindString, _5: number, _6: number, _7: number, _8: number, _9: boolean, _10: boolean): string;
   patternAlongPath(_0: EmbindString, _1: EmbindString, _2: number, _3: number, _4: number, _5: number, _6: boolean, _7: boolean, _8: number, _9: boolean, _10: number): string;
+  joinTypePath(_0: EmbindString, _1: number, _2: number, _3: boolean, _4: number, _5: number): string;
+  dashedStrokePath(_0: EmbindString, _1: number, _2: number, _3: boolean, _4: boolean, _5: boolean): string;
   interpolatePath(_0: EmbindString, _1: EmbindString, _2: number, _3: boolean): string;
   sketchPath(_0: EmbindString, _1: any, _2: any, _3: number, _4: number, _5: number, _6: number, _7: number, _8: number, _9: number): string;
   powerstrokePath(_0: EmbindString, _1: any, _2: boolean, _3: boolean, _4: number, _5: number, _6: number, _7: number, _8: number, _9: number): string;
