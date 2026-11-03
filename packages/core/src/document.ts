@@ -486,6 +486,31 @@ export class SPDocument {
   }
 
   /**
+   * Replace all the elements of the document by those of new_xmldoc and copy the root
+   * attributes (upstream SPDocument::rebase); the namedview is kept and merged with the new
+   * one if keep_namedview.
+   */
+  rebase(new_xmldoc: XmlDocument, keep_namedview = true): void {
+    const origin_root = this.getReprRoot();
+    const new_root = new_xmldoc.root();
+    if (!new_root) return;
+    let namedview: Node | null = null;
+    for (let child = origin_root.lastChild(); child !== null; ) {
+      const prevchild = child.prev();
+      if (child.name() === 'sodipodi:namedview' && keep_namedview) namedview = child;
+      else origin_root.removeChild(child);
+      child = prevchild;
+    }
+    for (const child of new_root.children()) {
+      if (child.name() === 'sodipodi:namedview' && keep_namedview && namedview)
+        namedview.mergeFrom(child, 'id');
+      else origin_root.appendChild(child.duplicate(this.getReprDoc()));
+    }
+    // Copy svg root attributes
+    for (const [key, value] of new_root.attributeList()) origin_root.setAttribute(key, value);
+  }
+
+  /**
    * Import content of a document into current document.
    *
    * @param input_doc warning, this object will be modified

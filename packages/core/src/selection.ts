@@ -31,8 +31,13 @@ import { Signal } from './util/signal.ts';
  * with signals. `changed` is emitted when the set changes; `modified` is
  * emitted once after the selected objects were modified (collected flags).
  * TODO: anchors (setAnchor, scaleAnchored),
- * the page manager, getState/setState, selectionDistinctLayerAndParentCounts.
+ * the page manager, the nodes and layer of getState/setState, selectionDistinctLayerAndParentCounts.
  */
+/** A saved selection (upstream SelectionState). TODO: selected_nodes and the layer. */
+export interface SelectionState {
+  selected_ids: string[];
+}
+
 export class Selection extends ObjectSet {
   readonly #changedSignal = new Signal<[Selection]>();
   readonly #modifiedSignal = new Signal<[Selection, number]>();
@@ -46,6 +51,18 @@ export class Selection extends ObjectSet {
   /** The current layer, or the layer kept by set(object, true). */
   activeContext(): SPObject | null {
     return this.#selectionContext ?? this._desktop?.layerManager().currentLayer() ?? null;
+  }
+
+  /** The ids of the selected objects, to restore them after a document change (upstream getState). */
+  getState(): SelectionState {
+    return { selected_ids: this.objects().flatMap((o) => o.getId() ?? []) };
+  }
+
+  /** Select the objects with the ids of state (upstream setState). */
+  setState(state: SelectionState): void {
+    const doc = this.document();
+    if (!doc) return;
+    this.setList(state.selected_ids.flatMap((id) => doc.getObjectById(id) ?? []));
   }
 
   connectChanged(slot: (selection: Selection) => void): () => void {
