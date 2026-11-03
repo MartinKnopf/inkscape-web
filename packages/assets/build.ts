@@ -71,10 +71,17 @@ const extensionFiles = (readdirSync(extensionsDist, { recursive: true, encoding:
   .map((f) => f.split(sep).join('/'))
   .filter((f) => statSync(join(extensionsDist, f)).isFile())
   .sort();
-writeFileSync(join(extensionsDist, 'index.json'), JSON.stringify(extensionFiles.filter((f) => f.endsWith('.inx'))));
+writeFileSync(
+  join(extensionsDist, 'index.json'),
+  JSON.stringify(extensionFiles.filter((f) => f.endsWith('.inx'))),
+);
 writeFileSync(
   join(extensionsDist, 'extensions.zip'),
-  zip(extensionFiles.filter((f) => !f.startsWith('icons/') && !f.endsWith('.inx')).map((f) => [f, readFileSync(join(extensionsDist, f))])),
+  zip(
+    extensionFiles
+      .filter((f) => !f.startsWith('icons/') && !f.endsWith('.inx'))
+      .map((f) => [f, readFileSync(join(extensionsDist, f))]),
+  ),
 );
 
 /** A zip archive (deflate) of the files [name, data]. */

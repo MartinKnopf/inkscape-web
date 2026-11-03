@@ -22,6 +22,7 @@
 import {
   DEFAULT_BLEED_COLOR,
   DEFAULT_MARGIN_COLOR,
+  DocumentUndo,
   LayerMode,
   Preferences,
   Selection,
@@ -43,7 +44,6 @@ import {
   spReprCssMerge,
   spReprCssSet,
   type Node as XmlNode,
-  DocumentUndo,
 } from '@inkscape-web/core';
 import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
 import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
