@@ -7,8 +7,8 @@ import {
   SPDocument,
   SPGradientType,
   SPLinearGradient,
-  SPRadialGradient,
   type SPPattern,
+  SPRadialGradient,
   type SPStop,
   spReprCssAttrNew,
 } from '@inkscape-web/core';
@@ -269,7 +269,11 @@ describe('pattern paint', () => {
     )!;
     const svg = patternPreviewSvg(doc.getObjectById('link') as SPPattern, 40, 30);
     const dom = new DOMParser().parseFromString(svg, 'image/svg+xml');
-    expect([...dom.documentElement.firstElementChild!.children].map((e) => e.id)).toEqual(['link', 'root', 'g']);
+    expect([...dom.documentElement.firstElementChild!.children].map((e) => e.id)).toEqual([
+      'link',
+      'root',
+      'g',
+    ]);
     expect(dom.querySelector('rect[fill="url(#link)"]')?.getAttribute('width')).toBe('40');
   });
 });

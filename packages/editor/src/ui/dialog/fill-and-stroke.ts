@@ -296,7 +296,8 @@ export function patternPreviewSvg(pattern: SPPattern, width: number, height: num
     if (!id || !object || used.has(id)) return;
     const xml = writeBuf(object.getRepr());
     used.set(id, xml);
-    for (const m of xml.matchAll(/url\(\s*['"]?#([^'")]+)['"]?\s*\)|href="#([^"]+)"/g)) add(m[1] ?? m[2] ?? null);
+    for (const m of xml.matchAll(/url\(\s*['"]?#([^'")]+)['"]?\s*\)|href="#([^"]+)"/g))
+      add(m[1] ?? m[2] ?? null);
   };
   add(pattern.getId());
   const id = pattern.getId() ?? '';
