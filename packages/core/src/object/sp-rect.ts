@@ -68,7 +68,7 @@ function curveTo(c: Path, c1: Point, c2: Point, p: Point): void {
  * svg:rect (upstream SPRect).
  *
  * TODO: LPE (the path is written as svg:path for clips and masks with an effect),
- * snap points, convert_to_guides, adjust_pattern and adjust_gradient in setTransform().
+ * snap points, convert_to_guides, adjust_gradient in setTransform().
  */
 export class SPRect extends SPShape {
   type = GenericRectType.SP_GENERIC_RECT_UNDEFINED;
@@ -337,7 +337,9 @@ export class SPRect extends SPShape {
 
     // Adjust stroke width
     this.adjustStroke(Math.sqrt(Math.abs(sw * sh)));
-    // TODO: adjust_pattern(xform * ret.inverse()), adjust_gradient(xform * ret.inverse())
+    // Adjust pattern fill
+    this.adjust_pattern(xform.multiply(ret.inverse()));
+    // TODO: adjust_gradient(xform * ret.inverse())
 
     return ret;
   }

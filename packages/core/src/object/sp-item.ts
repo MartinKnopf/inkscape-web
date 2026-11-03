@@ -45,6 +45,8 @@ import {
   type SPCtx,
   SPObject,
 } from './sp-object.ts';
+import { PaintServerType } from './sp-paint-server-data.ts';
+import type { SPPattern } from './sp-pattern.ts';
 
 /**
  * A view of an item in one Drawing (upstream SPItemView).
@@ -70,6 +72,13 @@ export enum SPItemKey {
 
 export const SP_ITEM_BBOX_VISUAL = 1;
 export const SP_ITEM_SHOW_DISPLAY = 1 << 0;
+
+/** Which paint servers adjust_pattern() changes (upstream PaintServerTransform). */
+export enum PaintServerTransform {
+  TRANSFORM_BOTH,
+  TRANSFORM_FILL,
+  TRANSFORM_STROKE,
+}
 /** Flag for referenced views (markers, clip paths, masks, patterns); does the same as DISPLAY. */
 export const SP_ITEM_REFERENCE_FLAGS = 1 << 1;
 
@@ -795,9 +804,52 @@ export class SPItem extends SPObject {
   }
 
   /**
+   * Multiply the patternTransform of the fill and/or stroke pattern by postmul (or set it, with
+   * set); a pattern that other objects use too is first replaced by a linked pattern for this
+   * item (upstream adjust_pattern).
+   */
+  adjust_pattern(postmul: Affine, set = false, pt = PaintServerTransform.TRANSFORM_BOTH): void {
+    const fill = pt === PaintServerTransform.TRANSFORM_FILL || pt === PaintServerTransform.TRANSFORM_BOTH;
+    const stroke = pt === PaintServerTransform.TRANSFORM_STROKE || pt === PaintServerTransform.TRANSFORM_BOTH;
+    for (const [property, wanted, server] of [
+      ['fill', fill, this.style.getFillPaintServer()],
+      ['stroke', stroke, this.style.getStrokePaintServer()],
+    ] as const) {
+      if (!wanted || server?.getPaintType() !== PaintServerType.PATTERN) continue;
+      const pattern = (server as SPPattern).clone_if_necessary(this, property);
+      pattern.transform_multiply(postmul, set);
+    }
+  }
+
+  /**
+   * Compensate the patterns of this item and its descendants for advertized_transform, so that
+   * they stay where they are on the canvas (upstream adjust_paint_recursive for PATTERN).
+   */
+  adjust_pattern_recursive(advertized_transform: Affine, t_ancestors: Affine): void {
+    // _Before_ full pattern transform: t_paint * t_item * t_ancestors
+    // _After_ full pattern transform: t_paint_new * t_item * t_ancestors * advertised_transform
+    const t_item = sp_item_transform_repr(this);
+    const paint_delta = t_item
+      .multiply(t_ancestors)
+      .multiply(advertized_transform)
+      .multiply(t_ancestors.inverse())
+      .multiply(t_item.inverse());
+    // Within text, we do not fork patterns, and we do not recurse into clones (a clone's child is
+    // the ghost of its original); the children are adjusted first (bug 1286535).
+    const name = this.getRepr().name();
+    if (name !== 'svg:text' && name !== 'svg:use') {
+      for (const child of this.children) {
+        if (child instanceof SPItem)
+          child.adjust_pattern_recursive(advertized_transform, t_item.multiply(t_ancestors));
+      }
+    }
+    this.adjust_pattern(paint_delta);
+  }
+
+  /**
    * Set a new transform: compensate the stroke width as the preferences say, let
    * setTransform() embed it if allowed, and write the result to the repr.
-   * TODO: compensate rx/ry of rects, patterns, hatches and gradients.
+   * TODO: compensate rx/ry of rects, hatches and gradients.
    */
   doWriteTransform(transform: Affine, adv: Affine | null = null, compensate = true): void {
     // Transform delta between the transform currently in the repr and the new transform.
@@ -818,6 +870,10 @@ export class SPItem extends SPObject {
         } else {
           this.adjustStrokeWidthRecursive(expansion);
         }
+      }
+      // recursively compensate pattern fill if it's not to be transformed
+      if (!prefs.getBool('/options/transform/pattern', true)) {
+        this.adjust_pattern_recursive(relativeTransform.inverse(), Affine.identity());
       }
     }
 

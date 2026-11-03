@@ -71,7 +71,7 @@ export enum GenericEllipseArcType {
  * svg:circle, svg:ellipse and svg:path with sodipodi:type="arc" (upstream SPGenericEllipse).
  * The factory sets `type` from the element.
  *
- * TODO: LPE, snap points, adjust_pattern and adjust_gradient in setTransform().
+ * TODO: LPE, snap points, adjust_gradient in setTransform().
  */
 export class SPGenericEllipse extends SPShape {
   // Regardless of type, the ellipse/circle/arc is stored
@@ -484,7 +484,9 @@ export class SPGenericEllipse extends SPShape {
     }
     this.adjustStroke(Math.sqrt(Math.abs(sw * sh)));
 
-    // TODO: adjust_pattern(xform * ret.inverse()), adjust_gradient(xform * ret.inverse())
+    // Adjust pattern fill
+    this.adjust_pattern(xform.multiply(ret.inverse()));
+    // TODO: adjust_gradient(xform * ret.inverse())
 
     return ret;
   }

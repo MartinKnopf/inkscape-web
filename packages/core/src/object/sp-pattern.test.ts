@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/object/sp-pattern.cpp, src/selection-chemistry.cpp (tile, untile)
-import { Point, Scale } from '@inkscape-web/geom';
+import { Point, Scale, Translate } from '@inkscape-web/geom';
 import { describe, expect, it } from 'vitest';
 import { SPDocument } from '../document.ts';
+import { Preferences } from '../preferences.ts';
 import { ObjectSet } from './object-set.ts';
 import type { SPItem } from './sp-item.ts';
 import { PatternUnits, SPPattern } from './sp-pattern.ts';
@@ -73,5 +74,23 @@ describe('SPPattern', () => {
     const copy = set.singleItem()!;
     expect(copy.documentGeometricBounds()?.min().equals(new Point(10, 20))).toBe(true);
     expect(rect.getRepr().attribute('style')).toContain('fill:none');
+  });
+
+  it('moves the pattern with a rectangle that bakes the transform, unless patterns stay', () => {
+    const doc = open(`${DEFS}<rect id="a" width="50" height="50" style="fill:url(#root)"/>`);
+    const a = doc.getObjectById('a') as SPItem;
+    a.doWriteTransform(Translate(10, 0));
+    doc.ensureUpToDate();
+    const p = a.style.getFillPaintServer() as SPPattern;
+    expect(p).not.toBe(doc.getObjectById('root'));
+    expect(p.getTransform().translation().equals(new Point(11, 2))).toBe(true);
+
+    Preferences.get().setBool('/options/transform/pattern', false);
+    a.doWriteTransform(Translate(10, 0).multiply(Translate(5, 0)));
+    doc.ensureUpToDate();
+    Preferences.get().remove('/options/transform/pattern');
+    expect(
+      (a.style.getFillPaintServer() as SPPattern).getTransform().translation().equals(new Point(11, 2)),
+    ).toBe(true);
   });
 });
