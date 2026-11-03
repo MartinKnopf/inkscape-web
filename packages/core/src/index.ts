@@ -123,6 +123,20 @@ export * from './object/sp-linear-gradient.ts';
 export * from './object/sp-lpe-item.ts';
 export * from './object/sp-marker.ts';
 export * from './object/sp-mask.ts';
+export {
+  MeshCornerOperation,
+  MeshNodeOperation,
+  NodeEdge,
+  NodeType as MeshNodeType,
+  SPMeshGeometry,
+  SPMeshNode,
+  SPMeshNodeArray,
+  SPMeshPatchI,
+  SPMeshType,
+} from './object/sp-mesh-array.ts';
+export * from './object/sp-mesh-gradient.ts';
+export * from './object/sp-mesh-patch.ts';
+export { SPMeshrow } from './object/sp-mesh-row.ts';
 export * from './object/sp-namedview.ts';
 export * from './object/sp-object.ts';
 export * from './object/sp-object-group.ts';

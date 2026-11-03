@@ -48,6 +48,9 @@ import { SPLine } from './sp-line.ts';
 import { SPLinearGradient } from './sp-linear-gradient.ts';
 import { SPMarker } from './sp-marker.ts';
 import { SPMask } from './sp-mask.ts';
+import { SPMeshGradient } from './sp-mesh-gradient.ts';
+import { SPMeshpatch } from './sp-mesh-patch.ts';
+import { SPMeshrow } from './sp-mesh-row.ts';
 import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
 import { SPPage } from './sp-page.ts';
@@ -88,6 +91,9 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:line', () => new SPLine()],
   ['svg:filter', () => new SPFilter()],
   ['svg:linearGradient', () => new SPLinearGradient()],
+  ['svg:meshgradient', () => new SPMeshGradient()],
+  ['svg:meshrow', () => new SPMeshrow()],
+  ['svg:meshpatch', () => new SPMeshpatch()],
   ['svg:marker', () => new SPMarker()],
   ['svg:mask', () => new SPMask()],
   ['svg:path', () => new SPPath()],

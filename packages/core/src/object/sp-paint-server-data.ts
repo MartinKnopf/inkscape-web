@@ -7,6 +7,7 @@
  *
  * Copyright (C) 2026 Authors
  */
+import type { Point } from '@inkscape-web/geom';
 import type { Color } from '../colors/color.ts';
 
 export enum PaintServerType {
@@ -51,4 +52,14 @@ export interface SPGradientVector {
   stops: SPGradientStop[];
   /** For linear geometry is x1,y1,x2,y2; for radial it's cx,cy,r,fx,fy,fr */
   geom: number[];
+}
+
+/** A patch of the effective mesh (upstream SPGradientPatch): the points of the sides, tensors, corner colors. */
+export interface SPGradientPatch {
+  /** points[side][i], in the order of the side (see sp-mesh-array.ts). */
+  points: Point[][];
+  pathtype: string[];
+  tensorIsSet: boolean[];
+  tensorpoints: Point[];
+  color: (Color | null)[];
 }

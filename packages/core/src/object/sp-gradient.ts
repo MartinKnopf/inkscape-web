@@ -27,6 +27,8 @@ import type { SVGLength } from '../svg/svg-length.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import { getHrefAttribute, setHrefAttribute } from '../xml/href-attribute-helper.ts';
 import type { Node } from '../xml/node.ts';
+import { SPMeshpatch } from './sp-mesh-patch.ts';
+import { SPMeshrow } from './sp-mesh-row.ts';
 import {
   cascadeFlags,
   SP_OBJECT_CHILD_MODIFIED_FLAG,
@@ -109,7 +111,8 @@ export class SPGradientReference extends URIReference {
  *
  * Terminology (see gradient-chemistry.ts): a "vector" has stops but no position; a "private"
  * has a position, no stops, and references a vector; each private is used by one object.
- * TODO: mesh gradients, swatch resources (document->addResource), isEquivalent/isAligned,
+ * Mesh gradients are SPMeshGradient (sp-mesh-gradient.ts).
+ * TODO: swatch resources (document->addResource), isEquivalent/isAligned,
  * previews.
  */
 export class SPGradient extends SPPaintServer {
@@ -124,6 +127,8 @@ export class SPGradient extends SPPaintServer {
   #spread_set = false;
   /** Gradient stops */
   #has_stops = false;
+  /** Gradient patches */
+  #has_patches = false;
   /** Pinned in swatches dialog */
   #pinned = false;
   /** Reference (href) */
@@ -176,6 +181,22 @@ export class SPGradient extends SPPaintServer {
   hasStops(): boolean {
     return this.#has_stops;
   }
+  /** True if the gradient has patches (i.e. a mesh). */
+  hasPatches(): boolean {
+    return this.#has_patches;
+  }
+
+  /** Whether some meshrow child has a meshpatch. */
+  #findPatches(): boolean {
+    return this.children.some(
+      (c) => c instanceof SPMeshrow && c.children.some((p) => p instanceof SPMeshpatch),
+    );
+  }
+
+  /** The first gradient of the href chain with patches, else this (upstream getArray). */
+  getArray(): SPGradient {
+    return SPGradient.chase_hrefs(this, (g) => g.hasPatches()) ?? this;
+  }
   isUnitsSet(): boolean {
     return this.units_set;
   }
@@ -224,6 +245,7 @@ export class SPGradient extends SPPaintServer {
     }
     super.build(document, repr);
     this.#has_stops = this.children.some((c) => c instanceof SPStop);
+    this.#has_patches = this.#findPatches();
     this.readAttr(SPAttr.GRADIENTUNITS);
     this.readAttr(SPAttr.GRADIENTTRANSFORM);
     this.readAttr(SPAttr.SPREADMETHOD);
@@ -340,6 +362,7 @@ export class SPGradient extends SPPaintServer {
         if (attr && attr !== 'gradient') this.setAttribute('inkscape:swatch', 'gradient');
       }
     }
+    if (ochild instanceof SPMeshrow) this.#has_patches = true;
     // TODO: Fixme: should we schedule "modified" here?
     this.requestModified(SP_OBJECT_MODIFIED_FLAG);
   }
@@ -348,6 +371,7 @@ export class SPGradient extends SPPaintServer {
     this.#invalidateVector();
     super.removeChild(child);
     this.#has_stops = this.children.some((c) => c instanceof SPStop);
+    this.#has_patches = this.#findPatches();
     if (this.getStopCount() <= 1) {
       const attr = this.getAttribute('inkscape:swatch');
       if (attr && attr !== 'solid') this.setAttribute('inkscape:swatch', 'solid');
