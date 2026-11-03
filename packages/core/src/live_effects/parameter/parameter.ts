@@ -23,6 +23,14 @@ import { EffectType, ParamType } from '../effect-enum.ts';
 // If you need this to be more, please be conservative about it.
 export const SCALARPARAM_G_MAXDOUBLE = 10000000000.0; // TODO fixme: using an arbitrary large number as a magic value seems fragile.
 
+/** A parameter that links to an item, with the 'satellite' widget. */
+export interface LinkParam {
+  /** Link to the copied item with this id (the dialog reads the clipboard). */
+  on_link_button_click(itemid: string): void;
+  /** The linked object, for "Select original". */
+  linkedObject(): SPObject | null;
+}
+
 /**
  * The description of the widget of a parameter for the Path Effects dialog (upstream:
  * param_newWidget() builds a GTK widget). The dialog renders it and writes the new value with
@@ -46,7 +54,17 @@ export type ParamWidget =
   | { kind: 'unit'; value: string; options: string[] }
   | { kind: 'random'; value: number; seed: number; min: number; max: number; integer: boolean }
   | { kind: 'path' }
-  | { kind: 'buttons'; buttons: { label: string; onClick: () => void }[] };
+  | { kind: 'buttons'; buttons: { label: string; onClick: () => void }[] }
+  /** A framed text (upstream MessageParam); message may hold Pango markup such as <b>. */
+  | { kind: 'message'; legend: string; message: string }
+  | { kind: 'text'; value: string }
+  /**
+   * A link to an item (the parameter is a LinkParam): link to the copied item, and with
+   * select_original, select the linked item.
+   */
+  | { kind: 'satellite'; select_original: boolean }
+  /** The linked paths of a PathArrayParam: per row the label and the reverse and visible flags. */
+  | { kind: 'patharray'; rows: { label: string; reversed: boolean; visible: boolean }[] };
 
 /** Base class of the parameters of an effect (upstream Inkscape::LivePathEffect::Parameter). */
 export abstract class Parameter {

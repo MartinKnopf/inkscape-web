@@ -140,3 +140,10 @@
 .lpe-gallery-item:hover:not(:disabled) {
   background: #e8eef7;
 }
+
+.lpe-message {
+  margin: 0;
+  padding: 2px 6px 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

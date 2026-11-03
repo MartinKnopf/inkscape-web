@@ -68,6 +68,47 @@ export interface PathBoolopBackend {
   /** helper/geom-pathstroke.cpp half_outline() of the first path of d. join is a LineJoinType. */
   halfOutline(d: string, width: number, miter: number, join: number): string;
   spiroRun(xy: readonly number[], ty: string): string;
+  joinTypePath(
+    d: string,
+    width: number,
+    miterLimit: number,
+    forceJoin: boolean,
+    join: number,
+    cap: number,
+  ): string;
+  dashedStrokePath(
+    d: string,
+    numberdashes: number,
+    holefactor: number,
+    splitsegments: boolean,
+    halfextreme: boolean,
+    unifysegment: boolean,
+  ): string;
+  interpolatePath(d: string, trajectory: string, steps: number, equidistant: boolean): string;
+  sketchPath(
+    d: string,
+    rnd: (k: number) => number,
+    values: readonly number[],
+    nbiter_approxstrokes: number,
+    strokelength: number,
+    strokeoverlap: number,
+    tremble_frequency: number,
+    nbtangents: number,
+    tgtscale: number,
+    tgtlength: number,
+  ): string;
+  powerstrokePath(
+    d: string,
+    ts: readonly number[],
+    legacy: boolean,
+    sortPoints: boolean,
+    interpolator: number,
+    beta: number,
+    startCap: number,
+    endCap: number,
+    join: number,
+    miterLimit: number,
+  ): string;
   /**
    * The 2geom part of the Envelope Deformation LPE (lpe-envelope.cpp doEffect_pwd2). bends are the
    * top, right, bottom and left paths; bbox is [x0, x1, y0, y1].

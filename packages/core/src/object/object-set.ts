@@ -29,6 +29,7 @@ import { PrefsMaskobjectGrouping } from '../enums.ts';
 import { C_ } from '../i18n.ts';
 import { Preferences } from '../preferences.ts';
 import { sp_svg_transform_read, sp_svg_transform_write } from '../svg/svg-affine.ts';
+import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { spReprCssAttrInherited, spReprCssSet } from '../xml/repr-css.ts';
@@ -41,7 +42,9 @@ import { SPMask } from './sp-mask.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
 import { SPRoot } from './sp-root.ts';
+import { SPShape } from './sp-shape.ts';
 import { SPSymbol } from './sp-symbol.ts';
+import { SPText } from './sp-text.ts';
 import { SPCloneCompensation, SPUse } from './sp-use.ts';
 
 /** The part of upstream LayerManager that the selection uses (the editor implements it). */
@@ -772,6 +775,79 @@ export class ObjectSet {
     }
     this.clear();
     this.set(original);
+  }
+
+  /**
+   * Make a new path with the Clone original effect linked to the selected item, or with Fill
+   * between many for several selected paths, and select it (upstream cloneOriginalPathLPE).
+   * TODO: flash "Select path(s) to fill." when nothing fits.
+   */
+  cloneOriginalPathLPE(allow_transforms = false, sync = false, skip_undo = false): void {
+    const doc = this.document();
+    if (!doc) return;
+    const ids: string[] = [];
+    let firstItem: SPItem | null = null;
+    for (const item of this.items()) {
+      if (item instanceof SPShape || item instanceof SPText || item instanceof SPGroup) {
+        firstItem ??= item;
+        ids.push(`#${item.getId()},0,1`);
+      }
+    }
+    if (!firstItem) return;
+    const multiple = ids.length > 1;
+    const xml_doc = doc.getReprDoc();
+    const parent = firstItem.parent;
+    // create the LPE
+    const lpe_repr = xml_doc.createElement('inkscape:path-effect');
+    if (multiple) {
+      lpe_repr.setAttribute('effect', 'fill_between_many');
+      lpe_repr.setAttribute('linkedpaths', ids.join('|') || null);
+    } else {
+      lpe_repr.setAttribute('effect', 'clone_original');
+      lpe_repr.setAttribute('css_properties', '');
+      lpe_repr.setAttribute('attributes', '');
+      lpe_repr.setAttribute('linkeditem', `#${firstItem.getId()}`);
+    }
+    lpe_repr.setAttribute('is_visible', 'true');
+    lpe_repr.setAttribute('method', allow_transforms ? 'd' : 'bsplinespiro');
+    lpe_repr.setAttribute('allow_transforms', allow_transforms ? 'true' : 'false');
+    doc.getDefs()?.getRepr().appendChild(lpe_repr); // adds to <defs> and assigns the 'id' attribute
+    const lpe_id_href = `#${lpe_repr.attribute('id')}`;
+    let clone: Node | null = null;
+    if (firstItem instanceof SPGroup) {
+      if (!multiple) clone = firstItem.getRepr().duplicate(xml_doc);
+    } else {
+      // create the new path
+      clone = xml_doc.createElement('svg:path');
+      const c = sync && !multiple && firstItem instanceof SPShape ? firstItem.curveForEdit() : null;
+      if (c) {
+        if (firstItem instanceof SPPath) clone.setAttribute('original-d', sp_svg_write_path(c));
+        clone.setAttribute('d', sp_svg_write_path(c));
+      } else {
+        clone.setAttribute('d', 'M 0 0');
+      }
+    }
+    if (!clone || !parent) return;
+    // add the new clone to the top of the original's parent
+    parent.getRepr().appendChild(clone);
+    // select the new object:
+    this.setReprList([clone]);
+    const clone_obj = doc.getObjectById(clone.attribute('id') ?? '');
+    if (clone_obj && 'addPathEffect' in clone_obj) {
+      if (sync && !multiple) lpe_repr.setAttribute('attributes', 'style,clip-path,mask');
+      lpe_repr.setAttribute('is_visible', 'true');
+      (clone_obj as SPItem & { addPathEffect(value: string, reset: boolean): void }).addPathEffect(
+        lpe_id_href,
+        false,
+      );
+    }
+    if (!skip_undo) {
+      DocumentUndo.done(
+        doc,
+        multiple ? C_('Undo', 'Fill between many') : C_('Undo', 'Clone original'),
+        'edit-clone-link-lpe',
+      );
+    }
   }
 
   /** Apply the last affine again. */

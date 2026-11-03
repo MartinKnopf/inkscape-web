@@ -19,15 +19,17 @@ import {
   DocumentUndo,
   Effect,
   type EffectType,
+  type LinkParam,
   LPECategory,
   LPETypeConverter,
   type Parameter,
   type ParamWidget,
+  type PathArrayParam,
   type PathEffectSharedPtr,
   type PathParam,
   SPFlowtext,
   SPGroup,
-  type SPItem,
+  SPItem,
   SPLine,
   SPLPEItem,
   SPPath,
@@ -39,6 +41,7 @@ import {
 } from '@inkscape-web/core';
 import { set_active_tool } from '../../actions/actions-tools.ts';
 import type { SPDesktop } from '../../desktop.ts';
+import { ClipboardManager } from '../clipboard.ts';
 import { ShapeRole } from '../tool/shape-record.ts';
 import { NodeTool, sp_update_helperpath } from '../tools/node-tool.ts';
 
@@ -334,4 +337,25 @@ export function param_editOncanvas(desktop: SPDesktop, param: PathParam, item: S
       edit_transform: item.i2dtAffine(), // TODO is it right?
     },
   ]);
+}
+
+/** Link a satellite parameter to the copied item (upstream SatelliteParam::on_link_button_click). */
+export function satellite_link_from_clipboard(param: LinkParam): void {
+  // TODO: with lookup, link to the first clone (svg:use) on the clipboard.
+  param.on_link_button_click(ClipboardManager.get().getFirstObjectID());
+}
+
+/** Select the linked item (upstream OriginalSatelliteParam::on_select_original_button_click). */
+export function satellite_select_original(desktop: SPDesktop, param: LinkParam): void {
+  const original = param.linkedObject();
+  if (!(original instanceof SPItem)) return;
+  const selection = desktop.getSelection();
+  selection.clear();
+  selection.set(original);
+}
+
+/** Link a path array parameter to the copied paths and texts (upstream PathArrayParam::on_link_button_click). */
+export function patharray_link_from_clipboard(param: PathArrayParam): void {
+  const cm = ClipboardManager.get();
+  param.on_link_button_click([...cm.getElementsOfType('svg:path'), ...cm.getElementsOfType('svg:text')]);
 }

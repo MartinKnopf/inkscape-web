@@ -33,6 +33,7 @@ import {
   sp_object_compare_position,
   sp_repr_lookup_descendant,
   sp_repr_lookup_name,
+  sp_repr_lookup_name_many,
   sp_svg_transform_write,
   spReprCssAttr,
   spReprCssAttrInherited,
@@ -417,6 +418,32 @@ export class ClipboardManager {
       if (id) return id;
     }
     return '';
+  }
+
+  /**
+   * The ids of the copied elements of type (e.g. "svg:path"; "*" for all object types), searched
+   * to maxdepth (upstream getElementsOfType; the defs are left out).
+   * TODO: the "Nothing on the clipboard" and "does not contain any objects" messages.
+   */
+  getElementsOfType(type: string, maxdepth = -1): string[] {
+    const root = this.#clipboardSPDoc?.getReprRoot();
+    if (!root) return [];
+    const types =
+      type === '*'
+        ? ['svg:path', 'svg:circle', 'svg:rect', 'svg:ellipse', 'svg:text', 'svg:use', 'svg:g', 'svg:image']
+        : [type];
+    const result: string[] = [];
+    for (let ch = root.firstChild(); ch; ch = ch.next()) {
+      // 1293979: strip out the defs of the document
+      if (ch.name() === 'svg:defs') continue;
+      for (const t of types) {
+        for (const node of sp_repr_lookup_name_many(ch, t, maxdepth < 0 ? -1 : maxdepth - 1)) {
+          const id = node.attribute('id');
+          if (id && !result.includes(id)) result.push(id);
+        }
+      }
+    }
+    return result;
   }
 
   /** Remove certain css elements which are not useful for pasteStyle */

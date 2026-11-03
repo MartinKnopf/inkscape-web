@@ -13,6 +13,7 @@ typedef char gchar;
 #define g_malloc(n) std::malloc(n)
 #define g_realloc(p, n) std::realloc(p, n)
 #define g_free(p) std::free(p)
+#define g_new(T, n) static_cast<T *>(std::malloc(sizeof(T) * (n)))
 #define g_assert(x) assert(x)
 #define g_assert_not_reached() assert(false)
 #define g_warning(...) std::fprintf(stderr, __VA_ARGS__)

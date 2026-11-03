@@ -10,6 +10,7 @@ import type { SPShape } from '../object/sp-shape.ts';
 import { setPathBoolopBackend } from '../path/path-boolop.ts';
 import { Effect } from './effect.ts';
 import type { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
+import type { LPEPowerStroke } from './lpe-powerstroke.ts';
 import type { LPETaperStroke } from './lpe-taperstroke.ts';
 
 setPathBoolopBackend(await loadGeom());
@@ -326,5 +327,174 @@ describe('Spiro spline', () => {
     const s = applied('M 0,0 H 10 V 10 H 0 Z', 'spiro');
     expect(bounds(curve(s))).toEqual([0, 0, 10, 10]);
     expect(curve(s)[0]?.closed()).toBe(true);
+  });
+});
+
+describe('BSpline', () => {
+  it('moves each inner node to the middle of its handles', () => {
+    const s = applied('M 0,0 C 4,0 6,0 10,0 C 10,4 10,6 10,10', 'bspline');
+    const p = curve(s)[0] as Path;
+    expect(p.size()).toBe(2);
+    near(p.initialPoint(), [0, 0]);
+    near(p.at(0).finalPoint(), [8, 2]);
+    near(p.finalPoint(), [10, 10]);
+  });
+});
+
+describe('Power stroke', () => {
+  it('draws a filled outline with the width of the stroke', () => {
+    const s = applied('M 0,0 H 100', 'powerstroke', {}, 'fill:none;stroke:#000000;stroke-width:10');
+    const lpe = s.getCurrentLPE() as LPEPowerStroke;
+    expect(lpe.offset_points.data().map((p) => [p.x, p.y])).toEqual([
+      [0.2, 5],
+      [0.5, 5],
+      [0.8, 5],
+    ]);
+    const [x0, y0, x1, y1] = bounds(curve(s)) as number[];
+    expect(x0).toBeCloseTo(0, 3);
+    expect(x1).toBeCloseTo(100, 3);
+    expect(y0).toBeCloseTo(-5, 0);
+    expect(y1).toBeCloseTo(5, 0);
+    expect(s.getRepr().attribute('style')).toContain('fill:#000000');
+  });
+
+  it('places the knots at the width points', () => {
+    const s = applied('M 0,0 H 100', 'powerstroke', { offset_points: '0.5,8' });
+    const lpe = s.getCurrentLPE() as LPEPowerStroke;
+    near(lpe.offset_points.knot_get(0), [50, 8]);
+  });
+});
+
+describe('Clone original', () => {
+  /** A document with the original "o" and a path "q" that clones it with the given method. */
+  function cloneOf(method: string, attributes = '', css_properties = '') {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/>
+       <rect id="o" x="10" y="20" width="30" height="40" style="fill:#ff0000;stroke:#0000ff"/>
+       <path id="q" d="M 0,0 H 1" style="fill:#00ff00"/></svg>`,
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const q = doc.getObjectById('q') as SPShape;
+    Effect.createAndApply('clone_original', doc, q);
+    const repr = q.getCurrentLPE()?.getRepr();
+    repr?.setAttribute('method', method);
+    repr?.setAttribute('attributes', attributes);
+    repr?.setAttribute('css_properties', css_properties);
+    repr?.setAttribute('linkeditem', '#o');
+    doc.ensureUpToDate();
+    return { doc, q };
+  }
+
+  it('takes the shape of the linked item', () => {
+    const { q } = cloneOf('d');
+    expect(bounds(curve(q))).toEqual([10, 20, 40, 60]);
+  });
+
+  it('copies the style when it links, then the chosen style properties', () => {
+    const { doc, q } = cloneOf('d', '', 'stroke');
+    expect(q.getAttribute('style')).toBe('fill:#ff0000;stroke:#0000ff');
+    const o = doc.getObjectById('o');
+    o?.setAttribute('style', 'fill:#ffff00;stroke:#00ffff');
+    doc.ensureUpToDate();
+    expect(q.getAttribute('style')).toBe('fill:#ff0000;stroke:#00ffff');
+  });
+
+  it('keeps its own shape with "Transformation Only"', () => {
+    const { q } = cloneOf('none');
+    expect(bounds(curve(q))).toEqual([0, 0, 1, 0]);
+  });
+});
+
+describe('Fill between many', () => {
+  it('joins the linked paths to a closed path', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/>
+       <path id="a" d="M 0,0 H 10"/><path id="b" d="M 0,10 H 10"/><path id="f" d="M 0,0"/></svg>`,
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const f = doc.getObjectById('f') as SPShape;
+    Effect.createAndApply('fill_between_many', doc, f);
+    f.getCurrentLPE()?.getRepr()?.setAttribute('linkedpaths', '#a,0,1|#b,0,1');
+    doc.ensureUpToDate();
+    const p = curve(f)[0] as Path;
+    expect(p.closed()).toBe(true);
+    expect(bounds(curve(f))).toEqual([0, 0, 10, 10]);
+    // a, the line to the end of b, b reversed; the closing segment goes back to the start
+    expect(p.openCurves().map((c) => [c.finalPoint().x, c.finalPoint().y])).toEqual([
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ]);
+  });
+});
+
+describe('Interpolate Sub-Paths', () => {
+  it('blends the first subpath into the second along the trajectory', () => {
+    // resetDefaults() sets the trajectory from the middle of the first to the middle of the second subpath.
+    const s = applied('M 0,0 H 10 M 0,20 H 20', 'interpolate', { steps: '3' });
+    const pv = curve(s);
+    expect(pv).toHaveLength(3);
+    expect(bounds([pv[0] as Path])).toEqual([0, 0, 10, 0]);
+    expect(bounds([pv[1] as Path])).toEqual([0, 10, 15, 10]);
+    expect(bounds([pv[2] as Path])).toEqual([0, 20, 20, 20]);
+  });
+});
+
+describe('Sketch', () => {
+  it('draws strokes and construction lines, the same ones each time', () => {
+    const s = applied('M 0,0 C 100,-100 200,100 300,0', 'sketch');
+    const first = s.getAttribute('d');
+    // 5 strokes along the path (each split into pieces) and 5 construction lines
+    expect(curve(s).length).toBeGreaterThan(10);
+    s.getCurrentLPE()?.getRepr()?.setAttribute('nbtangents', '5');
+    s.document.ensureUpToDate();
+    expect(s.getAttribute('d')).toBe(first);
+  });
+});
+
+describe('Join type', () => {
+  it('turns the stroke into a filled outline', () => {
+    const s = applied('M 0,0 H 100', 'join_type', {}, 'fill:none;stroke:#000000;stroke-width:10');
+    expect(bounds(curve(s))).toEqual([0, -5, 100, 5]);
+    expect(s.getRepr().attribute('style')).toContain('fill:#000000');
+  });
+});
+
+describe('Dashed Stroke', () => {
+  it('cuts the path into dashes with half dashes at the ends', () => {
+    const s = applied('M 0,0 H 100', 'dashed_stroke', { unifysegment: 'false' });
+    expect(curve(s).map((p) => [p.initialPoint().x, p.finalPoint().x])).toEqual([
+      [0, 12.5],
+      [37.5, 62.5],
+      [87.5, 100],
+    ]);
+  });
+});
+
+describe('Show handles', () => {
+  it('draws the path, its nodes and its handles', () => {
+    const s = applied('M 0,0 C 0,10 10,10 10,0', 'show_handles');
+    // the path, 2 nodes, 2 handles with their lines
+    expect(curve(s)).toHaveLength(7);
+    expect(s.getAttribute('style')).toContain('stroke:black');
+  });
+});
+
+describe('Bounding Box', () => {
+  it('is the bounding box of the linked item', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/>
+       <path id="o" d="M 10,20 C 20,0 30,40 40,20"/><path id="b" d="M 0,0 H 1"/></svg>`,
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const b = doc.getObjectById('b') as SPShape;
+    Effect.createAndApply('bounding_box', doc, b);
+    b.getCurrentLPE()?.getRepr()?.setAttribute('linkedpath', '#o');
+    doc.ensureUpToDate();
+    expect(bounds(curve(b))).toEqual([10, 14.226, 40, 25.774]);
+    expect(curve(b)[0]?.closed()).toBe(true);
   });
 });

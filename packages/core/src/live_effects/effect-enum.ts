@@ -265,7 +265,48 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Adjust the shape of an object by transforming paths on its four sides'),
     LPECategory.Distort,
   ),
+  entry(
+    EffectType.INTERPOLATE,
+    NC_('path effect', 'Interpolate Sub-Paths'),
+    'interpolate',
+    'interpolate',
+    N_(
+      'Create a smooth transition between the two subpaths of a path, blending their shapes together in steps.',
+    ),
+    LPECategory.Generate,
+    false,
+    false,
+  ),
+  entry(
+    EffectType.SKETCH,
+    NC_('path effect', 'Sketch'),
+    'sketch',
+    'sketch',
+    N_('Draw multiple short strokes along the path, as in a pencil sketch'),
+    LPECategory.Generate,
+  ),
   /* 0.91 */
+  entry(
+    EffectType.POWERSTROKE,
+    NC_('path effect', 'Power stroke'),
+    'powerstroke',
+    'powerstroke',
+    N_(
+      'Create calligraphic strokes and control their variable width and curvature. This effect can also be used directly on the canvas with a pressure sensitive stylus and the Pencil tool.',
+    ),
+    LPECategory.EditTools,
+    true,
+    false,
+  ),
+  entry(
+    EffectType.CLONE_ORIGINAL,
+    NC_('path effect', 'Clone original'),
+    'clone_original',
+    'clone-original',
+    N_('Let an object take on the shape, fill, stroke and/or other attributes of another object.'),
+    LPECategory.Generate,
+  ),
+  /* 0.92 */
   entry(
     EffectType.SIMPLIFY,
     NC_('path effect', 'Simplify'),
@@ -285,12 +326,40 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Distort,
   ),
   entry(
+    EffectType.SHOW_HANDLES,
+    NC_('path effect', 'Show handles'),
+    'show_handles',
+    'show-handles',
+    N_('Draw the handles and nodes of objects (replaces the original styling with a black stroke)'),
+    LPECategory.Convert,
+  ),
+  entry(
     EffectType.ROUGHEN,
     NC_('path effect', 'Roughen'),
     'roughen',
     'roughen',
     N_('Roughen an object by adding and randomly shifting new nodes'),
     LPECategory.Distort,
+  ),
+  entry(
+    EffectType.BSPLINE,
+    NC_('path effect', 'BSpline'),
+    'bspline',
+    'bspline',
+    N_(
+      "Create a BSpline that molds into the path's corners. This effect is usually used directly on the canvas with the BSpline mode of the drawing tools.",
+    ),
+    LPECategory.Convert,
+    false,
+    false,
+  ),
+  entry(
+    EffectType.JOIN_TYPE,
+    NC_('path effect', 'Join type'),
+    'join_type',
+    'join-type',
+    N_("Select among various join types for a object's corner nodes (mitre, rounded, extrapolated arc, ...)"),
+    LPECategory.Convert,
   ),
   entry(
     EffectType.TAPER_STROKE,
@@ -323,6 +392,25 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Generate,
   ),
   entry(
+    EffectType.FILL_BETWEEN_MANY,
+    NC_('path effect', 'Fill between many'),
+    'fill_between_many',
+    'fill-between-many',
+    N_(
+      'Turn the path into a fill between multiple other open paths (e.g. between paths with PowerStroke applied to them)',
+    ),
+    LPECategory.Generate,
+  ),
+  entry(
+    EffectType.BOUNDING_BOX,
+    NC_('path effect', 'Bounding Box'),
+    'bounding_box',
+    'bounding-box',
+    N_('Turn the path into a bounding box that entirely encompasses another path'),
+    LPECategory.Convert,
+  ),
+  /* 1.0 */
+  entry(
     EffectType.FILLET_CHAMFER,
     NC_('path effect', 'Corners'),
     'fillet_chamfer',
@@ -334,7 +422,6 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     true,
     false,
   ),
-  /* 1.0 */
   entry(
     EffectType.OFFSET,
     NC_('path effect', 'Offset'),
@@ -343,6 +430,30 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Offset the path, optionally keeping cusp corners cusp'),
     LPECategory.EditTools,
   ),
+  entry(
+    EffectType.DASHED_STROKE,
+    NC_('path effect', 'Dashed Stroke'),
+    'dashed_stroke',
+    'dashed-stroke',
+    N_(
+      'Add a dashed stroke whose dashes end exactly on a node, optionally with the same number of dashes per path segment',
+    ),
+    LPECategory.Convert,
+  ),
+  /* 1.2 */
+  {
+    ...entry(
+      EffectType.FILL_BETWEEN_STROKES,
+      NC_('path effect', 'Fill between strokes'),
+      'fill_between_strokes',
+      'experimental',
+      N_(
+        'Turn the path into a fill between two other open paths (e.g. between two paths with PowerStroke applied to them)',
+      ),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
 ];
 
 export const LPETypeConverter = new EnumEffectDataConverter<EffectType>(LPETypeData);
