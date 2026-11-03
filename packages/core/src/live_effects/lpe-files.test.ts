@@ -35,39 +35,23 @@ const LAYERS = [
   'pattern along path',
   'perspective envelope',
   'spiro',
+  'bspline',
 ];
 
 /**
- * Items that do not match yet (Inkscape_1_3.svg). All are inside a group with the effect and
- * (except one) are shapes or sit in a nested group; the effects on paths match.
- * TODO: find the difference in the group effects.
+ * Items that do not match (Inkscape_1_3.svg). The geometry is the same, but path_from_piecewise()
+ * and livarot add very short segments (about 1e-5 long) at other places than in the file. This
+ * moves the curve indices, so the point checks fail. These are rounding differences.
  */
 const KNOWN_DIFFERENCES = new Set([
-  'path216623',
-  'path216625',
-  'ellipse216629',
-  'path216637',
-  'path216639',
-  'ellipse181700',
-  'rect181702',
-  'path12530',
-  'path12532',
-  'ellipse12536',
-  'rect12538',
-  'path12544',
-  'path12546',
-  // Bend and Envelope stacked on a group inside a group with Offset.
-  'path50227',
-  // Shapes in groups with Envelope Deformation, Pattern Along Path and Perspective/Envelope.
+  // Envelope Deformation
   'path126072',
   'path126074',
-  'ellipse126078',
   'rect126080',
+  // Pattern Along Path
   'ellipse60938',
-  'path10243',
-  'path10245',
-  'ellipse10249',
-  'rect10251',
+  // Offset on a group with Bend and Envelope
+  'path50227',
 ]);
 
 /** The top-level layer of obj (upstream: the layer label names the tested effect). */
