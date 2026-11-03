@@ -41,6 +41,8 @@ export interface Dependency {
   name: string;
   /** The interpreter of a script ("python", "perl", ...), or null. */
   interpreter: string | null;
+  /** Where the file is: "path" (the system PATH), "extensions", "inx" or "absolute". */
+  location: string;
 }
 
 /**
@@ -101,6 +103,7 @@ export class Extension {
             type: child_repr.attribute('type') === 'executable' ? 'executable' : 'file',
             name,
             interpreter: null,
+            location: child_repr.attribute('location') ?? 'path',
           });
       } else if (chname === 'script' || chname === 'xslt') {
         // TODO: should these be parsed in their respective Implementation?
@@ -113,6 +116,7 @@ export class Extension {
               type: interpreted || chname === 'xslt' ? 'file' : 'executable',
               name,
               interpreter: interpreted,
+              location: child.attribute('location') ?? 'path',
             });
           break;
         }
@@ -177,9 +181,36 @@ export class Extension {
     return this._state === ExtensionState.STATE_DEACTIVATED;
   }
 
-  /** Whether the extension can run: it has an implementation that accepts it (upstream check). */
+  /**
+   * Whether the extension can run (upstream check): its dependencies are met and the
+   * implementation accepts it. The browser has no external programs, so a dependency on an
+   * executable on the PATH fails.
+   */
   check(): boolean {
-    return this.imp.check(this);
+    for (const dep of this._deps) {
+      // Files next to the .inx file or in the extensions folder are there; programs on the PATH not.
+      if (dep.type === 'executable' && (dep.location === 'path' || dep.location === 'absolute')) {
+        this.printFailure(
+          _('a dependency was not met. %1').replace(
+            '%1',
+            _('Executable "%1" is not available in the browser.').replace('%1', dep.name),
+          ),
+        );
+        return false;
+      }
+    }
+    if (!this.imp.check(this)) {
+      this.printFailure(_('no implementation was defined for the extension.'));
+      return false;
+    }
+    return true;
+  }
+
+  /** Remember why the extension failed to load (upstream printFailure). */
+  printFailure(reason: string): void {
+    this._error_reason = _('Extension "%1" failed to load because %2')
+      .replace('%1', this._name)
+      .replace('%2', reason);
   }
 
   /** The path of a dependency file, relative to the base directory (upstream get_dependency_location). */

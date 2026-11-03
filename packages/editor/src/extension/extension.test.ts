@@ -138,6 +138,26 @@ describe('extensions from .inx files', () => {
     expect(params).toEqual(['--tab=Options', '--hue_range=100', '--flag=false']);
   });
 
+  it('fails the check if it needs a program on the PATH', () => {
+    const inx = (dep: string) =>
+      `<inkscape-extension ${NS}><name>Some Input</name><id>org.test.dep</id>${dep}
+      <input><extension>.ps</extension></input>
+      <script><command location="inx" interpreter="python">ps_input.py</command></script></inkscape-extension>`;
+    const needs = build_from_mem(
+      inx('<dependency type="executable" location="path">ps2pdf</dependency>'),
+      null,
+      '/x/a.inx',
+    );
+    expect(needs?.check()).toBe(false);
+    expect(needs?.getErrorReason()).toContain('ps2pdf');
+    const local = build_from_mem(
+      inx('<dependency type="executable" location="inx">ps_input.py</dependency>'),
+      null,
+      '/x/a.inx',
+    );
+    expect(local?.check()).toBe(true);
+  });
+
   it('reads input extensions', () => {
     const input = build_from_mem(INPUT, null, '/share/extensions/foo.inx') as Input;
     expect(input).toBeInstanceOf(Input);

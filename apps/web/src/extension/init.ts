@@ -61,7 +61,10 @@ export async function load_extensions(): Promise<Extension[]> {
   for (const entry of texts) {
     if (!entry) continue;
     const module = build_from_mem(entry[1], null, `${EXTENSIONS_DIR}/${entry[0]}`);
-    if (module) modules.push(module);
+    if (!module) continue;
+    // Extensions whose dependencies are not met are not shown (upstream check_extensions).
+    if (!module.check()) module.deactivate();
+    else modules.push(module);
   }
   return modules;
 }

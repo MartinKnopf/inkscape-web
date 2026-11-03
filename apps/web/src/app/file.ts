@@ -19,7 +19,7 @@
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
 import { _, DocumentUndo, gdkpixbuf_input_open, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
-import { file_import, type SPDesktop } from '@inkscape-web/editor';
+import { db, file_import, type Input, type Output, type SPDesktop } from '@inkscape-web/editor';
 import { decodeSvgBytes, gzip } from './gzip.ts';
 import { getRecentFiles } from './recent-files.ts';
 
@@ -58,6 +58,39 @@ const SVGZ_TYPE = (): FilePickerType => ({
   accept: { 'image/svg+xml-compressed': ['.svgz'] },
 });
 
+/** A picker type for an input or output extension; null if the browser cannot take its extension. */
+function extensionType(module: Input | Output): FilePickerType | null {
+  const ext = module.get_extension();
+  if (!ext || !/^\.[a-z0-9.]{1,16}$/i.test(ext) || ext === '.svg' || ext === '.svgz') return null;
+  const mime =
+    module.mimetype && /^[\w.+-]+\/[\w.+-]+$/.test(module.mimetype)
+      ? module.mimetype
+      : 'application/octet-stream';
+  return { description: module.get_filetypename(true), accept: { [mime]: [ext] } };
+}
+
+/** The input extensions (upstream: the Open dialog lists the Input modules). */
+const INPUT_TYPES = (): FilePickerType[] => db.get_input_list().flatMap((i) => extensionType(i) ?? []);
+
+/** The output extensions (upstream: the Save dialog lists the Output modules). */
+const OUTPUT_TYPES = (): FilePickerType[] =>
+  db
+    .get_output_list()
+    .filter((o) => !o.raster)
+    .flatMap((o) => extensionType(o) ?? []);
+
+/** The extension module for the file name, or null for SVG (upstream: the module by file extension). */
+function moduleFor<T extends Input | Output>(list: readonly T[], name: string): T | null {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.svg') || lower.endsWith('.svgz')) return null;
+  return (
+    list.find((m) => {
+      const ext = m.get_extension()?.toLowerCase();
+      return ext && lower.endsWith(ext);
+    }) ?? null
+  );
+}
+
 /**
  * A new document from the default template (share/templates/default.svg from
  * the assets). TODO: the localized default.<lang>.svg and the
@@ -76,15 +109,23 @@ export async function sp_file_new_default(): Promise<SPDocument> {
  * Ask the user for an SVG or SVGZ file and open it. Returns null if the user
  * cancels or the file is not SVG. Uses the File System Access API, with an
  * <input type=file> fallback. The file handle is kept for saving.
- * TODO: other import formats.
+ * Other formats open with the input extensions.
  */
 export async function sp_file_open_dialog(): Promise<SPDocument | null> {
-  const picked = await pickFile();
+  const picked = await pickFile([SVG_TYPE(), SVGZ_TYPE(), ...INPUT_TYPES()]);
   return picked ? openPickedFile(picked.file, picked.handle) : null;
 }
 
 /** Parse file as a document and remember handle for saving and in the recent files. */
 async function openPickedFile(file: File, handle: FileHandle | null): Promise<SPDocument | null> {
+  const input = moduleFor(db.get_input_list(), file.name);
+  if (input) {
+    // An input extension converts the file to SVG; saving asks for a new (SVG) file.
+    const doc = await input.open(file.name, new Uint8Array(await file.arrayBuffer()));
+    if (!doc) alert(_('Failed to load the requested file %s').replace('%s', file.name));
+    else doc.documentName = file.name;
+    return doc;
+  }
   const text = await decodeSvgBytes(new Uint8Array(await file.arrayBuffer()));
   const doc = SPDocument.createNewDocFromMem(text, file.name);
   if (!doc) {
@@ -208,6 +249,22 @@ async function file_save(doc: SPDocument, name: string, write: (data: Blob) => P
 
 /** Write through a file handle. Returns false and tells the user on failure. */
 async function saveToHandle(doc: SPDocument, handle: FileHandle): Promise<boolean> {
+  const output = moduleFor(db.get_output_list(), handle.name);
+  if (output) {
+    // An output extension writes a copy; the document keeps its SVG file (upstream: lossy
+    // formats do not become the file of the document).
+    const data = await output.save(doc, handle.name);
+    if (!data) {
+      alert(_('File %s could not be saved.').replace('%s', handle.name));
+      return false;
+    }
+    const writable = await handle.createWritable();
+    await writable.write(
+      new Blob([data as BlobPart], { type: output.mimetype ?? 'application/octet-stream' }),
+    );
+    await writable.close();
+    return true;
+  }
   try {
     await file_save(doc, handle.name, async (data) => {
       const writable = await handle.createWritable();
@@ -249,7 +306,10 @@ export async function sp_file_save_dialog(doc: SPDocument): Promise<boolean> {
   }
   let handle: FileHandle;
   try {
-    handle = await w.showSaveFilePicker({ suggestedName, types: [SVG_TYPE(), SVGZ_TYPE()] });
+    handle = await w.showSaveFilePicker({
+      suggestedName,
+      types: [SVG_TYPE(), SVGZ_TYPE(), ...OUTPUT_TYPES()],
+    });
   } catch (e) {
     if (isAbort(e)) return false;
     throw e;
