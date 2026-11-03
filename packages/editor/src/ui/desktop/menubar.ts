@@ -13,7 +13,7 @@
  *
  * Copyright (C) 2025 Authors
  */
-import { type Node, readMem } from '@inkscape-web/core';
+import { _, type Node, readMem } from '@inkscape-web/core';
 import { print_detailed_name } from '../../actions/action-map.ts';
 
 /** An entry of a menu from share/ui/menus.ui. Labels are untranslated msgids with mnemonics ("_File"). */
@@ -86,6 +86,62 @@ export function build_menu(xml: string): MenuEntry[] {
   };
   const menu = find(root);
   return menu ? build_entries(menu) : [];
+}
+
+/**
+ * Put the filter effects into the section "filter-menu-filters" of menu (upstream build_menu:
+ * the Filters part of the effect data): a submenu for each menu path, an item app.<id> for
+ * each effect.
+ */
+export function add_filter_effects_to_menu(
+  menu: readonly MenuEntry[],
+  effects: readonly { name: string; menu: readonly string[]; get_sanitized_id(): string }[],
+): void {
+  const find = (entries: readonly MenuEntry[]): MenuEntry | null => {
+    for (const e of entries) {
+      if (e.kind === 'section' && e.id === 'filter-menu-filters') return e;
+      if (e.kind !== 'item') {
+        const found = find(e.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const top_menu = find(menu);
+  if (!top_menu || top_menu.kind === 'item') {
+    console.error("build_menu(): Couldn't find Filters menu entry!");
+    return;
+  }
+  const submenus = new Map<string, MenuEntry[]>();
+  // Sorted by (translated) menu tree and effect name (upstream InkActionEffectData::datum::operator<).
+  const key = (e: (typeof effects)[number]) => [...e.menu.map((m) => _(m)), _(e.name)];
+  const sorted = [...effects].sort((a, b) => {
+    const [ka, kb] = [key(a), key(b)];
+    for (let i = 0; i < Math.min(ka.length, kb.length); i++) {
+      if (ka[i] !== kb[i]) return (ka[i] ?? '') < (kb[i] ?? '') ? -1 : 1;
+    }
+    return ka.length - kb.length;
+  });
+  for (const entry of sorted) {
+    let path = 'Filters';
+    let current_menu = top_menu.children;
+    for (const submenu_name of entry.menu) {
+      path += `${submenu_name}-`;
+      let submenu = submenus.get(path);
+      if (!submenu) {
+        submenu = [];
+        submenus.set(path, submenu);
+        current_menu.push({ kind: 'submenu', id: null, label: submenu_name, children: submenu });
+      }
+      current_menu = submenu;
+    }
+    current_menu.push({
+      kind: 'item',
+      label: entry.name,
+      action: `app.${entry.get_sanitized_id()}`,
+      icon: null,
+    });
+  }
 }
 
 /**
