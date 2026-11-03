@@ -218,6 +218,15 @@ describe('gradient mode', () => {
       'Change gradient stop offset',
     ]);
   });
+
+  it('sets a new mesh on the fill with the Mesh mode', () => {
+    const { dt, select, steps } = setup();
+    select('a');
+    setPaintMode(dt, true, PaintMode.Mesh);
+    const info = queryPaint(dt, true);
+    expect(info.kind === 'paint' && info.mode).toBe(PaintMode.Mesh);
+    expect(steps()).toEqual(['Set mesh on fill']);
+  });
 });
 
 describe('pattern paint', () => {

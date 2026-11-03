@@ -42,7 +42,10 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Calligraphic', 'draw-calligraphic'],
     ['Text', 'draw-text'],
   ],
-  [['Gradient', 'color-gradient']],
+  [
+    ['Gradient', 'color-gradient'],
+    ['Mesh', 'mesh-gradient'],
+  ],
   [
     ['Dropper', 'color-picker'],
     ['PaintBucket', 'color-fill'],

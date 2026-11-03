@@ -26,6 +26,7 @@ import {
   type SPIPaint,
   type SPItem,
   SPLinearGradient,
+  SPMeshGradient,
   type SPPaintServer,
   SPPattern,
   SPRadialGradient,
@@ -37,6 +38,7 @@ import {
   sp_gradient_add_stop,
   sp_gradient_delete_stop,
   sp_gradient_reverse_vector,
+  sp_item_apply_mesh,
   sp_set_gradient_stop_color,
   spReprCssAttrNew,
   spReprCssChangeRecursive,
@@ -110,7 +112,8 @@ export type PaintInfo =
 export function paintModeFromPaint(paint: SPIPaint, server: SPPaintServer | null = null): PaintMode {
   if (paint.isDerived()) return PaintMode.Derived;
   if (paint.isPaintserver()) {
-    // TODO: hatches, meshes, swatches
+    // TODO: hatches, swatches
+    if (server instanceof SPMeshGradient) return PaintMode.Mesh;
     return server instanceof SPPattern ? PaintMode.Pattern : PaintMode.Gradient;
   }
   if (paint.isColor()) return PaintMode.Solid;
@@ -170,7 +173,7 @@ export function setFlatColor(desktop: SPDesktop, color: Colors.Color, isFill: bo
 /**
  * Change the kind of the paint of the selection (upstream get_signal_mode_changed). For
  * PaintMode.Solid, color is the flat color to set.
- * TODO: the gradient, mesh, pattern and swatch modes.
+ * TODO: the swatch mode, the choice of a mesh of the document (upstream MeshEditor).
  */
 export function setPaintMode(
   desktop: SPDesktop,
@@ -203,6 +206,15 @@ export function setPaintMode(
       // A new gradient from the current paint (upstream fire_gradient_changed(nullptr)).
       setGradient(desktop, isFill, null, SPGradientType.SP_GRADIENT_TYPE_LINEAR);
       break;
+    case PaintMode.Mesh: {
+      // A new mesh on each object (upstream: the mesh_changed handler with no mesh chosen).
+      for (const item of desktop.getSelection().items()) {
+        sp_item_apply_mesh(item, null, doc, isFill);
+        remove_opacity(item, isFill);
+      }
+      DocumentUndo.done(doc, isFill ? C_(UNDO, 'Set mesh on fill') : C_(UNDO, 'Set mesh on stroke'), ICON);
+      break;
+    }
     case PaintMode.Pattern: {
       // The first pattern of the document; the editor offers the stock patterns.
       const pattern = sp_get_pattern_list(doc)[0];
@@ -210,7 +222,7 @@ export function setPaintMode(
       break;
     }
     default:
-      break; // TODO: mesh, pattern, swatch
+      break; // TODO: swatch
   }
 }
 

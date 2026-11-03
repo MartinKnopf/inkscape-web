@@ -84,7 +84,7 @@ const label = (s: string) => s.replace('_', '');
 /**
  * The Fill and Stroke dialog (dialog key "FillStroke"): the tabs Fill, Stroke paint and Stroke
  * style for the selection, and the opacity.
- * TODO: mesh and swatch paints, hatches, the gradient library, the Advanced tab, paint order,
+ * TODO: swatch paints, hatches, the mesh editor (meshes of the document), the gradient library, the Advanced tab, paint order,
  * hairline strokes, isolation, the marker editing options (size, orient, recolor), icons.
  */
 export function FillAndStrokeDialog() {
@@ -132,7 +132,7 @@ const PAINT_MODES: { mode: PaintMode; name: string; tip: string; implemented: bo
     tip: _('Linear gradient fill'),
     implemented: true,
   },
-  { mode: PaintMode.Mesh, name: C_('Paint type', 'Mesh'), tip: _('Mesh fill'), implemented: false },
+  { mode: PaintMode.Mesh, name: C_('Paint type', 'Mesh'), tip: _('Mesh fill'), implemented: true },
   {
     mode: PaintMode.Pattern,
     name: C_('Paint type', 'Pattern'),
@@ -179,6 +179,7 @@ function PaintPage({ desktop, isFill }: { desktop: SPDesktop; isFill: boolean })
       {info.mode === PaintMode.Pattern && info.pattern && (
         <PatternEditor desktop={desktop} isFill={isFill} pattern={info.pattern} />
       )}
+      {info.mode === PaintMode.Mesh && <p className="fillstroke-placeholder">{_('Mesh fill')}</p>}
       {info.mode === PaintMode.None && <p className="fillstroke-placeholder">{_('No paint')}</p>}
       {info.mode === PaintMode.Derived && <p className="fillstroke-placeholder">{_('Inherited')}</p>}
       {isFill && (

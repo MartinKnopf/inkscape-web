@@ -23,6 +23,7 @@ import { DropperToolbar } from './dropper-toolbar.tsx';
 import { EraserToolbar } from './eraser-toolbar.tsx';
 import { GradientToolbar } from './gradient-toolbar.tsx';
 import { MeasureToolbar } from './measure-toolbar.tsx';
+import { MeshToolbar } from './mesh-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
 import { PageToolbar } from './page-toolbar.tsx';
 import { PaintbucketToolbar } from './paintbucket-toolbar.tsx';
@@ -51,6 +52,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   PaintBucket: PaintbucketToolbar,
   Spray: SprayToolbar,
   Gradient: GradientToolbar,
+  Mesh: MeshToolbar,
   Dropper: DropperToolbar,
   Measure: MeasureToolbar,
   Zoom: ZoomToolbar,
