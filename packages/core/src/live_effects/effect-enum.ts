@@ -356,6 +356,17 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Generate,
   ),
   entry(
+    EffectType.FILL_BETWEEN_MANY,
+    NC_('path effect', 'Fill between many'),
+    'fill_between_many',
+    'fill-between-many',
+    N_(
+      'Turn the path into a fill between multiple other open paths (e.g. between paths with PowerStroke applied to them)',
+    ),
+    LPECategory.Generate,
+  ),
+  /* 1.0 */
+  entry(
     EffectType.FILLET_CHAMFER,
     NC_('path effect', 'Corners'),
     'fillet_chamfer',
@@ -367,7 +378,6 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     true,
     false,
   ),
-  /* 1.0 */
   entry(
     EffectType.OFFSET,
     NC_('path effect', 'Offset'),
@@ -376,6 +386,20 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Offset the path, optionally keeping cusp corners cusp'),
     LPECategory.EditTools,
   ),
+  /* 1.2 */
+  {
+    ...entry(
+      EffectType.FILL_BETWEEN_STROKES,
+      NC_('path effect', 'Fill between strokes'),
+      'fill_between_strokes',
+      'experimental',
+      N_(
+        'Turn the path into a fill between two other open paths (e.g. between two paths with PowerStroke applied to them)',
+      ),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
 ];
 
 export const LPETypeConverter = new EnumEffectDataConverter<EffectType>(LPETypeData);

@@ -11,6 +11,8 @@ import { LPEBSpline } from './lpe-bspline.ts';
 import { LPECloneOriginal } from './lpe-clone-original.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
 import { LPEEnvelope } from './lpe-envelope.ts';
+import { LPEFillBetweenMany } from './lpe-fill-between-many.ts';
+import { LPEFillBetweenStrokes } from './lpe-fill-between-strokes.ts';
 import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
 import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
@@ -52,6 +54,10 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPEMirrorSymmetry(lpeobj);
     case EffectType.COPY_ROTATE:
       return new LPECopyRotate(lpeobj);
+    case EffectType.FILL_BETWEEN_MANY:
+      return new LPEFillBetweenMany(lpeobj);
+    case EffectType.FILL_BETWEEN_STROKES:
+      return new LPEFillBetweenStrokes(lpeobj);
     case EffectType.FILLET_CHAMFER:
       return new LPEFilletChamfer(lpeobj);
     case EffectType.BSPLINE:

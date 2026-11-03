@@ -38,6 +38,8 @@ const LAYERS = [
   'bspline',
   'power stroke',
   'clone_original',
+  'fill between many',
+  'fill between strokes',
 ];
 
 /**

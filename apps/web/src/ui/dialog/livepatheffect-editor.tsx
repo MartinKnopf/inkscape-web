@@ -6,12 +6,13 @@ import {
   C_,
   type Effect,
   type EnumParam,
+  type LinkParam,
   type Parameter,
   type ParamWidget,
+  type PathArrayParam,
   type PathParam,
   type PointParam,
   type RandomParam,
-  type SatelliteParam,
   type ScalarParam,
   type SPLPEItem,
   type TextParam,
@@ -229,7 +230,7 @@ function ParamRow(props: {
           <button
             type="button"
             title={widget.select_original ? _('Link to item') : _('Link to item on clipboard')}
-            onClick={() => LPE.satellite_link_from_clipboard(param as SatelliteParam)}
+            onClick={() => LPE.satellite_link_from_clipboard(param as unknown as LinkParam)}
           >
             <Icon name={widget.select_original ? 'edit-paste' : 'edit-clone'} />
           </button>
@@ -237,13 +238,67 @@ function ParamRow(props: {
             <button
               type="button"
               title={_('Select original')}
-              onClick={() => LPE.satellite_select_original(desktop, param as SatelliteParam)}
+              onClick={() => LPE.satellite_select_original(desktop, param as unknown as LinkParam)}
             >
               <Icon name="edit-select-original" />
             </button>
           )}
         </div>
       );
+    case 'patharray': {
+      const pa = param as PathArrayParam;
+      return (
+        <div className="lpe-param lpe-patharray" title={title}>
+          <span>{text}</span>
+          <table>
+            <thead>
+              <tr>
+                <th>{_('Reverse')}</th>
+                <th>{_('Visible')}</th>
+                <th>{_('Name')}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {widget.rows.map((row, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows have no id; the same path may be linked twice
+                <tr key={i}>
+                  <td>
+                    <input type="checkbox" checked={row.reversed} onChange={() => pa.on_reverse_toggled(i)} />
+                  </td>
+                  <td>
+                    <input type="checkbox" checked={row.visible} onChange={() => pa.on_visible_toggled(i)} />
+                  </td>
+                  <td>{row.label}</td>
+                  <td>
+                    <button type="button" title={_('Move Up')} onClick={() => pa.on_up_button_click(i)}>
+                      <Icon name="go-up" />
+                    </button>
+                    <button type="button" title={_('Move Down')} onClick={() => pa.on_down_button_click(i)}>
+                      <Icon name="go-down" />
+                    </button>
+                    <button
+                      type="button"
+                      title={_('Remove Path')}
+                      onClick={() => pa.on_remove_button_click(i)}
+                    >
+                      <Icon name="list-remove" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button
+            type="button"
+            title={_('Link to path in clipboard')}
+            onClick={() => LPE.patharray_link_from_clipboard(pa)}
+          >
+            <Icon name="edit-clone" />
+          </button>
+        </div>
+      );
+    }
     case 'message':
       return (
         <fieldset className="lpe-param lpe-message">

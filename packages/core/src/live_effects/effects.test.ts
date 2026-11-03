@@ -405,3 +405,27 @@ describe('Clone original', () => {
     expect(bounds(curve(q))).toEqual([0, 0, 1, 0]);
   });
 });
+
+describe('Fill between many', () => {
+  it('joins the linked paths to a closed path', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/>
+       <path id="a" d="M 0,0 H 10"/><path id="b" d="M 0,10 H 10"/><path id="f" d="M 0,0"/></svg>`,
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const f = doc.getObjectById('f') as SPShape;
+    Effect.createAndApply('fill_between_many', doc, f);
+    f.getCurrentLPE()?.getRepr()?.setAttribute('linkedpaths', '#a,0,1|#b,0,1');
+    doc.ensureUpToDate();
+    const p = curve(f)[0] as Path;
+    expect(p.closed()).toBe(true);
+    expect(bounds(curve(f))).toEqual([0, 0, 10, 10]);
+    // a, the line to the end of b, b reversed; the closing segment goes back to the start
+    expect(p.openCurves().map((c) => [c.finalPoint().x, c.finalPoint().y])).toEqual([
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ]);
+  });
+});

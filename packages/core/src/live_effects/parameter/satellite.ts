@@ -23,7 +23,7 @@ import { BadURIException, URIReference } from '../../object/uri-references.ts';
 import { type Effect, LPEAction } from '../effect.ts';
 import { EffectType, ParamType } from '../effect-enum.ts';
 import { LivePathEffectObject } from '../lpeobject.ts';
-import { Parameter, type ParamWidget } from './parameter.ts';
+import { type LinkParam, Parameter, type ParamWidget } from './parameter.ts';
 
 /** A reference from an effect to a shape, text, group or clone (upstream SatelliteReference). */
 export class SatelliteReference extends URIReference {
@@ -40,7 +40,7 @@ export class SatelliteReference extends URIReference {
 }
 
 /** A link from the effect to another item, written as "#id" (upstream SatelliteParam). */
-export class SatelliteParam extends Parameter {
+export class SatelliteParam extends Parameter implements LinkParam {
   readonly lperef: SatelliteReference;
   /** Set when the link button looks for a clone on the clipboard (upstream lookup). */
   lookup = false;
@@ -93,6 +93,10 @@ export class SatelliteParam extends Parameter {
 
   getObject(): SPObject | null {
     return this.lperef.isAttached() ? this.lperef.getObject() : null;
+  }
+
+  linkedObject(): SPObject | null {
+    return this.lperef.getObject();
   }
 
   param_getSVGValue(): string {

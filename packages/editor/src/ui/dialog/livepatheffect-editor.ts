@@ -19,13 +19,14 @@ import {
   DocumentUndo,
   Effect,
   type EffectType,
+  type LinkParam,
   LPECategory,
   LPETypeConverter,
   type Parameter,
   type ParamWidget,
+  type PathArrayParam,
   type PathEffectSharedPtr,
   type PathParam,
-  type SatelliteParam,
   SPFlowtext,
   SPGroup,
   SPItem,
@@ -339,16 +340,22 @@ export function param_editOncanvas(desktop: SPDesktop, param: PathParam, item: S
 }
 
 /** Link a satellite parameter to the copied item (upstream SatelliteParam::on_link_button_click). */
-export function satellite_link_from_clipboard(param: SatelliteParam): void {
+export function satellite_link_from_clipboard(param: LinkParam): void {
   // TODO: with lookup, link to the first clone (svg:use) on the clipboard.
   param.on_link_button_click(ClipboardManager.get().getFirstObjectID());
 }
 
 /** Select the linked item (upstream OriginalSatelliteParam::on_select_original_button_click). */
-export function satellite_select_original(desktop: SPDesktop, param: SatelliteParam): void {
-  const original = param.lperef.getObject();
+export function satellite_select_original(desktop: SPDesktop, param: LinkParam): void {
+  const original = param.linkedObject();
   if (!(original instanceof SPItem)) return;
   const selection = desktop.getSelection();
   selection.clear();
   selection.set(original);
+}
+
+/** Link a path array parameter to the copied paths and texts (upstream PathArrayParam::on_link_button_click). */
+export function patharray_link_from_clipboard(param: PathArrayParam): void {
+  const cm = ClipboardManager.get();
+  param.on_link_button_click([...cm.getElementsOfType('svg:path'), ...cm.getElementsOfType('svg:text')]);
 }
