@@ -13,10 +13,12 @@ import {
 } from '@inkscape-web/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SPDesktop } from '../../desktop.ts';
+import { get_stock_pattern } from '../../pattern-manipulation.ts';
 import { Canvas } from '../widget/canvas.ts';
 import {
   gradientStops,
   PaintMode,
+  patternItem,
   queryOpacity,
   queryPaint,
   queryStrokeStyle,
@@ -26,6 +28,7 @@ import {
   setGradient,
   setOpacity,
   setPaintMode,
+  setPattern,
   setStopColor,
   setStopOffset,
   setStrokeDash,
@@ -212,5 +215,39 @@ describe('gradient mode', () => {
       'Change gradient stop color',
       'Change gradient stop offset',
     ]);
+  });
+});
+
+describe('pattern paint', () => {
+  const STOCK =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"><defs>' +
+    '<pattern id="dots" inkscape:label="Dots" patternUnits="userSpaceOnUse" width="10" height="10" style="fill:#000000"><circle r="2"/></pattern></defs></svg>';
+
+  it('copies a stock pattern, applies it through a link with the editor settings and reads it back', () => {
+    const { dt, select, steps } = setup();
+    const stock = SPDocument.createNewDocFromMem(STOCK)!;
+    select('a');
+    const pattern = get_stock_pattern(dt.getDocument(), stock, 'dots')!;
+    const item = {
+      ...patternItem(pattern),
+      scale_x: 2,
+      scale_y: 2,
+      angle: 90,
+      color: new Colors.Color(0x00ff00ff),
+    };
+    setPattern(dt, true, pattern, item);
+    const info = queryPaint(dt, true);
+    if (info.kind !== 'paint') throw new Error(info.kind);
+    expect(info.mode).toBe(PaintMode.Pattern);
+    expect(info.pattern?.rootPattern()).toBe(pattern);
+    expect(info.pattern).not.toBe(pattern);
+    const read = patternItem(info.pattern!);
+    expect([read.label, read.scale_x, Math.round(read.angle), read.color?.toString(false)]).toEqual([
+      'Dots',
+      2,
+      90,
+      '#00ff00',
+    ]);
+    expect(steps()).toEqual(['Set pattern on fill']);
   });
 });

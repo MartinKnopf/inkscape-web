@@ -68,6 +68,7 @@ export * from './live_effects/parameter/scalararray.ts';
 export * from './live_effects/parameter/text.ts';
 export * from './live_effects/parameter/togglebutton.ts';
 export * from './live_effects/parameter/unit.ts';
+export * from './manipulation/copy-resource.ts';
 export * from './number-opt-number.ts';
 export * from './object/box3d.ts';
 export * from './object/box3d-side.ts';

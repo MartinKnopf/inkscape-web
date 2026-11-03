@@ -56,6 +56,7 @@ export * from './libnrtype/canvas-text-measurer.ts';
 export * from './libnrtype/font-lister.ts';
 export * from './line-snapper.ts';
 export * from './object-snapper.ts';
+export * from './pattern-manipulation.ts';
 export * from './pure-transform.ts';
 export * from './rubberband.ts';
 export * from './selcue.ts';
