@@ -731,3 +731,101 @@
   border-color: #277fff;
   background: #e8f0ff;
 }
+
+/* Filter Editor */
+.filter-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.filter-editor section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-list {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.filter-list th {
+  text-align: left;
+  font-weight: normal;
+  color: #666;
+}
+
+.filter-list tr[aria-selected="true"],
+.filter-primitives li[aria-current="true"] {
+  background: #d4d4d4;
+}
+
+.filter-primitives {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.filter-primitives li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+}
+
+.filter-primitive-name {
+  flex: 1 1 auto;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.filter-inputs {
+  display: flex;
+  gap: 2px;
+}
+
+.filter-inputs select {
+  max-width: 7em;
+}
+
+.filter-primitive-actions button {
+  padding: 0 4px;
+}
+
+.filter-setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-setting > span:first-child {
+  min-width: 7em;
+}
+
+.filter-column {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.filter-matrix {
+  display: grid;
+  gap: 2px;
+}
+
+.filter-cell {
+  width: 100%;
+  min-width: 0;
+}
+
+.filter-empty {
+  color: #777;
+}
