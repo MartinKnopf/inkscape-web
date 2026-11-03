@@ -265,6 +265,26 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     N_('Adjust the shape of an object by transforming paths on its four sides'),
     LPECategory.Distort,
   ),
+  entry(
+    EffectType.INTERPOLATE,
+    NC_('path effect', 'Interpolate Sub-Paths'),
+    'interpolate',
+    'interpolate',
+    N_(
+      'Create a smooth transition between the two subpaths of a path, blending their shapes together in steps.',
+    ),
+    LPECategory.Generate,
+    false,
+    false,
+  ),
+  entry(
+    EffectType.SKETCH,
+    NC_('path effect', 'Sketch'),
+    'sketch',
+    'sketch',
+    N_('Draw multiple short strokes along the path, as in a pencil sketch'),
+    LPECategory.Generate,
+  ),
   /* 0.91 */
   entry(
     EffectType.POWERSTROKE,

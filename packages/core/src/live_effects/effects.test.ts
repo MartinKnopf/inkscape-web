@@ -429,3 +429,27 @@ describe('Fill between many', () => {
     ]);
   });
 });
+
+describe('Interpolate Sub-Paths', () => {
+  it('blends the first subpath into the second along the trajectory', () => {
+    // resetDefaults() sets the trajectory from the middle of the first to the middle of the second subpath.
+    const s = applied('M 0,0 H 10 M 0,20 H 20', 'interpolate', { steps: '3' });
+    const pv = curve(s);
+    expect(pv).toHaveLength(3);
+    expect(bounds([pv[0] as Path])).toEqual([0, 0, 10, 0]);
+    expect(bounds([pv[1] as Path])).toEqual([0, 10, 15, 10]);
+    expect(bounds([pv[2] as Path])).toEqual([0, 20, 20, 20]);
+  });
+});
+
+describe('Sketch', () => {
+  it('draws strokes and construction lines, the same ones each time', () => {
+    const s = applied('M 0,0 C 100,-100 200,100 300,0', 'sketch');
+    const first = s.getAttribute('d');
+    // 5 strokes along the path (each split into pieces) and 5 construction lines
+    expect(curve(s).length).toBeGreaterThan(10);
+    s.getCurrentLPE()?.getRepr()?.setAttribute('nbtangents', '5');
+    s.document.ensureUpToDate();
+    expect(s.getAttribute('d')).toBe(first);
+  });
+});

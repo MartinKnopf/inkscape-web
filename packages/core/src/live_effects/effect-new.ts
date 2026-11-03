@@ -14,6 +14,7 @@ import { LPEEnvelope } from './lpe-envelope.ts';
 import { LPEFillBetweenMany } from './lpe-fill-between-many.ts';
 import { LPEFillBetweenStrokes } from './lpe-fill-between-strokes.ts';
 import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
+import { LPEInterpolate } from './lpe-interpolate.ts';
 import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
 import { LPEPatternAlongPath } from './lpe-patternalongpath.ts';
@@ -21,6 +22,7 @@ import { LPEPerspectiveEnvelope } from './lpe-perspective-envelope.ts';
 import { LPEPowerStroke } from './lpe-powerstroke.ts';
 import { LPERoughen } from './lpe-roughen.ts';
 import { LPESimplify } from './lpe-simplify.ts';
+import { LPESketch } from './lpe-sketch.ts';
 import { LPESpiro } from './lpe-spiro.ts';
 import { LPETaperStroke } from './lpe-taperstroke.ts';
 import type { LivePathEffectObject } from './lpeobject.ts';
@@ -46,6 +48,10 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPEPowerStroke(lpeobj);
     case EffectType.CLONE_ORIGINAL:
       return new LPECloneOriginal(lpeobj);
+    case EffectType.INTERPOLATE:
+      return new LPEInterpolate(lpeobj);
+    case EffectType.SKETCH:
+      return new LPESketch(lpeobj);
     case EffectType.SIMPLIFY:
       return new LPESimplify(lpeobj);
     case EffectType.ROUGHEN:

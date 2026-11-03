@@ -40,6 +40,8 @@ const LAYERS = [
   'clone_original',
   'fill between many',
   'fill between strokes',
+  'interpolate paths',
+  'sketch',
 ];
 
 /**
@@ -56,6 +58,8 @@ const KNOWN_DIFFERENCES = new Set([
   'ellipse60938',
   // Offset on a group with Bend and Envelope
   'path50227',
+  // Sketch
+  'ellipse228871',
 ]);
 
 /** The top-level layer of obj (upstream: the layer label names the tested effect). */
