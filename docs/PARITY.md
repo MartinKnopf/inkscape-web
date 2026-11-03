@@ -5,20 +5,20 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 19 | 26 | 73 |
+| Tools | 21 | 26 | 81 |
 | Dialogs | 17 | 29 | 59 |
 | Actions | 133 | 409 | 33 |
 | Live path effects | 13 | 56 | 23 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
 
-<details><summary>Tools (19/26)</summary>
+<details><summary>Tools (21/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
-- [ ] `box3d-tool.cpp`
+- [x] `box3d-tool.cpp`
 - [x] `calligraphic-tool.cpp`
-- [ ] `connector-tool.cpp`
+- [x] `connector-tool.cpp`
 - [x] `dropper-tool.cpp`
 - [x] `eraser-tool.cpp`
 - [x] `flood-tool.cpp`
