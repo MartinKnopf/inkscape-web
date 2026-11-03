@@ -12,7 +12,9 @@
  *
  * Copyright (C) 2006-2008 authors
  */
+import { FilterPrimitiveType } from './display/nr-filter-types.ts';
 import type { SPDocument } from './document.ts';
+import { FPConverter } from './filter-enums.ts';
 import { SPGaussianBlur } from './object/filters/gaussian-blur.ts';
 import { SPFilterPrimitive } from './object/filters/sp-filter-primitive.ts';
 import { SPFilter } from './object/sp-filter.ts';
@@ -65,6 +67,46 @@ export function new_filter(document: SPDocument): SPFilter {
   const f = document.getObjectByRepr(repr);
   if (!(f instanceof SPFilter)) throw new Error('new_filter: no SPFilter');
   return f;
+}
+
+/** Append a new primitive of type with its default attributes to filter (upstream filter_add_primitive). */
+export function filter_add_primitive(filter: SPFilter, type: FilterPrimitiveType): SPFilterPrimitive {
+  const xml_doc = filter.document.getReprDoc();
+
+  //create filter primitive node
+  const repr = xml_doc.createElement(FPConverter.get_key(type));
+
+  // set default values
+  switch (type) {
+    case FilterPrimitiveType.NR_FILTER_BLEND:
+      repr.setAttribute('mode', 'normal');
+      break;
+    case FilterPrimitiveType.NR_FILTER_CONVOLVEMATRIX:
+      repr.setAttribute('order', '3 3');
+      repr.setAttribute('kernelMatrix', '0 0 0 0 0 0 0 0 0');
+      break;
+    case FilterPrimitiveType.NR_FILTER_GAUSSIANBLUR:
+      repr.setAttribute('stdDeviation', '1');
+      break;
+    case FilterPrimitiveType.NR_FILTER_MORPHOLOGY:
+      repr.setAttribute('radius', '1');
+      break;
+    case FilterPrimitiveType.NR_FILTER_OFFSET:
+      repr.setAttribute('dx', '0');
+      repr.setAttribute('dy', '0');
+      break;
+    default:
+      break;
+  }
+
+  //set primitive as child of filter node
+  // XML tree being used directly while/where it shouldn't be...
+  filter.getRepr().appendChild(repr);
+
+  // get corresponding object
+  const prim = filter.document.getObjectByRepr(repr);
+  if (!(prim instanceof SPFilterPrimitive)) throw new Error('filter_add_primitive: no SPFilterPrimitive');
+  return prim;
 }
 
 /** stdDeviation for a blur radius in desktop units of an item with the given i2d expansion. */

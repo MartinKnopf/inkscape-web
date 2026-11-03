@@ -15,6 +15,7 @@ export * from './document-undo.ts';
 export * from './enums.ts';
 export * from './extension/internal/gdkpixbuf-input.ts';
 export * from './filter-chemistry.ts';
+export * from './filter-enums.ts';
 export * from './gradient-chemistry.ts';
 export * from './helper/geom.ts';
 export * from './helper/geom-nodesatellite.ts';
