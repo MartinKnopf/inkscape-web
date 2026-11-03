@@ -19,7 +19,7 @@ const SECTION = NC_('Action Section', 'Edit');
 /**
  * Action id, label, section and tooltip (untranslated).
  * TODO: object-to-pattern/marker/guides, duplicate-transform, clone-link,
- * clone-link-lpe, path effects, swap-fill-and-stroke, fit-canvas-to-selection, chameleon-fill.
+ * path effects, swap-fill-and-stroke, fit-canvas-to-selection, chameleon-fill.
  */
 export const raw_data_edit: readonly (readonly [string, string, string, string])[] = [
   ['app.cut', N_('Cut'), SECTION, N_('Cut selection to clipboard')],
@@ -74,6 +74,12 @@ export const raw_data_edit: readonly (readonly [string, string, string, string])
     N_('Unlink Clones recursively'),
     SECTION,
     N_('Unlink all clones in the selection, even if they are in groups.'),
+  ],
+  [
+    'app.clone-link-lpe',
+    N_('Clone original path (LPE)'),
+    SECTION,
+    N_('Creates a new path, applies the Clone original LPE, and refers it to the selected path'),
   ],
   [
     'app.select-original',
@@ -159,6 +165,7 @@ export function add_actions_edit(app: InkscapeApplication): void {
   add('clone', (s) => s.clone());
   add('clone-unlink', (s) => s.unlink());
   add('clone-unlink-recursively', (s) => s.unlinkRecursive(false, true));
+  add('clone-link-lpe', (s) => s.cloneOriginalPathLPE());
   add('select-original', (s) => s.cloneOriginal());
   add('delete', (s) => edit_delete(s, app));
   add('delete-selection', (s) => s.deleteItems());

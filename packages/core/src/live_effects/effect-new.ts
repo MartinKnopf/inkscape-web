@@ -8,6 +8,7 @@ import { type Effect, setEffectFactory } from './effect.ts';
 import { EffectType } from './effect-enum.ts';
 import { LPEBendPath } from './lpe-bendpath.ts';
 import { LPEBSpline } from './lpe-bspline.ts';
+import { LPECloneOriginal } from './lpe-clone-original.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
 import { LPEEnvelope } from './lpe-envelope.ts';
 import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
@@ -41,6 +42,8 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPESpiro(lpeobj);
     case EffectType.POWERSTROKE:
       return new LPEPowerStroke(lpeobj);
+    case EffectType.CLONE_ORIGINAL:
+      return new LPECloneOriginal(lpeobj);
     case EffectType.SIMPLIFY:
       return new LPESimplify(lpeobj);
     case EffectType.ROUGHEN:

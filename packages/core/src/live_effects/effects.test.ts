@@ -364,3 +364,44 @@ describe('Power stroke', () => {
     near(lpe.offset_points.knot_get(0), [50, 8]);
   });
 });
+
+describe('Clone original', () => {
+  /** A document with the original "o" and a path "q" that clones it with the given method. */
+  function cloneOf(method: string, attributes = '', css_properties = '') {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/>
+       <rect id="o" x="10" y="20" width="30" height="40" style="fill:#ff0000;stroke:#0000ff"/>
+       <path id="q" d="M 0,0 H 1" style="fill:#00ff00"/></svg>`,
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const q = doc.getObjectById('q') as SPShape;
+    Effect.createAndApply('clone_original', doc, q);
+    const repr = q.getCurrentLPE()?.getRepr();
+    repr?.setAttribute('method', method);
+    repr?.setAttribute('attributes', attributes);
+    repr?.setAttribute('css_properties', css_properties);
+    repr?.setAttribute('linkeditem', '#o');
+    doc.ensureUpToDate();
+    return { doc, q };
+  }
+
+  it('takes the shape of the linked item', () => {
+    const { q } = cloneOf('d');
+    expect(bounds(curve(q))).toEqual([10, 20, 40, 60]);
+  });
+
+  it('copies the style when it links, then the chosen style properties', () => {
+    const { doc, q } = cloneOf('d', '', 'stroke');
+    expect(q.getAttribute('style')).toBe('fill:#ff0000;stroke:#0000ff');
+    const o = doc.getObjectById('o');
+    o?.setAttribute('style', 'fill:#ffff00;stroke:#00ffff');
+    doc.ensureUpToDate();
+    expect(q.getAttribute('style')).toBe('fill:#ff0000;stroke:#00ffff');
+  });
+
+  it('keeps its own shape with "Transformation Only"', () => {
+    const { q } = cloneOf('none');
+    expect(bounds(curve(q))).toEqual([0, 0, 1, 0]);
+  });
+});

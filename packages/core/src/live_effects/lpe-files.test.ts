@@ -37,6 +37,7 @@ const LAYERS = [
   'spiro',
   'bspline',
   'power stroke',
+  'clone_original',
 ];
 
 /**

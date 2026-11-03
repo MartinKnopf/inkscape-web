@@ -278,6 +278,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     true,
     false,
   ),
+  entry(
+    EffectType.CLONE_ORIGINAL,
+    NC_('path effect', 'Clone original'),
+    'clone_original',
+    'clone-original',
+    N_('Let an object take on the shape, fill, stroke and/or other attributes of another object.'),
+    LPECategory.Generate,
+  ),
   /* 0.92 */
   entry(
     EffectType.SIMPLIFY,
