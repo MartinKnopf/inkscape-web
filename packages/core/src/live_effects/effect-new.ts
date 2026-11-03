@@ -7,6 +7,7 @@
 import { type Effect, setEffectFactory } from './effect.ts';
 import { EffectType } from './effect-enum.ts';
 import { LPEBendPath } from './lpe-bendpath.ts';
+import { LPEBSpline } from './lpe-bspline.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
 import { LPEEnvelope } from './lpe-envelope.ts';
 import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
@@ -47,6 +48,8 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPECopyRotate(lpeobj);
     case EffectType.FILLET_CHAMFER:
       return new LPEFilletChamfer(lpeobj);
+    case EffectType.BSPLINE:
+      return new LPEBSpline(lpeobj);
     case EffectType.TAPER_STROKE:
       return new LPETaperStroke(lpeobj);
     case EffectType.OFFSET:

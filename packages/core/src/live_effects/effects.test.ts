@@ -328,3 +328,14 @@ describe('Spiro spline', () => {
     expect(curve(s)[0]?.closed()).toBe(true);
   });
 });
+
+describe('BSpline', () => {
+  it('moves each inner node to the middle of its handles', () => {
+    const s = applied('M 0,0 C 4,0 6,0 10,0 C 10,4 10,6 10,10', 'bspline');
+    const p = curve(s)[0] as Path;
+    expect(p.size()).toBe(2);
+    near(p.initialPoint(), [0, 0]);
+    near(p.at(0).finalPoint(), [8, 2]);
+    near(p.finalPoint(), [10, 10]);
+  });
+});

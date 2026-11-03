@@ -293,6 +293,18 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Distort,
   ),
   entry(
+    EffectType.BSPLINE,
+    NC_('path effect', 'BSpline'),
+    'bspline',
+    'bspline',
+    N_(
+      "Create a BSpline that molds into the path's corners. This effect is usually used directly on the canvas with the BSpline mode of the drawing tools.",
+    ),
+    LPECategory.Convert,
+    false,
+    false,
+  ),
+  entry(
     EffectType.TAPER_STROKE,
     NC_('path effect', 'Taper stroke'),
     'taper_stroke',
