@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import { setPathBoolopBackend } from '@inkscape-web/core';
-import { installCanvasTextMeasurer } from '@inkscape-web/editor';
+import { setImagePixelsLoader, setPathBoolopBackend, setTraceBackend } from '@inkscape-web/core';
+import { installCanvasTextMeasurer, load_image_pixels } from '@inkscape-web/editor';
 import { loadGeom } from '@inkscape-web/wasm';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -17,6 +17,9 @@ loadPreferences();
 // The path operations of the core (booleans, break apart) run in the WASM module.
 const [geom] = await Promise.all([loadGeom(), loadLanguage()]);
 setPathBoolopBackend(geom);
+// Trace Bitmap and the paint bucket: potrace and the trace filters in WASM, images decoded by the browser.
+setTraceBackend(geom);
+setImagePixelsLoader(load_image_pixels);
 // Text layout measures with the browser's fonts; before any document is loaded.
 installCanvasTextMeasurer();
 add_actions_web();

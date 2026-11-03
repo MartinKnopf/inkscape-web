@@ -25,6 +25,7 @@ import { GradientToolbar } from './gradient-toolbar.tsx';
 import { MeasureToolbar } from './measure-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
 import { PageToolbar } from './page-toolbar.tsx';
+import { PaintbucketToolbar } from './paintbucket-toolbar.tsx';
 import { PencilToolbar } from './pencil-toolbar.tsx';
 import { RectToolbar } from './rect-toolbar.tsx';
 import { SpiralToolbar } from './spiral-toolbar.tsx';
@@ -47,6 +48,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Calligraphic: CalligraphyToolbar,
   Eraser: EraserToolbar,
   Tweak: TweakToolbar,
+  PaintBucket: PaintbucketToolbar,
   Spray: SprayToolbar,
   Gradient: GradientToolbar,
   Dropper: DropperToolbar,

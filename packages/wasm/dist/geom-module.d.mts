@@ -57,6 +57,13 @@ interface EmbindModule {
   AvoidRouter: {
     new(): AvoidRouter;
   };
+  potraceTrace(_0: any, _1: number, _2: number, _3: number, _4: number, _5: number, _6: number): any;
+  rgbMapQuantize(_0: any, _1: number, _2: number, _3: number): any;
+  rgbMapGaussian(_0: any, _1: number, _2: number): any;
+  grayMapGaussian(_0: any, _1: number, _2: number): any;
+  grayMapCanny(_0: any, _1: number, _2: number, _3: number, _4: number): any;
+  quantizeBand(_0: any, _1: number, _2: number, _3: number): any;
+  floodPathData(_0: EmbindString, _1: number): string;
 }
 
 export type MainModule = WasmModule & EmbindModule;

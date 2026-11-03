@@ -102,6 +102,7 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
     SECTION,
     N_('Draw calligraphic or brush strokes'),
   ],
+  ["win.tool-switch('PaintBucket')", N_('Paint Bucket Tool'), SECTION, N_('Fill bounded areas')],
   ["win.tool-switch('Tweak')", N_('Tweak Tool'), SECTION, N_('Tweak objects by sculpting or painting')],
   ["win.tool-switch('Spray')", N_('Spray Tool'), SECTION, N_('Spray copies or clones of objects')],
   ["win.tool-switch('Eraser')", N_('Eraser Tool'), SECTION, N_('Erase objects or paths')],

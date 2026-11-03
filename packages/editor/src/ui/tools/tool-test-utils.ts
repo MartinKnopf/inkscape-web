@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Helpers for the tests of the tools (happy-dom): a desktop on a document,
 // pointer events, hit testing and the path boolop backend. Not used by the app.
-import { SPDocument, SPItem, setPathBoolopBackend } from '@inkscape-web/core';
+import { SPDocument, SPItem, setPathBoolopBackend, setTraceBackend } from '@inkscape-web/core';
 import { Rect } from '@inkscape-web/geom';
 import { loadGeom } from '@inkscape-web/wasm';
 import { tool_switch } from '../../actions/actions-tools.ts';
 import { SPDesktop } from '../../desktop.ts';
 import { Canvas } from '../widget/canvas.ts';
 
-/** Set the WASM path backend. In happy-dom the module would read the wasm file from an http URL. */
+/** Set the WASM path and trace backends. In happy-dom the module would read the wasm file from an http URL. */
 export async function useWasmBackend(): Promise<void> {
   const wasm = `${import.meta.dirname}/../../../../wasm/dist/geom-module.wasm`;
-  setPathBoolopBackend(await loadGeom({ locateFile: () => wasm }));
+  const geom = await loadGeom({ locateFile: () => wasm });
+  setPathBoolopBackend(geom);
+  setTraceBackend(geom);
 }
 
 /**

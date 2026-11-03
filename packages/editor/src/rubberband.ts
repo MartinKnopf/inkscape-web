@@ -40,15 +40,17 @@ const COLORS: Record<RubberbandOperation, { fill: number; stroke: number }> = {
 
 /**
  * The touch path styles of node-handles.css (upstream CanvasItemCtrlType
- * RUBBERBAND_TOUCHPATH_*): .inkscape-selection-path.selector and .eraser, stroke 2 px.
+ * RUBBERBAND_TOUCHPATH_*): .inkscape-selection-path.selector, .eraser and .paint-bucket, stroke 2 px.
  */
 export enum RubberbandTouchpathHandle {
   RUBBERBAND_TOUCHPATH_SELECT,
   RUBBERBAND_TOUCHPATH_ERASER,
+  RUBBERBAND_TOUCHPATH_FLOOD,
 }
 const TOUCHPATH_STROKE: Record<RubberbandTouchpathHandle, number> = {
   [RubberbandTouchpathHandle.RUBBERBAND_TOUCHPATH_SELECT]: 0x277fffff,
   [RubberbandTouchpathHandle.RUBBERBAND_TOUCHPATH_ERASER]: 0xff0000ff,
+  [RubberbandTouchpathHandle.RUBBERBAND_TOUCHPATH_FLOOD]: 0x277fffff,
 };
 
 const instances = new WeakMap<SPDesktop, Rubberband>();
