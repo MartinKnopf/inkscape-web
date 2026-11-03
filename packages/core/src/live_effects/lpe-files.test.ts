@@ -36,6 +36,7 @@ const LAYERS = [
   'perspective envelope',
   'spiro',
   'bspline',
+  'power stroke',
 ];
 
 /**
@@ -169,6 +170,7 @@ describe.skipIf(!existsSync(dir))('upstream LPE test files', () => {
       expect(failed).toEqual([]);
       // All the layers are tested.
       expect(Object.keys(tested).sort()).toEqual([...LAYERS].sort());
-    });
+      // The file is large: give it time when the whole suite runs in parallel.
+    }, 60_000);
   }
 });

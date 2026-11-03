@@ -267,6 +267,19 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
   ),
   /* 0.91 */
   entry(
+    EffectType.POWERSTROKE,
+    NC_('path effect', 'Power stroke'),
+    'powerstroke',
+    'powerstroke',
+    N_(
+      'Create calligraphic strokes and control their variable width and curvature. This effect can also be used directly on the canvas with a pressure sensitive stylus and the Pencil tool.',
+    ),
+    LPECategory.EditTools,
+    true,
+    false,
+  ),
+  /* 0.92 */
+  entry(
     EffectType.SIMPLIFY,
     NC_('path effect', 'Simplify'),
     'simplify',

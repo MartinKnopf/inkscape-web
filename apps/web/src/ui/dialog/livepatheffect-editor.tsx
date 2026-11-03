@@ -191,6 +191,13 @@ function ParamRow(props: {
           </button>
         </div>
       );
+    case 'message':
+      return (
+        <fieldset className="lpe-param lpe-message">
+          <legend>{label(widget.legend)}</legend>
+          {widget.message.replace(/<[^>]*>/g, '')}
+        </fieldset>
+      );
     case 'buttons':
       return (
         <div className="lpe-param lpe-buttons">

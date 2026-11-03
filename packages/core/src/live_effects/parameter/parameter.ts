@@ -46,7 +46,9 @@ export type ParamWidget =
   | { kind: 'unit'; value: string; options: string[] }
   | { kind: 'random'; value: number; seed: number; min: number; max: number; integer: boolean }
   | { kind: 'path' }
-  | { kind: 'buttons'; buttons: { label: string; onClick: () => void }[] };
+  | { kind: 'buttons'; buttons: { label: string; onClick: () => void }[] }
+  /** A framed text (upstream MessageParam); message may hold Pango markup such as <b>. */
+  | { kind: 'message'; legend: string; message: string };
 
 /** Base class of the parameters of an effect (upstream Inkscape::LivePathEffect::Parameter). */
 export abstract class Parameter {

@@ -10,6 +10,7 @@ import type { SPShape } from '../object/sp-shape.ts';
 import { setPathBoolopBackend } from '../path/path-boolop.ts';
 import { Effect } from './effect.ts';
 import type { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
+import type { LPEPowerStroke } from './lpe-powerstroke.ts';
 import type { LPETaperStroke } from './lpe-taperstroke.ts';
 
 setPathBoolopBackend(await loadGeom());
@@ -337,5 +338,29 @@ describe('BSpline', () => {
     near(p.initialPoint(), [0, 0]);
     near(p.at(0).finalPoint(), [8, 2]);
     near(p.finalPoint(), [10, 10]);
+  });
+});
+
+describe('Power stroke', () => {
+  it('draws a filled outline with the width of the stroke', () => {
+    const s = applied('M 0,0 H 100', 'powerstroke', {}, 'fill:none;stroke:#000000;stroke-width:10');
+    const lpe = s.getCurrentLPE() as LPEPowerStroke;
+    expect(lpe.offset_points.data().map((p) => [p.x, p.y])).toEqual([
+      [0.2, 5],
+      [0.5, 5],
+      [0.8, 5],
+    ]);
+    const [x0, y0, x1, y1] = bounds(curve(s)) as number[];
+    expect(x0).toBeCloseTo(0, 3);
+    expect(x1).toBeCloseTo(100, 3);
+    expect(y0).toBeCloseTo(-5, 0);
+    expect(y1).toBeCloseTo(5, 0);
+    expect(s.getRepr().attribute('style')).toContain('fill:#000000');
+  });
+
+  it('places the knots at the width points', () => {
+    const s = applied('M 0,0 H 100', 'powerstroke', { offset_points: '0.5,8' });
+    const lpe = s.getCurrentLPE() as LPEPowerStroke;
+    near(lpe.offset_points.knot_get(0), [50, 8]);
   });
 });
