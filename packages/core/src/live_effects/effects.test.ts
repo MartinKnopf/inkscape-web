@@ -472,3 +472,29 @@ describe('Dashed Stroke', () => {
     ]);
   });
 });
+
+describe('Show handles', () => {
+  it('draws the path, its nodes and its handles', () => {
+    const s = applied('M 0,0 C 0,10 10,10 10,0', 'show_handles');
+    // the path, 2 nodes, 2 handles with their lines
+    expect(curve(s)).toHaveLength(7);
+    expect(s.getAttribute('style')).toContain('stroke:black');
+  });
+});
+
+describe('Bounding Box', () => {
+  it('is the bounding box of the linked item', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" ${NS}><defs/>
+       <path id="o" d="M 10,20 C 20,0 30,40 40,20"/><path id="b" d="M 0,0 H 1"/></svg>`,
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const b = doc.getObjectById('b') as SPShape;
+    Effect.createAndApply('bounding_box', doc, b);
+    b.getCurrentLPE()?.getRepr()?.setAttribute('linkedpath', '#o');
+    doc.ensureUpToDate();
+    expect(bounds(curve(b))).toEqual([10, 14.226, 40, 25.774]);
+    expect(curve(b)[0]?.closed()).toBe(true);
+  });
+});

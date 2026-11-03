@@ -7,6 +7,7 @@
 import { type Effect, setEffectFactory } from './effect.ts';
 import { EffectType } from './effect-enum.ts';
 import { LPEBendPath } from './lpe-bendpath.ts';
+import { LPEBoundingBox } from './lpe-bounding-box.ts';
 import { LPEBSpline } from './lpe-bspline.ts';
 import { LPECloneOriginal } from './lpe-clone-original.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
@@ -23,6 +24,7 @@ import { LPEPatternAlongPath } from './lpe-patternalongpath.ts';
 import { LPEPerspectiveEnvelope } from './lpe-perspective-envelope.ts';
 import { LPEPowerStroke } from './lpe-powerstroke.ts';
 import { LPERoughen } from './lpe-roughen.ts';
+import { LPEShowHandles } from './lpe-show_handles.ts';
 import { LPESimplify } from './lpe-simplify.ts';
 import { LPESketch } from './lpe-sketch.ts';
 import { LPESpiro } from './lpe-spiro.ts';
@@ -58,6 +60,10 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPEJoinType(lpeobj);
     case EffectType.DASHED_STROKE:
       return new LPEDashedStroke(lpeobj);
+    case EffectType.SHOW_HANDLES:
+      return new LPEShowHandles(lpeobj);
+    case EffectType.BOUNDING_BOX:
+      return new LPEBoundingBox(lpeobj);
     case EffectType.SIMPLIFY:
       return new LPESimplify(lpeobj);
     case EffectType.ROUGHEN:

@@ -326,6 +326,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Distort,
   ),
   entry(
+    EffectType.SHOW_HANDLES,
+    NC_('path effect', 'Show handles'),
+    'show_handles',
+    'show-handles',
+    N_('Draw the handles and nodes of objects (replaces the original styling with a black stroke)'),
+    LPECategory.Convert,
+  ),
+  entry(
     EffectType.ROUGHEN,
     NC_('path effect', 'Roughen'),
     'roughen',
@@ -392,6 +400,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
       'Turn the path into a fill between multiple other open paths (e.g. between paths with PowerStroke applied to them)',
     ),
     LPECategory.Generate,
+  ),
+  entry(
+    EffectType.BOUNDING_BOX,
+    NC_('path effect', 'Bounding Box'),
+    'bounding_box',
+    'bounding-box',
+    N_('Turn the path into a bounding box that entirely encompasses another path'),
+    LPECategory.Convert,
   ),
   /* 1.0 */
   entry(

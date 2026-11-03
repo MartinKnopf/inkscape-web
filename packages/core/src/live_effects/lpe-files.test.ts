@@ -44,6 +44,8 @@ const LAYERS = [
   'sketch',
   'join type',
   'dashed stroke',
+  'show handles',
+  'boundingbox',
 ];
 
 /**
@@ -60,6 +62,8 @@ const KNOWN_DIFFERENCES = new Set([
   'ellipse60938',
   // Offset on a group with Bend and Envelope
   'path50227',
+  // Show handles on a group with Bend and Envelope (as path50227)
+  'path203738',
   // Sketch
   'ellipse228871',
   // Join type: one point of a fitted offset curve is 0.53 away (the threshold is 0.5)
