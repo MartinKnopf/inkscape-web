@@ -8,6 +8,7 @@ import {
   SPGradientType,
   SPLinearGradient,
   SPRadialGradient,
+  type SPPattern,
   type SPStop,
   spReprCssAttrNew,
 } from '@inkscape-web/core';
@@ -19,6 +20,7 @@ import {
   gradientStops,
   PaintMode,
   patternItem,
+  patternPreviewSvg,
   queryOpacity,
   queryPaint,
   queryStrokeStyle,
@@ -221,7 +223,7 @@ describe('gradient mode', () => {
 describe('pattern paint', () => {
   const STOCK =
     '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"><defs>' +
-    '<pattern id="dots" inkscape:label="Dots" patternUnits="userSpaceOnUse" width="10" height="10" style="fill:#000000"><circle r="2"/></pattern></defs></svg>';
+    '<pattern id="dots" inkscape:label="Dots" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="translate(5,6) scale(0.2)" style="fill:#000000"><circle r="2"/></pattern></defs></svg>';
 
   it('copies a stock pattern, applies it through a link with the editor settings and reads it back', () => {
     const { dt, select, steps } = setup();
@@ -249,5 +251,25 @@ describe('pattern paint', () => {
       '#00ff00',
     ]);
     expect(steps()).toEqual(['Set pattern on fill']);
+    // applying the settings that were read back keeps the transform
+    const before = info.pattern!.getTransform();
+    setPattern(dt, true, info.pattern!, { ...read, scale_x: 3, scale_y: 3 });
+    setPattern(dt, true, info.pattern!, patternItem(info.pattern!));
+    const after = (queryPaint(dt, true) as { pattern: SPPattern }).pattern.getTransform();
+    expect(after.translation().equals(before.translation())).toBe(true);
+    expect(after.c1).toBeCloseTo(3, 9);
+  });
+
+  it('makes a preview with the pattern chain and the resources it uses', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs>' +
+        '<linearGradient id="g"><stop offset="0"/></linearGradient>' +
+        '<pattern id="root" width="10" height="10"><rect width="5" height="5" style="fill:url(#g)"/></pattern>' +
+        '<pattern id="link" xlink:href="#root"/></defs></svg>',
+    )!;
+    const svg = patternPreviewSvg(doc.getObjectById('link') as SPPattern, 40, 30);
+    const dom = new DOMParser().parseFromString(svg, 'image/svg+xml');
+    expect([...dom.documentElement.firstElementChild!.children].map((e) => e.id)).toEqual(['link', 'root', 'g']);
+    expect(dom.querySelector('rect[fill="url(#link)"]')?.getAttribute('width')).toBe('40');
   });
 });

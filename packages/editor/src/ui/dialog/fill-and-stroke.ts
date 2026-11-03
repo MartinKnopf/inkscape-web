@@ -44,6 +44,7 @@ import {
   spReprCssSetPropertyDouble,
   spReprCssSetPropertyString,
   spReprCssUnsetProperty,
+  writeBuf,
 } from '@inkscape-web/core';
 import { Affine, atan2, L2, Point, Rotate, Scale } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
@@ -279,6 +280,32 @@ export function setPattern(desktop: SPDesktop, isFill: boolean, pattern: SPPatte
     desktop.getDocument(),
     isFill ? C_(UNDO, 'Set pattern on fill') : C_(UNDO, 'Set pattern on stroke'),
     ICON,
+  );
+}
+
+/**
+ * An SVG image of width × height filled with the pattern on a white background, for the pattern
+ * lists of the editor (upstream PatternManager::get_preview, which renders with cairo).
+ */
+export function patternPreviewSvg(pattern: SPPattern, width: number, height: number): string {
+  // The pattern, the patterns of its href chain and the resources that their content uses.
+  const doc = pattern.document;
+  const used = new Map<string, string>();
+  const add = (id: string | null) => {
+    const object = id ? doc?.getObjectById(id) : null;
+    if (!id || !object || used.has(id)) return;
+    const xml = writeBuf(object.getRepr());
+    used.set(id, xml);
+    for (const m of xml.matchAll(/url\(\s*['"]?#([^'")]+)['"]?\s*\)|href="#([^"]+)"/g)) add(m[1] ?? m[2] ?? null);
+  };
+  add(pattern.getId());
+  const id = pattern.getId() ?? '';
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ' +
+    'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" ' +
+    `width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<defs>${[...used.values()].join('')}</defs>` +
+    `<rect width="${width}" height="${height}" fill="#fff"/><rect width="${width}" height="${height}" fill="url(#${id})"/></svg>`
   );
 }
 
