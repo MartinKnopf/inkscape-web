@@ -10,11 +10,13 @@ import { LPEBendPath } from './lpe-bendpath.ts';
 import { LPEBSpline } from './lpe-bspline.ts';
 import { LPECloneOriginal } from './lpe-clone-original.ts';
 import { LPECopyRotate } from './lpe-copy_rotate.ts';
+import { LPEDashedStroke } from './lpe-dashed-stroke.ts';
 import { LPEEnvelope } from './lpe-envelope.ts';
 import { LPEFillBetweenMany } from './lpe-fill-between-many.ts';
 import { LPEFillBetweenStrokes } from './lpe-fill-between-strokes.ts';
 import { LPEFilletChamfer } from './lpe-fillet-chamfer.ts';
 import { LPEInterpolate } from './lpe-interpolate.ts';
+import { LPEJoinType } from './lpe-jointype.ts';
 import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
 import { LPEPatternAlongPath } from './lpe-patternalongpath.ts';
@@ -52,6 +54,10 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPEInterpolate(lpeobj);
     case EffectType.SKETCH:
       return new LPESketch(lpeobj);
+    case EffectType.JOIN_TYPE:
+      return new LPEJoinType(lpeobj);
+    case EffectType.DASHED_STROKE:
+      return new LPEDashedStroke(lpeobj);
     case EffectType.SIMPLIFY:
       return new LPESimplify(lpeobj);
     case EffectType.ROUGHEN:

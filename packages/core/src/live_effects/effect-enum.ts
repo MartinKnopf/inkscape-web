@@ -346,6 +346,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     false,
   ),
   entry(
+    EffectType.JOIN_TYPE,
+    NC_('path effect', 'Join type'),
+    'join_type',
+    'join-type',
+    N_("Select among various join types for a object's corner nodes (mitre, rounded, extrapolated arc, ...)"),
+    LPECategory.Convert,
+  ),
+  entry(
     EffectType.TAPER_STROKE,
     NC_('path effect', 'Taper stroke'),
     'taper_stroke',
@@ -405,6 +413,16 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     'offset',
     N_('Offset the path, optionally keeping cusp corners cusp'),
     LPECategory.EditTools,
+  ),
+  entry(
+    EffectType.DASHED_STROKE,
+    NC_('path effect', 'Dashed Stroke'),
+    'dashed_stroke',
+    'dashed-stroke',
+    N_(
+      'Add a dashed stroke whose dashes end exactly on a node, optionally with the same number of dashes per path segment',
+    ),
+    LPECategory.Convert,
   ),
   /* 1.2 */
   {

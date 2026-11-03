@@ -453,3 +453,22 @@ describe('Sketch', () => {
     expect(s.getAttribute('d')).toBe(first);
   });
 });
+
+describe('Join type', () => {
+  it('turns the stroke into a filled outline', () => {
+    const s = applied('M 0,0 H 100', 'join_type', {}, 'fill:none;stroke:#000000;stroke-width:10');
+    expect(bounds(curve(s))).toEqual([0, -5, 100, 5]);
+    expect(s.getRepr().attribute('style')).toContain('fill:#000000');
+  });
+});
+
+describe('Dashed Stroke', () => {
+  it('cuts the path into dashes with half dashes at the ends', () => {
+    const s = applied('M 0,0 H 100', 'dashed_stroke', { unifysegment: 'false' });
+    expect(curve(s).map((p) => [p.initialPoint().x, p.finalPoint().x])).toEqual([
+      [0, 12.5],
+      [37.5, 62.5],
+      [87.5, 100],
+    ]);
+  });
+});

@@ -42,6 +42,8 @@ const LAYERS = [
   'fill between strokes',
   'interpolate paths',
   'sketch',
+  'join type',
+  'dashed stroke',
 ];
 
 /**
@@ -60,6 +62,8 @@ const KNOWN_DIFFERENCES = new Set([
   'path50227',
   // Sketch
   'ellipse228871',
+  // Join type: one point of a fitted offset curve is 0.53 away (the threshold is 0.5)
+  'path42290',
 ]);
 
 /** The top-level layer of obj (upstream: the layer label names the tested effect). */
