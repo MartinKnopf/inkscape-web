@@ -12,6 +12,7 @@ import { add_actions_canvas_transform } from './actions/actions-canvas-transform
 import { add_actions_edit } from './actions/actions-edit.ts';
 import { add_actions_edit_document } from './actions/actions-edit-document.ts';
 import { add_actions_edit_window } from './actions/actions-edit-window.ts';
+import { add_actions_effect } from './actions/actions-effect.ts';
 import { InkActionExtraData } from './actions/actions-extra-data.ts';
 import { add_actions_node_tool } from './actions/actions-node-tool.ts';
 import { add_actions_object } from './actions/actions-object.ts';
@@ -54,6 +55,7 @@ export class InkscapeApplication {
   constructor() {
     // ======================== Actions =========================
     add_actions_edit(this); // actions for editing
+    add_actions_effect(this); // actions for Filters and Extensions
     add_actions_object(this); // actions for object manipulation
     add_actions_object_align(this); // actions for object alignment
     add_actions_path(this); // actions for Paths

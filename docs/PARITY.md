@@ -6,8 +6,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
 | Tools | 21 | 26 | 81 |
-| Dialogs | 17 | 29 | 59 |
-| Actions | 133 | 409 | 33 |
+| Dialogs | 19 | 29 | 66 |
+| Actions | 134 | 409 | 33 |
 | Live path effects | 13 | 56 | 23 |
 | Internal import/export modules | 2 | 35 | 6 |
 | Python extensions | 0 | 160 | 0 |
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (17/29)</summary>
+<details><summary>Dialogs (19/29)</summary>
 
 - [x] `AlignDistribute`
 - [ ] `CloneTiler`
@@ -53,8 +53,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `Export`
 - [ ] `ExtensionsGallery`
 - [x] `FillStroke`
-- [ ] `FilterEffects`
-- [ ] `FilterGallery`
+- [x] `FilterEffects`
+- [x] `FilterGallery`
 - [x] `Find`
 - [ ] `FontBrowser`
 - [ ] `FontCollections`
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (133/409)</summary>
+<details><summary>Actions (134/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -101,7 +101,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.document-open`
 - [x] `app.duplicate`
 - [ ] `app.duplicate-transform`
-- [ ] `app.edit-remove-filter`
+- [x] `app.edit-remove-filter`
 - [ ] `app.element-a-open-link`
 - [ ] `app.element-image-crop`
 - [ ] `app.element-image-edit`

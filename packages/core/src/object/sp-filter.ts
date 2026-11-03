@@ -21,6 +21,7 @@ import { svgNumber } from '../svg/stringstream.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import { getHrefAttribute } from '../xml/href-attribute-helper.ts';
 import type { Node } from '../xml/node.ts';
+import { SlotResolver } from './filters/slot-resolver.ts';
 import { SPFilterPrimitive } from './filters/sp-filter-primitive.ts';
 import { SPDimensions } from './sp-dimensions.ts';
 import { SPFilterUnits } from './sp-filter-units.ts';
@@ -40,7 +41,7 @@ import {
 /**
  * svg:filter (upstream SPFilter). Upstream builds a Cairo renderer for each view; here the
  * views get the filter itself (DrawingItem.setFilterRenderer) and the drawing mirrors it.
- * TODO: filterRes in the renderer, the result slots (SlotResolver), valid_for().
+ * TODO: filterRes in the renderer, valid_for().
  */
 export class SPFilter extends SPObject {
   filterUnits = SPFilterUnits.SP_FILTER_UNITS_OBJECTBOUNDINGBOX;
@@ -54,6 +55,8 @@ export class SPFilter extends SPObject {
   readonly dims = new SPDimensions();
   /** The drawing items that show this filter. */
   views: DrawingItem[] = [];
+  /** Whether the in/result slots of the primitives are resolved (see ensure_slots). */
+  slots_valid = true;
   #modified_connection: (() => void) | null = null;
 
   constructor() {
@@ -161,6 +164,7 @@ export class SPFilter extends SPObject {
 
   protected override update(ctx: SPCtx, flags: number): void {
     const cflags = cascadeFlags(flags);
+    this.ensure_slots();
     if (
       flags &
       (SP_OBJECT_MODIFIED_FLAG |
@@ -295,6 +299,47 @@ export class SPFilter extends SPObject {
       repr.setAttribute('width', svgNumber(width));
       repr.setAttribute('height', svgNumber(height));
     }
+  }
+
+  protected override childAdded(child: Node, ref: Node | null): void {
+    super.childAdded(child, ref);
+    this.invalidate_slots();
+  }
+
+  protected override removeChild(child: Node): void {
+    super.removeChild(child);
+    this.invalidate_slots();
+  }
+
+  protected override orderChanged(child: Node, oldRef: Node | null, newRef: Node | null): void {
+    super.orderChanged(child, oldRef, newRef);
+    this.invalidate_slots();
+  }
+
+  invalidate_slots(): void {
+    if (!this.slots_valid) return;
+    this.slots_valid = false;
+    this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+  }
+
+  /** Resolve the in and result names of the primitives to slot numbers (upstream ensure_slots). */
+  ensure_slots(): void {
+    if (this.slots_valid) return;
+    this.slots_valid = true;
+    const resolver = new SlotResolver();
+    for (const c of this.children) if (c instanceof SPFilterPrimitive) c.resolve_slots(resolver);
+  }
+
+  /** A result name that no primitive of the filter uses: "result" and a number. */
+  get_new_result_name(): string {
+    let largest = 0;
+    for (const primitive_obj of this.children) {
+      if (primitive_obj instanceof SPFilterPrimitive) {
+        const m = /^result(\d{1,5})/.exec(primitive_obj.getRepr().attribute('result') ?? '');
+        if (m) largest = Math.max(largest, Number(m[1]));
+      }
+    }
+    return `result${largest + 1}`;
   }
 
   /** Returns the number of filter primitives in this SPFilter object. */

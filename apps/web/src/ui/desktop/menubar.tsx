@@ -4,7 +4,10 @@
 // not registered (not ported yet) are disabled, so the full upstream menu shows.
 import { _ } from '@inkscape-web/core';
 import {
+  add_actions_filter_effects,
+  add_filter_effects_to_menu,
   build_menu,
+  filters_all_files,
   InkscapeApplication,
   type MenuEntry,
   parse_mnemonic,
@@ -17,11 +20,22 @@ import { useRecentFiles } from '../../app/recent-files.ts';
 
 let menu: MenuEntry[] = [];
 
-/** Load share/ui/menus.ui. Call once before the menu bar renders. */
+/** The text of a file of the app, or null. */
+async function fetchText(path: string): Promise<string | null> {
+  const response = await fetch(path);
+  return response.ok ? response.text() : null;
+}
+
+/**
+ * Load share/ui/menus.ui and the filter presets of share/filters (the Filters menu and their
+ * actions). Call once before the menu bar renders.
+ */
 export async function loadMenu(): Promise<void> {
-  const response = await fetch('/share/ui/menus.ui');
-  if (response.ok) menu = build_menu(await response.text());
-  else console.error(`build_menu: failed to load Main menu: ${response.status}`);
+  const [xml, effects] = await Promise.all([fetchText('/share/ui/menus.ui'), filters_all_files(fetchText)]);
+  if (xml) menu = build_menu(xml);
+  else console.error('build_menu: failed to load Main menu');
+  add_actions_filter_effects(InkscapeApplication.instance(), effects);
+  add_filter_effects_to_menu(menu, effects);
 }
 
 /** A number that changes when actions or shortcuts change, to render menus again. */

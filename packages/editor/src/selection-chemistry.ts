@@ -22,6 +22,9 @@
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
 import {
+  C_,
+  DocumentUndo,
+  type ObjectSet,
   Preferences,
   SP_STYLE_FLAG_IFSET,
   type SPCSSAttr,
@@ -35,9 +38,11 @@ import {
   spReprCssAttrAddFromString,
   spReprCssAttrNew,
   spReprCssMerge,
+  spReprCssUnsetProperty,
 } from '@inkscape-web/core';
-import { set_active_tool } from './actions/actions-tools.ts';
+import { get_active_tool, set_active_tool } from './actions/actions-tools.ts';
 import type { SPDesktop } from './desktop.ts';
+import { sp_desktop_apply_css_recursive, sp_desktop_set_style } from './desktop-style.ts';
 import { NodeTool } from './ui/tools/node-tool.ts';
 
 /** Values of /options/kbselection/inlayer. */
@@ -248,5 +253,30 @@ export function fit_canvas_to_drawing(doc: SPDocument, with_margins = false): bo
   const bbox = doc.getRoot().documentVisualBounds();
   if (!bbox) return false;
   doc.fitToRect(bbox, with_margins);
+  return true;
+}
+
+/**
+ * Remove the filters of the selected items (upstream ObjectSet::removeFilter), in the undo
+ * step "Remove filter". Returns false if nothing is selected.
+ * TODO: flash "Select <b>object(s)</b> to remove filters from." when nothing is selected.
+ */
+export function removeFilter(set: ObjectSet, desktop: SPDesktop | null): boolean {
+  // check if something is selected
+  if (set.isEmpty()) return false;
+
+  const css = spReprCssAttrNew();
+  spReprCssUnsetProperty(css, 'filter');
+  if (desktop) {
+    sp_desktop_set_style(desktop, css, true, true, false, set);
+    // Refreshing the current tool (by switching to same tool)
+    // will refresh tool's private information in it's selection context that
+    // depends on desktop items.
+    set_active_tool(desktop, get_active_tool(desktop));
+  } else {
+    for (const item of set.items()) sp_desktop_apply_css_recursive(item, css, true);
+  }
+  const document = set.document();
+  if (document) DocumentUndo.done(document, C_('Undo', 'Remove filter'), '');
   return true;
 }

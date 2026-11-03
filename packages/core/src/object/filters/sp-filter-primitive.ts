@@ -12,22 +12,26 @@
  */
 import type { Rect } from '@inkscape-web/geom';
 import { SPAttr } from '../../attributes.ts';
+import { FilterSlotType } from '../../display/nr-filter-types.ts';
 import type { SPDocument } from '../../document.ts';
 import { SVGLengthUnit } from '../../svg/svg-length.ts';
 import type { XmlDocument } from '../../xml/document.ts';
 import type { Node } from '../../xml/node.ts';
 import { SPDimensions } from '../sp-dimensions.ts';
 import { SP_OBJECT_MODIFIED_FLAG, SPObject } from '../sp-object.ts';
+import type { SlotResolver } from './slot-resolver.ts';
 
 /**
- * Base class of the filter primitives (upstream SPFilterPrimitive). The primitives without a
- * subclass here (feBlend, feOffset, ...) are plain SPFilterPrimitive objects: the drawing passes
- * them to the browser as they are in the document.
- * TODO: the result slots (resolve_slots), subregions in update(), valid_for().
+ * Base class of the filter primitives (upstream SPFilterPrimitive). The objects read the
+ * attributes of the primitives; the drawing passes the primitives to the browser as they are in
+ * the document (see DrawingFilters of the editor), which renders them.
+ * TODO: subregions in update(), valid_for().
  */
 export class SPFilterPrimitive extends SPObject {
   in_name: string | null = null;
   out_name: string | null = null;
+  in_slot: number = FilterSlotType.NR_FILTER_SLOT_NOT_SET;
+  out_slot: number = FilterSlotType.NR_FILTER_SLOT_NOT_SET;
   /** x, y, width and height (upstream base class SPDimensions). */
   readonly dims = new SPDimensions();
 
@@ -61,12 +65,14 @@ export class SPFilterPrimitive extends SPObject {
         if (this.in_name !== value) {
           this.in_name = value;
           this.requestModified(SP_OBJECT_MODIFIED_FLAG);
+          this.invalidate_parent_slots();
         }
         break;
       case SPAttr.RESULT:
         if (this.out_name !== value) {
           this.out_name = value;
           this.requestModified(SP_OBJECT_MODIFIED_FLAG);
+          this.invalidate_parent_slots();
         }
         break;
       case SPAttr.X:
@@ -97,6 +103,24 @@ export class SPFilterPrimitive extends SPObject {
     repr.setAttributeOrRemoveIfEmpty('result', this.out_name);
     // Do we need to add x, y, width, height?
     return super.write(xmlDoc, repr, flags);
+  }
+
+  get_in(): number {
+    return this.in_slot;
+  }
+  get_out(): number {
+    return this.out_slot;
+  }
+
+  invalidate_parent_slots(): void {
+    const filter = this.parent as { invalidate_slots?: () => void } | null;
+    filter?.invalidate_slots?.();
+  }
+
+  /** Resolve the in and result names to slot numbers (see SlotResolver). */
+  resolve_slots(resolver: SlotResolver): void {
+    this.in_slot = resolver.read(this.in_name);
+    this.out_slot = resolver.write(this.out_name);
   }
 
   /**

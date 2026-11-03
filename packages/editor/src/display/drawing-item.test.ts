@@ -89,6 +89,30 @@ describe('filters', () => {
     doc.ensureUpToDate();
     expect(filter?.querySelector('feGaussianBlur')?.getAttribute('stdDeviation')).toBe('7');
   });
+
+  it('follows changes of nested nodes (transfer functions, lights) and of the primitive list', () => {
+    const { doc, view, target } = show(
+      '<defs><filter id="f"><feComponentTransfer><feFuncR id="r" type="linear" slope="1"/></feComponentTransfer>' +
+        '<feDiffuseLighting><feDistantLight id="l" azimuth="0"/></feDiffuseLighting></filter></defs>' +
+        '<rect id="a" width="100" height="50" style="filter:url(#f)"/>',
+    );
+    const filter = target(view('a').element.style.getPropertyValue('filter'));
+    doc.getObjectById('r')?.setAttribute('slope', '3');
+    doc.getObjectById('l')?.setAttribute('azimuth', '90');
+    doc.ensureUpToDate();
+    expect(filter?.querySelector('feFuncR')?.getAttribute('slope')).toBe('3');
+    expect(filter?.querySelector('feDistantLight')?.getAttribute('azimuth')).toBe('90');
+
+    const blend = doc.getReprDoc().createElement('svg:feBlend');
+    blend.setAttribute('mode', 'screen');
+    doc.getObjectById('f')?.getRepr().appendChild(blend);
+    doc.ensureUpToDate();
+    expect([...(filter?.children ?? [])].map((c) => c.localName)).toEqual([
+      'feComponentTransfer',
+      'feDiffuseLighting',
+      'feBlend',
+    ]);
+  });
 });
 
 describe('markers', () => {
