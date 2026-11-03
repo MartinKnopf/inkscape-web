@@ -63,7 +63,11 @@ interface Pyodide {
 
 /** Runs a script like the python executable: script directory first in sys.path, cwd there. */
 const RUNNER_PY = `
-import io, os, runpy, sys, traceback
+import io, os, runpy, sys, traceback, warnings
+
+# Pyodide has a newer pyparsing than the extensions are written for; its deprecation warnings
+# would show as script errors.
+warnings.filterwarnings("ignore", message=".*deprecated - use")
 
 sys.path.insert(0, ${JSON.stringify(EXTENSIONS_DIR)})
 
