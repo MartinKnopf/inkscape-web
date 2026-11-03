@@ -1,0 +1,99 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* The parameter dialogs of the extensions: floating at the top right, so the canvas shows the
+   live preview. */
+.ext-dialog {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 50;
+  width: 360px;
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
+.ext-widgets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.ext-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ext-row > span:first-child {
+  flex: 1 1 auto;
+}
+
+.ext-number input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 60px;
+}
+
+.ext-label {
+  margin: 2px 0;
+  white-space: pre-wrap;
+}
+
+.ext-box {
+  display: flex;
+  gap: 6px;
+}
+
+.ext-vertical {
+  flex-direction: column;
+}
+
+.ext-radio {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.ext-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid #ccc;
+}
+
+.ext-tabs button {
+  border: 1px solid #ccc;
+  border-bottom: 0;
+  background: #eee;
+  font: inherit;
+  padding: 2px 8px;
+}
+
+.ext-tabs button[aria-selected="true"] {
+  background: #fff;
+}
+
+.ext-page {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+}
+
+.ext-busy {
+  margin-right: auto;
+  color: #666;
+}
+
+.ext-working {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 16px;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+}
