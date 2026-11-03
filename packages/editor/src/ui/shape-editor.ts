@@ -13,6 +13,7 @@ import {
   NodeSatelliteArrayParam,
   type SPItem,
   SPLPEItem,
+  SPPattern,
 } from '@inkscape-web/core';
 import type { Affine } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
@@ -31,14 +32,30 @@ export function createLPEKnotHolder(item: SPItem, desktop: SPDesktop): KnotHolde
 }
 
 /**
+ * The knot holder of the item (upstream createKnotHolder): the knots of the patterns of its fill
+ * and stroke, or null. TODO: the knot holders of shapes (rect, ellipse, star, spiral, ...).
+ */
+export function createKnotHolder(item: SPItem, desktop: SPDesktop): KnotHolder | null {
+  if (
+    !(item.style.getFillPaintServer() instanceof SPPattern) &&
+    !(item.style.getStrokePaintServer() instanceof SPPattern)
+  ) {
+    return null;
+  }
+  const knotholder = new KnotHolder(desktop, item);
+  knotholder.add_pattern_knotholder();
+  return knotholder;
+}
+
+/**
  * The knot holders of one item (upstream ShapeEditor). It rebuilds them when the path effect
  * stack of the item changes and moves the knots when the item changes.
- * TODO: the knot holders of shapes (createKnotHolder for rect, ellipse, star, spiral, ...).
  */
 export class ShapeEditor {
   readonly desktop: SPDesktop;
   readonly #edit_transform: Affine | null;
   lpeknotholder: KnotHolder | null = null;
+  knotholder: KnotHolder | null = null;
   #item: SPItem | null = null;
   #repr: Node | null = null;
   #disconnect: (() => void) | null = null;
@@ -59,6 +76,7 @@ export class ShapeEditor {
     this.unset_item();
     this.#item = item;
     this.lpeknotholder = createLPEKnotHolder(item, this.desktop);
+    this.knotholder = createKnotHolder(item, this.desktop);
     // Parameters whose knots change with the path rebuild the holder (upstream
     // NodeSatelliteArrayParam::reloadKnots resets the shape editors of the node tool).
     const lpe = item instanceof SPLPEItem ? item.getCurrentLPE() : null;
@@ -90,10 +108,12 @@ export class ShapeEditor {
     this.#disconnect = null;
     this.lpeknotholder?.clear();
     this.lpeknotholder = null;
+    this.knotholder?.clear();
+    this.knotholder = null;
     this.#item = null;
   }
 
   has_knotholder(): boolean {
-    return this.lpeknotholder !== null;
+    return this.lpeknotholder !== null || this.knotholder !== null;
   }
 }

@@ -13,13 +13,18 @@
  * Copyright (C) 2001-2008 authors
  */
 import {
+  _,
   C_,
   type KnotHolder as CoreKnotHolder,
   DocumentUndo,
   type KnotHolderEntity,
   type KnotState,
+  PatternKnotHolderEntityAngle,
+  PatternKnotHolderEntityScale,
+  PatternKnotHolderEntityXY,
   SnapSourceType,
   type SPItem,
+  SPPattern,
   SPShape,
 } from '@inkscape-web/core';
 import { Affine, type Point } from '@inkscape-web/geom';
@@ -39,6 +44,7 @@ export class KnotHolder implements CoreKnotHolder {
   readonly entity: KnotHolderEntity[] = [];
   #edit_transform = Affine.identity();
   #dragging = false;
+  #unwatch: (() => void) | null = null;
   /** Called after a knot moved the item (upstream update of the ShapeEditor). */
   onChanged: (() => void) | null = null;
 
@@ -64,6 +70,74 @@ export class KnotHolder implements CoreKnotHolder {
   clear(): void {
     for (const e of this.entity) e.destroy();
     this.entity.length = 0;
+    this.#unwatch?.();
+    this.#unwatch = null;
+  }
+
+  /** The knots that move, rotate and scale the patterns of the fill and stroke (upstream add_pattern_knotholder). */
+  add_pattern_knotholder(): void {
+    const item = this.item;
+    const knots = (fill: boolean) => {
+      const xy = new PatternKnotHolderEntityXY(fill);
+      const angle = new PatternKnotHolderEntityAngle(fill);
+      const scale = new PatternKnotHolderEntityScale(fill);
+      const which = fill ? 'Fill' : 'Stroke';
+      xy.create(
+        this.desktop,
+        item,
+        this,
+        fill ? 'CANVAS_ITEM_CTRL_TYPE_SIZER' : 'CANVAS_ITEM_CTRL_TYPE_MARKER',
+        `Pattern:${which}:xy`,
+        // TRANSLATORS: This refers to the pattern that's inside the object
+        fill
+          ? _('<b>Move</b> the pattern fill inside the object')
+          : _("<b>Move</b> the stroke's pattern inside the object"),
+      );
+      scale.create(
+        this.desktop,
+        item,
+        this,
+        'CANVAS_ITEM_CTRL_TYPE_SIZER',
+        `Pattern:${which}:scale`,
+        fill
+          ? _('<b>Scale</b> the pattern fill; uniformly if with <b>Ctrl</b>')
+          : _("<b>Scale</b> the stroke's pattern; uniformly if with <b>Ctrl</b>"),
+      );
+      angle.create(
+        this.desktop,
+        item,
+        this,
+        'CANVAS_ITEM_CTRL_TYPE_ROTATE',
+        `Pattern:${which}:angle`,
+        fill
+          ? _('<b>Rotate</b> the pattern fill; with <b>Ctrl</b> to snap angle')
+          : _("<b>Rotate</b> the stroke's pattern; with <b>Ctrl</b> to snap angle"),
+      );
+      this.entity.push(xy, angle, scale);
+    };
+    if (item.style.getFillPaintServer() instanceof SPPattern) knots(true);
+    if (item.style.getStrokePaintServer() instanceof SPPattern) knots(false);
+    // watch patterns and update knots when they change
+    this.#install_modification_watch();
+  }
+
+  /** Update the knots when the item or its patterns change (upstream install_modification_watch). */
+  #install_modification_watch(): void {
+    this.#unwatch?.();
+    const servers = [this.item.style.getFillPaintServer(), this.item.style.getStrokePaintServer()];
+    const offs = [
+      this.item.modifiedSignal.connect(() => {
+        this.update_knots();
+        // the item may use another (linked) pattern now
+        this.#install_modification_watch();
+      }),
+      ...servers
+        .filter((s) => s instanceof SPPattern)
+        .map((s) => s!.modifiedSignal.connect(() => this.update_knots())),
+    ];
+    this.#unwatch = () => {
+      for (const f of offs) f();
+    };
   }
 
   add(e: KnotHolderEntity): void {
