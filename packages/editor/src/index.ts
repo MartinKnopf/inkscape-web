@@ -74,6 +74,7 @@ export * from './ui/dialog/document-properties.ts';
 export * from './ui/dialog/export.ts';
 export * from './ui/dialog/extensions-gallery.ts';
 export * from './ui/dialog/fill-and-stroke.ts';
+export * as FilterEffectsDialog from './ui/dialog/filter-effects-dialog.ts';
 export * from './ui/dialog/global-palettes.ts';
 export * from './ui/dialog/guides.ts';
 // Functions of the Path Effects dialog (upstream class LivePathEffectEditor).
