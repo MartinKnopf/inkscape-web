@@ -96,6 +96,9 @@ export class SPDocument {
   modifiedSinceAutoSave = false;
 
   readonly modifiedSignal = new Signal<[number]>();
+  /** Emitted before and after rebase() replaces the content (upstream ReconstructionStart/Finish). */
+  readonly reconstructionStartSignal = new Signal<[]>();
+  readonly reconstructionFinishSignal = new Signal<[]>();
   readonly commitSignal = new Signal<[]>();
   /** Emitted when the undo or redo stack changes (upstream: the EventLog notifications). */
   readonly undoStackChangedSignal = new Signal<[]>();
@@ -483,6 +486,33 @@ export class SPDocument {
       enter_groups,
       enter_layers,
     });
+  }
+
+  /**
+   * Replace all the elements of the document by those of new_xmldoc and copy the root
+   * attributes (upstream SPDocument::rebase); the namedview is kept and merged with the new
+   * one if keep_namedview.
+   */
+  rebase(new_xmldoc: XmlDocument, keep_namedview = true): void {
+    const origin_root = this.getReprRoot();
+    const new_root = new_xmldoc.root();
+    if (!new_root) return;
+    this.reconstructionStartSignal.emit();
+    let namedview: Node | null = null;
+    for (let child = origin_root.lastChild(); child !== null; ) {
+      const prevchild = child.prev();
+      if (child.name() === 'sodipodi:namedview' && keep_namedview) namedview = child;
+      else origin_root.removeChild(child);
+      child = prevchild;
+    }
+    for (const child of new_root.children()) {
+      if (child.name() === 'sodipodi:namedview' && keep_namedview && namedview)
+        namedview.mergeFrom(child, 'id');
+      else origin_root.appendChild(child.duplicate(this.getReprDoc()));
+    }
+    // Copy svg root attributes
+    for (const [key, value] of new_root.attributeList()) origin_root.setAttribute(key, value);
+    this.reconstructionFinishSignal.emit();
   }
 
   /**

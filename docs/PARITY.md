@@ -7,10 +7,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 22 | 26 | 85 |
 | Dialogs | 19 | 29 | 66 |
-| Actions | 137 | 409 | 33 |
+| Actions | 139 | 409 | 34 |
 | Live path effects | 23 | 56 | 41 |
 | Internal import/export modules | 2 | 35 | 6 |
-| Python extensions | 0 | 160 | 0 |
+| Python extensions | 1 | 160 | 1 |
 
 <details><summary>Tools (22/26)</summary>
 
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (137/409)</summary>
+<details><summary>Actions (139/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -141,8 +141,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.file-rebase-from-saved`
 - [ ] `app.fit-canvas-to-selection`
 - [ ] `app.inkscape-version`
-- [ ] `app.last-effect`
-- [ ] `app.last-effect-pref`
+- [x] `app.last-effect`
+- [x] `app.last-effect-pref`
 - [ ] `app.list-input-types`
 - [ ] `app.no-convert-baseline`
 - [ ] `app.object-add-corners-lpe`
@@ -592,7 +592,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Python extensions (0/160)</summary>
+<details><summary>Python extensions (1/160)</summary>
 
 - [ ] `com.activdesign.export.scribus`
 - [ ] `com.kaioa.export_gimp_palette`
@@ -664,7 +664,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `org.inkscape.effect.param_curves`
 - [ ] `org.inkscape.effects.inset_shadow`
 - [ ] `org.inkscape.effects.perfect_bound_cover`
-- [ ] `org.inkscape.filter.add_nodes`
+- [x] `org.inkscape.filter.add_nodes`
 - [ ] `org.inkscape.filter.alphabet_soup`
 - [ ] `org.inkscape.filter.dashit`
 - [ ] `org.inkscape.filter.embed_image`

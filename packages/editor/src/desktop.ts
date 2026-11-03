@@ -22,6 +22,7 @@
 import {
   DEFAULT_BLEED_COLOR,
   DEFAULT_MARGIN_COLOR,
+  DocumentUndo,
   LayerMode,
   Preferences,
   Selection,
@@ -165,6 +166,7 @@ export class SPDesktop {
   #tool: ToolBase | null = null;
   readonly _current_affine = new DesktopAffine();
   #disconnectModified: (() => void) | null = null;
+  #reconstruction_old_layer_id = '';
   #disconnectZoomFromDocument: (() => void) | null = null;
 
   constructor(canvas: Canvas, document: SPDocument) {
@@ -387,11 +389,31 @@ export class SPDesktop {
     const disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
     const disconnectNamedView = doc.getNamedView().changedSignal.connect(() => this.#updatePage());
     const disconnectPages = doc.getPageManager().connectPagesChanged(() => this.#updatePage());
+    const disconnectStart = doc.reconstructionStartSignal.connect(() => this.reconstruction_start());
+    const disconnectFinish = doc.reconstructionFinishSignal.connect(() => this.reconstruction_finish());
     this.#disconnectModified = () => {
       disconnectModified();
       disconnectNamedView();
       disconnectPages();
+      disconnectStart();
+      disconnectFinish();
     };
+  }
+
+  /** Before the document is rebuilt: keep the id of the current layer (upstream reconstruction_start). */
+  reconstruction_start(): void {
+    this.#reconstruction_old_layer_id = this.#layerManager.currentLayer()?.getId() ?? '';
+    this.#layerManager.reset();
+    this.#selection.clear();
+  }
+
+  /** After the document is rebuilt: the layer with the kept id is the current layer again. */
+  reconstruction_finish(): void {
+    if (this.#reconstruction_old_layer_id) {
+      const newLayer = this.doc.getObjectById(this.#reconstruction_old_layer_id);
+      if (newLayer) this.#layerManager.setCurrentLayer(newLayer);
+      this.#reconstruction_old_layer_id = '';
+    }
   }
 
   /**
@@ -861,4 +883,25 @@ export class SPDesktop {
 
 function clamp(v: number, min: number, max: number): number {
   return Math.min(Math.max(v, min), max);
+}
+
+/**
+ * Write the view of desktop into the namedview: zoom, center and current layer (upstream
+ * sp_namedview_document_from_window, in sp-namedview.cpp). The extensions read them, e.g. to
+ * place new objects in the middle of the view. Not undoable.
+ * TODO: the window geometry (/options/savewindowgeometry/value), the rotation.
+ */
+export function sp_namedview_document_from_window(desktop: SPDesktop): void {
+  const save_viewport_in_file = Preferences.get().getBool('/options/savedocviewport/value', true);
+  const view = desktop.getNamedView().getRepr();
+  // saving window geometry is not undoable
+  DocumentUndo.scopedInsensitive(desktop.getDocument(), () => {
+    if (save_viewport_in_file) {
+      view.setAttributeSvgDouble('inkscape:zoom', desktop.current_zoom());
+      const center = desktop.current_center();
+      view.setAttributeSvgDouble('inkscape:cx', center.x);
+      view.setAttributeSvgDouble('inkscape:cy', center.y);
+    }
+    view.setAttribute('inkscape:current-layer', desktop.layerManager().currentLayer()?.getId() ?? null);
+  });
 }

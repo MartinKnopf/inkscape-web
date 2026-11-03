@@ -5,10 +5,13 @@
 import { _ } from '@inkscape-web/core';
 import {
   add_actions_filter_effects,
+  add_extension_effects_to_menu,
   add_filter_effects_to_menu,
   build_menu,
+  db,
   filters_all_files,
   InkscapeApplication,
+  init_extension_action_data,
   type MenuEntry,
   parse_mnemonic,
   print_detailed_name,
@@ -17,6 +20,7 @@ import {
 import * as Menubar from '@radix-ui/react-menubar';
 import { Fragment, type ReactNode, useSyncExternalStore } from 'react';
 import { useRecentFiles } from '../../app/recent-files.ts';
+import { load_extensions } from '../../extension/init.ts';
 
 let menu: MenuEntry[] = [];
 
@@ -27,15 +31,24 @@ async function fetchText(path: string): Promise<string | null> {
 }
 
 /**
- * Load share/ui/menus.ui and the filter presets of share/filters (the Filters menu and their
- * actions). Call once before the menu bar renders.
+ * Load share/ui/menus.ui, the filter presets of share/filters (the Filters menu) and the
+ * extensions of share/extensions (the Extensions menu) with their actions. Call once before the
+ * menu bar renders.
  */
 export async function loadMenu(): Promise<void> {
-  const [xml, effects] = await Promise.all([fetchText('/share/ui/menus.ui'), filters_all_files(fetchText)]);
+  const [xml, effects] = await Promise.all([
+    fetchText('/share/ui/menus.ui'),
+    filters_all_files(fetchText),
+    load_extensions(),
+  ]);
   if (xml) menu = build_menu(xml);
   else console.error('build_menu: failed to load Main menu');
-  add_actions_filter_effects(InkscapeApplication.instance(), effects);
+  const app = InkscapeApplication.instance();
+  add_actions_filter_effects(app, effects);
   add_filter_effects_to_menu(menu, effects);
+  const extension_effects = db.get_effect_list();
+  init_extension_action_data(app, extension_effects);
+  add_extension_effects_to_menu(menu, extension_effects);
 }
 
 /** A number that changes when actions or shortcuts change, to render menus again. */
