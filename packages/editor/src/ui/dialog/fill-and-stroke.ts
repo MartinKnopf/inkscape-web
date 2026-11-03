@@ -26,6 +26,9 @@ import {
   type SPIPaint,
   type SPItem,
   SPLinearGradient,
+  SPMeshGradient,
+  type SPPaintServer,
+  SPPattern,
   SPRadialGradient,
   SPStop,
   SPStrokeCapType,
@@ -35,6 +38,7 @@ import {
   sp_gradient_add_stop,
   sp_gradient_delete_stop,
   sp_gradient_reverse_vector,
+  sp_item_apply_mesh,
   sp_set_gradient_stop_color,
   spReprCssAttrNew,
   spReprCssChangeRecursive,
@@ -42,7 +46,9 @@ import {
   spReprCssSetPropertyDouble,
   spReprCssSetPropertyString,
   spReprCssUnsetProperty,
+  writeBuf,
 } from '@inkscape-web/core';
+import { Affine, atan2, L2, Point, Rotate, Scale } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
 import {
   QUERY_STYLE_MULTIPLE_DIFFERENT,
@@ -62,6 +68,13 @@ import {
   sp_desktop_set_style,
 } from '../../desktop-style.ts';
 import { sp_item_apply_gradient } from '../../gradient-chemistry.ts';
+import {
+  type PatternSettings,
+  sp_get_pattern_label,
+  sp_get_pattern_list,
+  sp_item_apply_pattern,
+  sp_pattern_get_gap,
+} from '../../pattern-manipulation.ts';
 
 const ICON = 'dialog-fill-and-stroke';
 const UNDO = 'Undo';
@@ -91,12 +104,18 @@ export type PaintInfo =
       fillRule: SPWindRule;
       /** The linear or radial gradient of the first selected object (PaintMode.Gradient), else null. */
       gradient: SPGradient | null;
+      /** The pattern of the first selected object (PaintMode.Pattern), else null. */
+      pattern: SPPattern | null;
     };
 
 /** The mode of paint (upstream get_mode_from_paint). */
-export function paintModeFromPaint(paint: SPIPaint): PaintMode {
+export function paintModeFromPaint(paint: SPIPaint, server: SPPaintServer | null = null): PaintMode {
   if (paint.isDerived()) return PaintMode.Derived;
-  if (paint.isPaintserver()) return PaintMode.Gradient; // TODO: patterns, hatches, meshes, swatches (tell them by the server)
+  if (paint.isPaintserver()) {
+    // TODO: hatches, swatches
+    if (server instanceof SPMeshGradient) return PaintMode.Mesh;
+    return server instanceof SPPattern ? PaintMode.Pattern : PaintMode.Gradient;
+  }
   if (paint.isColor()) return PaintMode.Solid;
   return PaintMode.None;
 }
@@ -121,7 +140,8 @@ export function queryPaint(desktop: SPDesktop, isFill: boolean): PaintInfo {
 
   const style = anchor.style;
   const paint = style.getFillOrStroke(isFill);
-  const mode = paintModeFromPaint(paint);
+  const server0 = isFill ? style.getFillPaintServer() : style.getStrokePaintServer();
+  const mode = paintModeFromPaint(paint, paint.isPaintserver() ? server0 : null);
   const opacity = (isFill ? style.fill_opacity : style.stroke_opacity).as_double();
   let color = paint.isColor() ? paint.getColor() : undefined;
   // Without a color, offer the last used one (desktop.current) for when the mode changes to flat color.
@@ -135,7 +155,8 @@ export function queryPaint(desktop: SPDesktop, isFill: boolean): PaintInfo {
       : style.getStrokePaintServer()
     : null;
   const gradient = server instanceof SPLinearGradient || server instanceof SPRadialGradient ? server : null;
-  return { kind: 'paint', mode, color, fillRule: style.fill_rule.computed, gradient };
+  const pattern = server instanceof SPPattern ? server : null;
+  return { kind: 'paint', mode, color, fillRule: style.fill_rule.computed, gradient, pattern };
 }
 
 /** Set the paint to a flat color; sliders merge their steps (upstream get_flat_color_changed). */
@@ -152,7 +173,7 @@ export function setFlatColor(desktop: SPDesktop, color: Colors.Color, isFill: bo
 /**
  * Change the kind of the paint of the selection (upstream get_signal_mode_changed). For
  * PaintMode.Solid, color is the flat color to set.
- * TODO: the gradient, mesh, pattern and swatch modes.
+ * TODO: the swatch mode, the choice of a mesh of the document (upstream MeshEditor).
  */
 export function setPaintMode(
   desktop: SPDesktop,
@@ -185,9 +206,120 @@ export function setPaintMode(
       // A new gradient from the current paint (upstream fire_gradient_changed(nullptr)).
       setGradient(desktop, isFill, null, SPGradientType.SP_GRADIENT_TYPE_LINEAR);
       break;
+    case PaintMode.Mesh: {
+      // A new mesh on each object (upstream: the mesh_changed handler with no mesh chosen).
+      for (const item of desktop.getSelection().items()) {
+        sp_item_apply_mesh(item, null, doc, isFill);
+        remove_opacity(item, isFill);
+      }
+      DocumentUndo.done(doc, isFill ? C_(UNDO, 'Set mesh on fill') : C_(UNDO, 'Set mesh on stroke'), ICON);
+      break;
+    }
+    case PaintMode.Pattern: {
+      // The first pattern of the document; the editor offers the stock patterns.
+      const pattern = sp_get_pattern_list(doc)[0];
+      if (pattern) setPattern(desktop, isFill, pattern, patternItem(pattern));
+      break;
+    }
     default:
-      break; // TODO: mesh, pattern, swatch
+      break; // TODO: swatch
   }
+}
+
+/**
+ * What the pattern editor shows of a pattern: read from the link pattern, the color and the
+ * label from the root pattern (upstream PatternManager create_pattern_item).
+ */
+export interface PatternItem extends PatternSettings {
+  /** The id of the root pattern. */
+  id: string;
+  /** Rotation in degrees, scale x and y (taken from the transform of the link). */
+  angle: number;
+  scale_x: number;
+  scale_y: number;
+}
+
+export function patternItem(pattern: SPPattern): PatternItem {
+  //  this is a link:       this is a root:
+  // <pattern href="abc"/> <pattern id="abc"/>
+  const link_pattern = pattern;
+  const root_pattern = pattern.rootPattern();
+  const transform = link_pattern.get_this_transform();
+  // reading color style form "root" pattern; linked one won't have any effect, as it's not a parent
+  const fill = root_pattern.style.fill;
+  const preserve = link_pattern.getAttribute('preserveAspectRatio');
+  const gap = link_pattern !== root_pattern ? sp_pattern_get_gap(link_pattern) : { x: 0, y: 0 };
+  return {
+    id: root_pattern.getId() ?? '',
+    label: sp_get_pattern_label(root_pattern),
+    transform,
+    offset: new Point(link_pattern.x(), link_pattern.y()),
+    color: fill.set && fill.isColor() ? fill.getColor() : null,
+    uniform_scale: !!preserve && preserve !== 'none',
+    gap: new Point(gap.x, gap.y),
+    angle: (atan2(transform.xAxis()) * 180) / Math.PI,
+    scale_x: L2(transform.xAxis()),
+    scale_y: L2(transform.yAxis()),
+  };
+}
+
+/**
+ * The transform of the editor's settings: scale, then rotation, with the translation of the
+ * current link (upstream PatternEditor::get_selected_transform).
+ */
+export function patternSettingsTransform(item: PatternItem): Affine {
+  const m = Scale(item.scale_x, item.scale_y).multiply(Rotate((item.angle / 180.0) * Math.PI));
+  const t = item.transform.translation();
+  return new Affine(m.c0, m.c1, m.c2, m.c3, t.x, t.y);
+}
+
+/** Apply a pattern (of the document, or copied from a stock document) with the editor's settings to the selection. */
+export function setPattern(desktop: SPDesktop, isFill: boolean, pattern: SPPattern, item: PatternItem): void {
+  const items = desktop.getSelection().items();
+  if (!items.length) return;
+  const settings: PatternSettings = { ...item, transform: patternSettingsTransform(item) };
+  for (const it of items) {
+    // the link of each object gets the settings; the first application creates it
+    const server = isFill ? it.style.getFillPaintServer() : it.style.getStrokePaintServer();
+    const link =
+      server instanceof SPPattern && server.rootPattern() === pattern.rootPattern() ? server : pattern;
+    sp_item_apply_pattern(it, link, isFill, settings);
+    const now = isFill ? it.style.getFillPaintServer() : it.style.getStrokePaintServer();
+    if (now instanceof SPPattern && now !== link) sp_item_apply_pattern(it, now, isFill, settings);
+    remove_opacity(it, isFill);
+  }
+  DocumentUndo.done(
+    desktop.getDocument(),
+    isFill ? C_(UNDO, 'Set pattern on fill') : C_(UNDO, 'Set pattern on stroke'),
+    ICON,
+  );
+}
+
+/**
+ * An SVG image of width × height filled with the pattern on a white background, for the pattern
+ * lists of the editor (upstream PatternManager::get_preview, which renders with cairo).
+ */
+export function patternPreviewSvg(pattern: SPPattern, width: number, height: number): string {
+  // The pattern, the patterns of its href chain and the resources that their content uses.
+  const doc = pattern.document;
+  const used = new Map<string, string>();
+  const add = (id: string | null) => {
+    const object = id ? doc?.getObjectById(id) : null;
+    if (!id || !object || used.has(id)) return;
+    const xml = writeBuf(object.getRepr());
+    used.set(id, xml);
+    for (const m of xml.matchAll(/url\(\s*['"]?#([^'")]+)['"]?\s*\)|href="#([^"]+)"/g))
+      add(m[1] ?? m[2] ?? null);
+  };
+  add(pattern.getId());
+  const id = pattern.getId() ?? '';
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ' +
+    'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" ' +
+    `width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<defs>${[...used.values()].join('')}</defs>` +
+    `<rect width="${width}" height="${height}" fill="#fff"/><rect width="${width}" height="${height}" fill="url(#${id})"/></svg>`
+  );
 }
 
 /** Unset fill-opacity or stroke-opacity of item (upstream remove_opacity). */

@@ -197,6 +197,27 @@
   background-color: #fff;
 }
 
+.pattern-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-height: 112px;
+  margin: 4px 0;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+}
+
+.pattern-gallery button {
+  padding: 1px;
+  border: 1px solid transparent;
+  background: none;
+  line-height: 0;
+}
+
+.pattern-gallery button[aria-selected="true"] {
+  border-color: #3584e4;
+}
+
 .gradient-stops {
   display: flex;
   flex-direction: column;

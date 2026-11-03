@@ -14,9 +14,13 @@
  * Copyright (C) 2004 Monash University
  * Copyright (C) 2008 Maximilian Albert
  */
-import type { Affine, Point } from '@inkscape-web/geom';
+import { Affine, atan2, Point, Rotate, Scale, Translate } from '@inkscape-web/geom';
 import { C_ } from '../../i18n.ts';
-import type { SPItem } from '../../object/sp-item.ts';
+import { PaintServerTransform, type SPItem } from '../../object/sp-item.ts';
+import { SP_OBJECT_MODIFIED_FLAG } from '../../object/sp-object.ts';
+import { PaintServerType } from '../../object/sp-paint-server-data.ts';
+import type { SPPattern } from '../../object/sp-pattern.ts';
+import { Preferences } from '../../preferences.ts';
 
 /** The modifier keys of a knot event (the editor's ModifierState). */
 export interface KnotState {
@@ -140,5 +144,166 @@ export abstract class LPEKnotHolderEntity<T extends UndoableEffect> extends Knot
 
   knot_ungrabbed(_p: Point, _origin: Point, _state: KnotState): void {
     this._effect?.makeUndoDone(C_('Undo', 'Move handle'));
+  }
+}
+
+/**
+ * A knot of the pattern of the fill or stroke of the item (upstream PatternKnotHolderEntity).
+ * The knots sit on the pattern cell nearest to the middle of the item.
+ */
+export abstract class PatternKnotHolderEntity extends KnotHolderEntity {
+  /** true if the entity tracks fill, false for stroke */
+  protected readonly _fill: boolean;
+  protected _cell = new Point(0, 0);
+
+  constructor(fill: boolean) {
+    super();
+    this._fill = fill;
+  }
+
+  override on_created(): void {
+    // Setup an initial pattern transformation in the center
+    const rect = this.item?.documentGeometricBounds();
+    if (rect) this._cell = this.offset_to_cell(rect.midpoint());
+  }
+
+  override knot_missing(): boolean {
+    return !this._pattern();
+  }
+
+  knot_ungrabbed(): void {}
+
+  protected _pattern(): SPPattern | null {
+    const server = this._fill
+      ? this.item?.style.getFillPaintServer()
+      : this.item?.style.getStrokePaintServer();
+    return server?.getPaintType() === PaintServerType.PATTERN ? (server as SPPattern) : null;
+  }
+
+  /** Returns the position based on the pattern's origin, shifted by the percent x/y of its size. */
+  protected _get_pos(x: number, y: number, transform = true): Point {
+    const pat = this._pattern();
+    if (!pat) return new Point(0, 0);
+    const pt = new Point((this._cell.x + x) * pat.width(), (this._cell.y + y) * pat.height());
+    return transform ? pt.transformed(pat.getTransform()) : pt;
+  }
+
+  /** The grid index of the pattern repetition at loc (document coordinates). */
+  protected offset_to_cell(loc: Point): Point {
+    const pat = this._pattern();
+    if (!pat || !this.item) return new Point(0, 0);
+    // 1. Turn the location into the pattern grid coordinate
+    const d2i = this.item.i2docAffine().inverse();
+    const i2p = pat.getTransform().inverse();
+    const p = loc.transformed(d2i).transformed(i2p);
+    // Get grid index of nearest pattern repetition.
+    return new Point(Math.floor(p.x / pat.width()), Math.floor(p.y / pat.height()));
+  }
+
+  protected get _which(): PaintServerTransform {
+    return this._fill ? PaintServerTransform.TRANSFORM_FILL : PaintServerTransform.TRANSFORM_STROKE;
+  }
+}
+
+/** Moves the pattern (upstream PatternKnotHolderEntityXY). TODO: the quad that shows the tile. */
+export class PatternKnotHolderEntityXY extends PatternKnotHolderEntity {
+  knot_get(): Point {
+    return this._get_pos(0, 0);
+  }
+
+  knot_set(p: Point, origin: Point, state: KnotState): void {
+    let p_snapped = this.snap_knot_position(p, state);
+    if (knot_state_ctrl(state)) {
+      p_snapped =
+        Math.abs(p.x - origin.x) > Math.abs(p.y - origin.y)
+          ? new Point(p_snapped.x, origin.y)
+          : new Point(origin.x, p_snapped.y);
+    }
+    const q = p_snapped.sub(this.knot_get());
+    this.item?.adjust_pattern(Translate(q), false, this._which);
+    this.item?.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+  }
+}
+
+/** Rotates the pattern around its origin (upstream PatternKnotHolderEntityAngle). */
+export class PatternKnotHolderEntityAngle extends PatternKnotHolderEntity {
+  knot_get(): Point {
+    return this._get_pos(1.0, 0);
+  }
+
+  knot_set(p: Point, _origin: Point, state: KnotState): void {
+    const snaps = Math.min(
+      Math.max(Preferences.get().getDouble('/options/rotationsnapsperpi/value', 12.0), 0.1),
+      1800.0,
+    );
+    // get the angle from pattern 0,0 to the cursor pos
+    const transform_origin = this._get_pos(0, 0);
+    let theta = atan2(p.sub(transform_origin));
+    const theta_old = atan2(this.knot_get().sub(transform_origin));
+    if (knot_state_ctrl(state)) {
+      // Snap theta
+      const snaps_radian = Math.PI / snaps;
+      theta = Math.round(theta / snaps_radian) * snaps_radian;
+    }
+    const rot = Translate(transform_origin.neg())
+      .multiply(Rotate(theta - theta_old))
+      .multiply(Translate(transform_origin));
+    this.item?.adjust_pattern(rot, false, this._which);
+    this.item?.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+  }
+}
+
+/** Maximum number of pattern repetitons allowed in an item */
+const MAX_REPETITIONS = 1e6;
+
+/** Scales the pattern; uniformly with Ctrl (upstream PatternKnotHolderEntityScale). */
+export class PatternKnotHolderEntityScale extends PatternKnotHolderEntity {
+  #cached_transform = Affine.identity();
+  #cached_inverse_linear = Affine.identity();
+  #cached_origin = new Point(0, 0);
+  #cached_diagonal = new Point(1, 1);
+  #cached_min_scale = 1e-6;
+
+  knot_get(): Point {
+    return this._get_pos(1.0, 1.0);
+  }
+
+  /** Store pattern geometry info when the scale knot is first grabbed. */
+  override knot_grabbed(grab_pos: Point): void {
+    const pattern = this._pattern();
+    if (!pattern || !this.item) return;
+    this.#cached_transform = pattern.getTransform();
+    this.#cached_origin = this._get_pos(0, 0);
+    this.#cached_inverse_linear = this.#cached_transform.withoutTranslation().inverse();
+    this.#cached_diagonal = grab_pos.sub(this.#cached_origin).transformed(this.#cached_inverse_linear);
+    const bounding_box = this.item.documentVisualBounds();
+    if (bounding_box) {
+      // Compare the areas of the pattern and the item to find the number of repetitions.
+      const pattern_area = Math.abs(this.#cached_diagonal.x * this.#cached_diagonal.y);
+      const item_area =
+        (bounding_box.area() * this.#cached_inverse_linear.descrim2()) /
+        (this.item.i2docAffine().descrim2() ? 1.0 : 1e-3);
+      this.#cached_min_scale = Math.sqrt(item_area / (pattern_area * MAX_REPETITIONS));
+    } else {
+      this.#cached_min_scale = 1e-6;
+    }
+  }
+
+  knot_set(p: Point, _origin: Point, state: KnotState): void {
+    // FIXME: this snapping should be done together with knowing whether control was pressed.
+    // If GDK_CONTROL_MASK, then constrained snapping should be used.
+    const p_snapped = this.snap_knot_position(p, state);
+    const new_extent = p_snapped.sub(this.#cached_origin).transformed(this.#cached_inverse_linear);
+    // 1. Calculate absolute scale factor first
+    const clamp = (v: number) => Math.min(Math.max(v, this.#cached_min_scale), 1e9);
+    const scale_x = clamp(new_extent.x / this.#cached_diagonal.x);
+    const scale_y = clamp(new_extent.y / this.#cached_diagonal.y);
+    let new_transform = knot_state_ctrl(state) ? Scale((scale_x + scale_y) * 0.5) : Scale(scale_x, scale_y);
+    // 2. Calculate offset to keep pattern origin aligned
+    new_transform = new_transform.multiply(this.#cached_transform);
+    const new_uncompensated_origin = this._get_pos(0, 0, false).transformed(new_transform);
+    new_transform = new_transform.multiply(Translate(this.#cached_origin.sub(new_uncompensated_origin)));
+    this.item?.adjust_pattern(new_transform, true, this._which);
+    this.item?.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
   }
 }

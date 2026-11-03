@@ -32,7 +32,13 @@ import { sp_svg_transform_read, sp_svg_transform_write } from '../svg/svg-affine
 import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
-import { spReprCssAttrInherited, spReprCssSet } from '../xml/repr-css.ts';
+import {
+  spReprCssAttrInherited,
+  spReprCssAttrNew,
+  spReprCssChange,
+  spReprCssSet,
+  spReprCssSetProperty,
+} from '../xml/repr-css.ts';
 import { sp_repr_compare_position } from '../xml/repr-sorting.ts';
 import { sp_repr_is_def } from '../xml/repr-util.ts';
 import { SPClipPath } from './sp-clippath.ts';
@@ -41,6 +47,7 @@ import { LayerMode, SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
 import { SPMask } from './sp-mask.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
+import { SPPattern } from './sp-pattern.ts';
 import { SPRoot } from './sp-root.ts';
 import { SPShape } from './sp-shape.ts';
 import { SPSymbol } from './sp-symbol.ts';
@@ -389,6 +396,104 @@ export class ObjectSet {
     }
     this.setReprList(newsel);
     if (!suppressDone) DocumentUndo.done(doc, C_('Undo', 'Duplicate'), 'edit-duplicate');
+  }
+
+  /**
+   * Objects to Pattern (upstream tile): put copies of the selected objects into a new pattern
+   * whose tile is their visual bounds; with apply, replace them with a rectangle filled with the
+   * pattern and select it. Returns false if nothing is selected.
+   */
+  tile(apply = true): boolean {
+    // toMarker has similar code
+    const doc = this.document();
+    // TODO: flash "Select <b>object(s)</b> to convert to pattern."
+    if (!doc || this.isEmpty()) return false;
+    doc.ensureUpToDate();
+    const r = this.visualBounds();
+    if (!r) return false;
+    const items_vec = [...this.items()].sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+    // bottommost object, after sorting
+    const first = items_vec[0]!;
+    const parent = first.parent;
+    if (!(parent instanceof SPItem)) return false;
+    const parent_transform = parent.i2docAffine();
+    // remember the position of the first item
+    const pos = first.getRepr().position();
+    // create a list of duplicates
+    const xml_doc = doc.getReprDoc();
+    const repr_copies = items_vec.map((item) => item.getRepr().duplicate(xml_doc));
+    const bbox = r.transformed(doc.dt2doc());
+    // delete objects so that their clones don't get alerted; this object will be restored shortly
+    if (apply) for (const item of items_vec) item.deleteObject(false);
+
+    // Hack: Temporarily set clone compensation to unmoved, so that we can move clone-originals
+    // without disturbing clones.
+    const prefs = Preferences.get();
+    const saved_compensation = prefs.getInt(
+      '/options/clonecompensation/value',
+      SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED,
+    );
+    prefs.setInt('/options/clonecompensation/value', SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED);
+    const move = Translate(bbox.min().neg());
+    const pat_id = SPPattern.produce(repr_copies, bbox, doc, move.inverse(), parent_transform.multiply(move));
+    // restore compensation setting
+    prefs.setInt('/options/clonecompensation/value', saved_compensation);
+
+    if (apply) {
+      const rect = xml_doc.createElement('svg:rect');
+      rect.setAttribute('style', `stroke:none;fill:url(#${pat_id})`);
+      rect.setAttributeOrRemoveIfEmpty('transform', sp_svg_transform_write(parent_transform.inverse()));
+      rect.setAttributeSvgDouble('width', bbox.width());
+      rect.setAttributeSvgDouble('height', bbox.height());
+      rect.setAttributeSvgDouble('x', bbox.left());
+      rect.setAttributeSvgDouble('y', bbox.top());
+      // restore parent and position
+      parent.getRepr().addChildAtPos(rect, pos);
+      const rectangle = doc.getObjectByRepr(rect);
+      this.clear();
+      if (rectangle) this.set(rectangle);
+    }
+    DocumentUndo.done(doc, C_('Undo', 'Objects to pattern'), '');
+    return true;
+  }
+
+  /**
+   * Pattern to Objects (upstream untile): put copies of the pattern content of the selected
+   * objects with a pattern fill beside them, placed like the tiles at the origin, remove the
+   * fill, and select the copies. Returns false if no selected object has a pattern fill.
+   */
+  untile(): boolean {
+    const doc = this.document();
+    // TODO: flash "Select an <b>object with pattern fill</b> to extract objects from."
+    if (!doc || this.isEmpty()) return false;
+    const xml_doc = doc.getReprDoc();
+    const new_select: SPItem[] = [];
+    let did = false;
+    for (const item of [...this.items()].reverse()) {
+      const basePat = item.style.getFillPaintServer();
+      if (!(basePat instanceof SPPattern)) continue;
+      did = true;
+      const pattern = basePat.rootPattern();
+      const pat_transform = basePat.getTransform().multiply(item.transform);
+      for (const child of pattern.children) {
+        if (!(child instanceof SPItem)) continue;
+        const i = item.parent?.appendChildRepr(child.getRepr().duplicate(xml_doc));
+        // this is needed to make sure the new item has curve (simply requestDisplayUpdate does not work)
+        doc.ensureUpToDate();
+        if (i instanceof SPItem) {
+          i.doWriteTransform(i.transform.multiply(pat_transform));
+          new_select.push(i);
+        }
+      }
+      const css = spReprCssAttrNew();
+      spReprCssSetProperty(css, 'fill', 'none');
+      spReprCssChange(item.getRepr(), css, 'style');
+    }
+    // TODO: flash "<b>No pattern fills</b> in the selection."
+    if (!did) return false;
+    DocumentUndo.done(doc, C_('Undo', 'Pattern to objects'), '');
+    this.setList(new_select);
+    return true;
   }
 
   /**

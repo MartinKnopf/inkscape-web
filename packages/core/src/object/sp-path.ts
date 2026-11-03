@@ -180,7 +180,9 @@ export class SPPath extends SPShape {
     }
     // Adjust stroke
     this.adjustStroke(transform.descrim());
-    // TODO: adjust pattern and gradient fill.
+    // Adjust pattern fill
+    this.adjust_pattern(transform);
+    // TODO: adjust gradient fill.
 
     // nothing remains - we've written all of the transform, so return identity
     return Affine.identity();

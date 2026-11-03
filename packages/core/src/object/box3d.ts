@@ -426,15 +426,17 @@ export class SPBox3D extends SPGroup {
   /**
    * We don't apply the transform to the box directly but instead to its perspective (which is
    * done in ObjectSet.applyAffine). Here we only adjust strokes.
-   * TODO: adjust_pattern and adjust_gradient.
+   * TODO: adjust_gradient.
    */
   override setTransform(xform: Affine): Affine {
     const ret = xform.withoutTranslation();
     const sw = Math.hypot(ret.c0, ret.c1);
     const sh = Math.hypot(ret.c2, ret.c3);
     const scale = Math.sqrt(Math.abs(sw * sh));
-    for (const child of this.item_list()) child.adjustStroke(scale);
-    this.adjustStroke(scale);
+    for (const child of [...this.item_list(), this]) {
+      child.adjustStroke(scale);
+      child.adjust_pattern(xform);
+    }
     return Affine.identity();
   }
 

@@ -302,7 +302,9 @@ export class SPText extends SPItem {
     SPText._adjustFontsizeRecursive(this, ex);
     // Adjust stroke width
     this.adjustStrokeWidthRecursive(ex);
-    // TODO: adjust pattern and gradient fills.
+    // Adjust pattern fill
+    this.adjust_pattern(xform.multiply(ret.inverse()));
+    // TODO: adjust gradient fills.
     return ret;
   }
 

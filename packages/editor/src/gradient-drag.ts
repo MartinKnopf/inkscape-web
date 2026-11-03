@@ -21,16 +21,21 @@ import {
   GrPointType,
   getGradient,
   getGradientCoords,
+  MeshNodeType,
   N_,
   PaintTarget,
+  Preferences,
   type SPCSSAttr,
   SPGradient,
   type SPItem,
   SPLinearGradient,
+  SPMeshGradient,
+  SPMeshPatchI,
   type SPObject,
   SPRadialGradient,
   type SPStop,
   sp_get_stop_i,
+  sp_gradient_convert_to_userspace,
   sp_gradient_get_forked_vector_if_necessary,
   sp_item_gradient_reverse_vector,
   sp_item_gradient_set_coords,
@@ -46,7 +51,7 @@ import {
   spReprCssUnsetProperty,
   spSvgReadPercentage,
 } from '@inkscape-web/core';
-import { distance, LineSegment, nearest_time, type Point, type Rect } from '@inkscape-web/geom';
+import { CubicBezier, distance, LineSegment, nearest_time, type Point, type Rect } from '@inkscape-web/geom';
 import type { SPDesktop } from './desktop.ts';
 import { CanvasItemCtrlType } from './display/control/canvas-item-ctrl.ts';
 import { CanvasItemCurve } from './display/control/canvas-item-curve.ts';
@@ -78,6 +83,10 @@ const gr_knot_types: Partial<Record<GrPointType, CanvasItemCtrlType>> = {
   [GrPointType.POINT_RG_FOCUS]: CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_MARKER,
   [GrPointType.POINT_RG_MID1]: CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_SHAPER,
   [GrPointType.POINT_RG_MID2]: CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_SHAPER,
+  // For Mesh
+  [GrPointType.POINT_MG_CORNER]: CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_SHAPER,
+  [GrPointType.POINT_MG_HANDLE]: CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_MESH,
+  [GrPointType.POINT_MG_TENSOR]: CanvasItemCtrlType.CANVAS_ITEM_CTRL_TYPE_SIZER,
 };
 
 /** Names of the handles, for the tool messages (upstream gr_knot_descr). */
@@ -91,6 +100,9 @@ export const gr_knot_descr: Partial<Record<GrPointType, string>> = {
   [GrPointType.POINT_RG_FOCUS]: N_('Radial gradient <b>focus</b>'),
   [GrPointType.POINT_RG_MID1]: N_('Radial gradient <b>mid stop</b>'),
   [GrPointType.POINT_RG_MID2]: N_('Radial gradient <b>mid stop</b>'),
+  [GrPointType.POINT_MG_CORNER]: N_('Mesh gradient <b>corner</b>'),
+  [GrPointType.POINT_MG_HANDLE]: N_('Mesh gradient <b>handle</b>'),
+  [GrPointType.POINT_MG_TENSOR]: N_('Mesh gradient <b>tensor</b>'),
 };
 
 const isMid = (t: GrPointType) =>
@@ -127,7 +139,8 @@ export class GrDraggable {
 /**
  * A handle on the canvas for the draggables at one point (several gradients may share a point,
  * and the center and focus of a radial gradient are one dragger until they are separated).
- * TODO: snapping, angle snapping with Ctrl (constrainedAngularSnap), tips, mesh handles.
+ * TODO: snapping, angle snapping with Ctrl (constrainedAngularSnap), tips, the highlight of
+ * the mesh corner of a handle.
  */
 export class GrDragger {
   readonly parent: GrDrag;
@@ -353,6 +366,49 @@ export class GrDragger {
     }
   }
 
+  /**
+   * Update mesh handles when mesh corner is moved. pc_old: old position of corner (desktop
+   * coordinates). If a side is a line, then the handles are always placed 1/3 of side length from
+   * each corner (upstream moveMeshHandles; scaling is disabled upstream).
+   */
+  moveMeshHandles(pc_old: Point): void {
+    // If no corner point in GrDragger then do nothing.
+    if (!this.isA(GrPointType.POINT_MG_CORNER)) return;
+    const drag = this.parent;
+    // Loop over all draggables in moved corner
+    for (const draggable of this.draggables) {
+      const { item, point_type, point_i, fill_or_stroke } = draggable;
+      // Check draggable is of type POINT_MG_CORNER (don't allow selection of POINT_MG_HANDLE)
+      if (point_type !== GrPointType.POINT_MG_CORNER) continue;
+      // Must be a mesh gradient
+      const gradient = getGradient(item, fill_or_stroke);
+      if (!(gradient instanceof SPMeshGradient)) continue;
+      const mg = gradient;
+      // pc_old is the old corner position in desktop coordinates, we need it in gradient coordinate.
+      const userspace = sp_gradient_convert_to_userspace(
+        gradient,
+        item,
+        fill_or_stroke === PaintTarget.FOR_FILL ? 'fill' : 'stroke',
+      );
+      const pcg_old = pc_old
+        .transformed(item.i2dtAffine().inverse())
+        .transformed(userspace.gradientTransform.inverse());
+      mg.array.update_handles(point_i, [], pcg_old);
+      mg.array.write(mg);
+      // Move on-screen knots
+      for (let i = 0; i < mg.array.handles.length; ++i) {
+        drag
+          .getDraggerFor(item, GrPointType.POINT_MG_HANDLE, i, fill_or_stroke)
+          ?.knot.moveto(getGradientCoords(item, GrPointType.POINT_MG_HANDLE, i, fill_or_stroke));
+      }
+      for (let i = 0; i < mg.array.tensors.length; ++i) {
+        drag
+          .getDraggerFor(item, GrPointType.POINT_MG_TENSOR, i, fill_or_stroke)
+          ?.knot.moveto(getGradientCoords(item, GrPointType.POINT_MG_TENSOR, i, fill_or_stroke));
+      }
+    }
+  }
+
   /** Draw this dragger as selected. */
   select(): void {
     this.knot.selectKnot(true);
@@ -373,12 +429,17 @@ export interface ItemCurve {
   is_fill: boolean;
   p1: Point;
   p2: Point;
+  /** Mesh sides: the corner draggables at the ends. */
+  corner0?: number;
+  /** Mesh sides: the four control points (desktop coordinates). */
+  points?: Point[];
+  corner1?: number;
 }
 
 /**
  * The draggers of the gradients of the selected items, and the gradient lines (upstream GrDrag).
  * Rebuilt when the selection changes, or is modified other than by the draggers (local_change).
- * TODO: mesh gradients, arrow key moves (key_press_handler), the levels for snapping, the
+ * TODO: arrow key moves (key_press_handler), the levels for snapping, the
  * style query (fill color of the selected stops for the Fill and Stroke dialog).
  */
 export class GrDrag {
@@ -401,8 +462,12 @@ export class GrDrag {
         this.updateLines();
       }),
       selection.connectModified(() => {
-        if (this.local_change) this.local_change = false;
-        else this.updateDraggers();
+        if (this.local_change) {
+          this.refreshDraggers(); // Needed to move mesh handles and toggle visibility
+          this.local_change = false;
+        } else {
+          this.updateDraggers();
+        }
         this.updateLines();
       }),
       desktop.connectSetStyle((css, switch_style) => this.styleSet(css, switch_style)),
@@ -508,6 +573,10 @@ export class GrDrag {
   addStopNearPoint(item: SPItem, mouse_p: Point, tolerance: number): SPStop | null {
     for (const fill_or_stroke of allPaintTargets()) {
       const gradient = getGradient(item, fill_or_stroke);
+      if (gradient instanceof SPMeshGradient) {
+        if (this.#splitMeshNearPoint(gradient, item, mouse_p, tolerance)) return null;
+        continue;
+      }
       const lines: [GrPointType, GrPointType][] =
         gradient instanceof SPLinearGradient
           ? [[GrPointType.POINT_LG_BEGIN, GrPointType.POINT_LG_END]]
@@ -543,6 +612,63 @@ export class GrDrag {
       }
     }
     return null;
+  }
+
+  /**
+   * Split the row or column of the mesh side nearest to mouse_p (desktop coordinates) if it is
+   * within tolerance (upstream: the mesh part of addStopNearPoint). Returns true if split.
+   */
+  #splitMeshNearPoint(mg: SPMeshGradient, item: SPItem, mouse_p: Point, tolerance: number): boolean {
+    // Find out which curve pointer is over and use that curve to determine
+    // which row or column will be divided.
+    const transform = mg.gradientTransform.multiply(item.i2dtAffine());
+    mg.ensureArray();
+    const rows = mg.array.patch_rows();
+    const columns = mg.array.patch_columns();
+    let closest = 1e10;
+    let divide_row = -1;
+    let divide_column = -1;
+    let divide_coord = 0.5;
+    for (let i = 0; i < rows; ++i) {
+      for (let j = 0; j < columns; ++j) {
+        const patch = new SPMeshPatchI(mg.array.nodes, i, j);
+        // side k; the row or column it divides; whether the side runs backwards
+        const check = (k: number, row: number, column: number, reverse: boolean) => {
+          const [p0, p1, p2, p3] = patch.getPointsForSide(k).map((p) => p.transformed(transform)) as [
+            Point,
+            Point,
+            Point,
+            Point,
+          ];
+          const b = new CubicBezier(p0, p1, p2, p3);
+          const coord = nearest_time(mouse_p, b);
+          const dist_screen = distance(mouse_p, b.pointAt(coord));
+          if (dist_screen < closest) {
+            closest = dist_screen;
+            divide_row = row;
+            divide_column = column;
+            divide_coord = reverse ? 1.0 - coord : coord;
+          }
+        };
+        // Top line
+        check(0, -1, j, false);
+        // Right line (only for last column)
+        if (j === columns - 1) check(1, i, -1, false);
+        // Bottom line (only for last row)
+        if (i === rows - 1) check(2, -1, j, true);
+        // Left line
+        check(3, i, -1, true);
+      }
+    }
+    if (closest >= tolerance) return false;
+    if (divide_row > -1) mg.array.split_row_at(divide_row, divide_coord);
+    else mg.array.split_column_at(divide_column, divide_coord);
+    // Update repr
+    mg.array.write(mg);
+    mg.array.built = false;
+    mg.ensureArray();
+    DocumentUndo.done(this.desktop.getDocument(), C_('Undo', 'Added patch row or column'), 'mesh-gradient');
+    return true;
   }
 
   // Selection of draggers
@@ -625,6 +751,9 @@ export class GrDrag {
    */
   setSelected(dragger: GrDragger, add_to_selection = false, override = true): void {
     let seldragger: GrDragger | null = null;
+    // Don't allow selecting a mesh handle or mesh tensor.
+    // We might want to rethink since a dragger can have draggables of different types.
+    if (dragger.isA(GrPointType.POINT_MG_HANDLE) || dragger.isA(GrPointType.POINT_MG_TENSOR)) return;
     if (add_to_selection) {
       if (override || !this.selected.has(dragger)) {
         this.selected.add(dragger);
@@ -687,6 +816,34 @@ export class GrDrag {
     this.item_curves.push({ item, curve, is_fill: fill_or_stroke === PaintTarget.FOR_FILL, p1, p2 });
   }
 
+  /** Create a curve from p0 to p3 and add it to the curves list. Used for mesh sides. */
+  addCurve(
+    item: SPItem,
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    p3: Point,
+    corner0: number,
+    corner1: number,
+    fill_or_stroke: PaintTarget,
+  ): void {
+    // TODO: highlight the curve if one of its draggers has a mouse over it.
+    const curve = new CanvasItemCurve(this.desktop.getCanvasControls());
+    curve.set_coords(p0, p1, p2, p3);
+    curve.set_stroke(fill_or_stroke === PaintTarget.FOR_FILL ? CANVAS_ITEM_PRIMARY : CANVAS_ITEM_SECONDARY);
+    curve.lower_to_bottom();
+    this.item_curves.push({
+      item,
+      curve,
+      is_fill: fill_or_stroke === PaintTarget.FOR_FILL,
+      p1: p0,
+      p2: p3,
+      corner0,
+      points: [p0, p1, p2, p3],
+      corner1,
+    });
+  }
+
   /**
    * If there already exists a dragger within MERGE_DIST of p, add the draggable to it; otherwise
    * create new dragger and add it to draggers list.
@@ -736,6 +893,100 @@ export class GrDrag {
     add(GrPointType.POINT_LG_END, num - 1);
   }
 
+  /** Add draggers for the mesh gradient mg on item. */
+  addDraggersMesh(mg: SPMeshGradient, item: SPItem, fill_or_stroke: PaintTarget): void {
+    mg.ensureArray();
+    const nodes = mg.array.nodes;
+    const prefs = Preferences.get();
+    const show_handles = prefs.getBool('/tools/mesh/show_handles', true);
+    const edit_fill = prefs.getBool('/tools/mesh/edit_fill', true);
+    const edit_stroke = prefs.getBool('/tools/mesh/edit_stroke', true);
+    // Make sure we have at least one patch defined.
+    if (mg.array.patch_rows() === 0 || mg.array.patch_columns() === 0) return;
+    if (
+      (fill_or_stroke === PaintTarget.FOR_FILL && !edit_fill) ||
+      (fill_or_stroke === PaintTarget.FOR_STROKE && !edit_stroke)
+    ) {
+      return;
+    }
+    let icorner = 0;
+    let ihandle = 0;
+    let itensor = 0;
+    for (const row of nodes) {
+      for (const j of row) {
+        switch (j.node_type) {
+          case MeshNodeType.MG_NODE_TYPE_CORNER:
+            this.addDragger(new GrDraggable(item, GrPointType.POINT_MG_CORNER, icorner, fill_or_stroke));
+            j.draggable = icorner++;
+            break;
+          case MeshNodeType.MG_NODE_TYPE_HANDLE: {
+            const dragger = this.addDragger(
+              new GrDraggable(item, GrPointType.POINT_MG_HANDLE, ihandle, fill_or_stroke),
+            );
+            if (!show_handles || !j.set) dragger.knot.hide();
+            j.draggable = ihandle++;
+            break;
+          }
+          case MeshNodeType.MG_NODE_TYPE_TENSOR: {
+            const dragger = this.addDragger(
+              new GrDraggable(item, GrPointType.POINT_MG_TENSOR, itensor, fill_or_stroke),
+            );
+            if (!show_handles || !j.set) dragger.knot.hide();
+            j.draggable = itensor++;
+            break;
+          }
+          default:
+            console.error('Bad Mesh draggable type');
+        }
+      }
+    }
+  }
+
+  /**
+   * Refresh draggers, moving and toggling visibility as necessary.
+   * Does not regenerate draggers (as does updateDraggersMesh()).
+   */
+  refreshDraggersMesh(mg: SPMeshGradient, item: SPItem, fill_or_stroke: PaintTarget): void {
+    mg.ensureArray();
+    const show_handles = Preferences.get().getBool('/tools/mesh/show_handles', true);
+    // Make sure we have at least one patch defined.
+    if (mg.array.patch_rows() === 0 || mg.array.patch_columns() === 0) return;
+    let ihandle = 0;
+    let itensor = 0;
+    for (const row of mg.array.nodes) {
+      for (const j of row) {
+        const type =
+          j.node_type === MeshNodeType.MG_NODE_TYPE_HANDLE
+            ? GrPointType.POINT_MG_HANDLE
+            : j.node_type === MeshNodeType.MG_NODE_TYPE_TENSOR
+              ? GrPointType.POINT_MG_TENSOR
+              : null;
+        // Do nothing for corners, corners are always shown.
+        if (type === null) continue;
+        const i = type === GrPointType.POINT_MG_HANDLE ? ihandle++ : itensor++;
+        const dragger = this.getDraggerFor(item, type, i, fill_or_stroke);
+        // This can happen if a draggable is not visible.
+        if (!dragger) continue;
+        dragger.knot.moveto(getGradientCoords(item, type, i, fill_or_stroke));
+        if (!show_handles || !j.set) dragger.knot.hide();
+        else dragger.knot.show();
+      }
+    }
+  }
+
+  /** Refresh draggers, moving and toggling visibility as necessary. Only applies to mesh gradients. */
+  refreshDraggers(): void {
+    for (const item of this.desktop.getSelection().items()) {
+      for (const fill_or_stroke of allPaintTargets()) {
+        const server =
+          fill_or_stroke === PaintTarget.FOR_FILL
+            ? item.style.getFillPaintServer()
+            : item.style.getStrokePaintServer();
+        if (server instanceof SPMeshGradient) this.refreshDraggersMesh(server, item, fill_or_stroke);
+      }
+    }
+  }
+
   /**
    * Grab the knot of the dragger with this draggable; used by the gradient tool. The tool sends
    * the following motion to grabbedMotion() and the release to grabbedRelease(), so that the drag
@@ -775,6 +1026,10 @@ export class GrDrag {
     for (const item of this.desktop.getSelection().items()) {
       for (const fill_or_stroke of allPaintTargets()) {
         const gradient = getGradient(item, fill_or_stroke);
+        if (gradient instanceof SPMeshGradient) {
+          this.addDraggersMesh(gradient, item, fill_or_stroke);
+          continue;
+        }
         // Suppress "gradientness" of solid paint
         if (!gradient || gradient.isSolid() || gradient.getVector().isSolid()) continue;
         if (gradient instanceof SPLinearGradient) this.addDraggersLinear(gradient, item, fill_or_stroke);
@@ -793,6 +1048,10 @@ export class GrDrag {
     for (const item of this.desktop.getSelection().items()) {
       for (const fill_or_stroke of allPaintTargets()) {
         const gradient = getGradient(item, fill_or_stroke);
+        if (gradient instanceof SPMeshGradient) {
+          this.#addMeshLines(gradient, item, fill_or_stroke);
+          continue;
+        }
         if (!gradient || gradient.isSolid() || gradient.getVector().isSolid()) continue;
         const coords = (type: GrPointType) => getGradientCoords(item, type, 0, fill_or_stroke);
         if (gradient instanceof SPLinearGradient) {
@@ -807,6 +1066,41 @@ export class GrDrag {
           this.addLine(item, center, coords(GrPointType.POINT_RG_R1), fill_or_stroke);
           this.addLine(item, center, coords(GrPointType.POINT_RG_R2), fill_or_stroke);
         }
+      }
+    }
+  }
+
+  /** The sides of the patches of a mesh as curves (upstream: the mesh part of updateLines). */
+  #addMeshLines(mg: SPMeshGradient, item: SPItem, fill_or_stroke: PaintTarget): void {
+    const edit = Preferences.get().getBool(
+      fill_or_stroke === PaintTarget.FOR_FILL ? '/tools/mesh/edit_fill' : '/tools/mesh/edit_stroke',
+      true,
+    );
+    if (!edit) return;
+    mg.ensureArray();
+    const rows = mg.array.patch_rows();
+    const columns = mg.array.patch_columns();
+    const m = mg.gradientTransform.multiply(item.i2dtAffine());
+    for (let i = 0; i < rows; ++i) {
+      for (let j = 0; j < columns; ++j) {
+        const patch = new SPMeshPatchI(mg.array.nodes, i, j);
+        // clockwise around patch, used to find corner dragger
+        const corner0 = i * (columns + 1) + j;
+        const corner1 = corner0 + 1;
+        const corner2 = corner1 + columns + 1;
+        const corner3 = corner2 - 1;
+        const side = (k: number, c0: number, c1: number) => {
+          const h = patch.getPointsForSide(k).map((p) => p.transformed(m)) as [Point, Point, Point, Point];
+          this.addCurve(item, h[0], h[1], h[2], h[3], c0, c1, fill_or_stroke);
+        };
+        // Top line
+        side(0, corner0, corner1);
+        // Right line
+        if (j === columns - 1) side(1, corner1, corner2);
+        // Bottom line
+        if (i === rows - 1) side(2, corner2, corner3);
+        // Left line
+        side(3, corner3, corner0);
       }
     }
   }
@@ -1035,9 +1329,11 @@ function gr_knot_moved_handler(dragger: GrDragger, ppointer: Point, state: Modif
     const diff = p.sub(dragger.point);
     selected_move_nowrite(drag, diff, scale_radial);
   } else {
+    const p_old = dragger.point;
     dragger.point = p;
     dragger.fireDraggables(false, scale_radial);
     dragger.updateDependencies(false);
+    dragger.moveMeshHandles(p_old);
   }
   drag.updateLines();
 }
@@ -1067,10 +1363,12 @@ function selected_move_nowrite(drag: GrDrag, delta: Point, scale_radial: boolean
     ) {
       continue;
     }
+    const p_old = d.point;
     d.point = d.point.add(delta);
     d.point_original = d.point;
     d.knot.moveto(d.point);
     d.fireDraggables(false, scale_radial);
+    d.moveMeshHandles(p_old);
     d.updateDependencies(false);
   }
 }
@@ -1162,6 +1460,7 @@ function gr_knot_ungrabbed_handler(dragger: GrDragger, state: ModifierState): vo
   dragger.point_original = dragger.point;
   const scale_radial = mod_ctrl(state) && mod_shift(state);
   dragger.fireDraggables(true, scale_radial);
+  dragger.moveMeshHandles(dragger.point_original);
   for (const d of drag.selected) if (d !== dragger) d.fireDraggables(true);
   // make this dragger selected
   if (!drag.keep_selection) drag.setSelected(dragger);

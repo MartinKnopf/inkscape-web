@@ -68,6 +68,7 @@ export * from './live_effects/parameter/scalararray.ts';
 export * from './live_effects/parameter/text.ts';
 export * from './live_effects/parameter/togglebutton.ts';
 export * from './live_effects/parameter/unit.ts';
+export * from './manipulation/copy-resource.ts';
 export * from './number-opt-number.ts';
 export * from './object/box3d.ts';
 export * from './object/box3d-side.ts';
@@ -122,6 +123,20 @@ export * from './object/sp-linear-gradient.ts';
 export * from './object/sp-lpe-item.ts';
 export * from './object/sp-marker.ts';
 export * from './object/sp-mask.ts';
+export {
+  MeshCornerOperation,
+  MeshNodeOperation,
+  NodeEdge,
+  NodeType as MeshNodeType,
+  SPMeshGeometry,
+  SPMeshNode,
+  SPMeshNodeArray,
+  SPMeshPatchI,
+  SPMeshType,
+} from './object/sp-mesh-array.ts';
+export * from './object/sp-mesh-gradient.ts';
+export * from './object/sp-mesh-patch.ts';
+export { SPMeshrow } from './object/sp-mesh-row.ts';
 export * from './object/sp-namedview.ts';
 export * from './object/sp-object.ts';
 export * from './object/sp-object-group.ts';
@@ -130,6 +145,7 @@ export * from './object/sp-paint-server.ts';
 export * from './object/sp-paint-server-data.ts';
 export * from './object/sp-paint-server-reference.ts';
 export * from './object/sp-path.ts';
+export * from './object/sp-pattern.ts';
 export * from './object/sp-polygon.ts';
 export * from './object/sp-polyline.ts';
 export * from './object/sp-radial-gradient.ts';

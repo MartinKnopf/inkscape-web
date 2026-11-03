@@ -50,6 +50,7 @@ export class SvgDrawing implements Drawing {
     this.#doc = doc;
     this.#prefix = `drawing${++drawingCount}`;
     this.paintServers = new DrawingPaintServers(doc, `${this.#prefix}-ps`);
+    this.paintServers.drawing = this;
     this.filters = new DrawingFilters(this.paintServers.defs, `${this.#prefix}-filter`);
     this.root = this.#own(new SvgDrawingGroup(doc));
     // The browser loads the images that are no data: URIs (blob:, http:).

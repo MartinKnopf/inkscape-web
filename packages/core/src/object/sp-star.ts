@@ -164,7 +164,7 @@ const PREV = true;
 /**
  * <sodipodi:star> on svg:path (upstream SPStar).
  *
- * TODO: LPE, snap points, turn_upright(), adjust_pattern and adjust_gradient in setTransform().
+ * TODO: LPE, snap points, turn_upright(), adjust_gradient in setTransform().
  */
 export class SPStar extends SPShape {
   sides = 5;
@@ -410,7 +410,9 @@ export class SPStar extends SPShape {
 
     // Adjust stroke width
     this.adjustStroke(s);
-    // TODO: adjust_pattern(xform * ret.inverse()), adjust_gradient(xform * ret.inverse())
+    // Adjust pattern fill
+    this.adjust_pattern(xform.multiply(ret.inverse()));
+    // TODO: adjust_gradient(xform * ret.inverse())
 
     return ret;
   }

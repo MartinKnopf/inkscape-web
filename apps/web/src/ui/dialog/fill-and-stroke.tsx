@@ -5,11 +5,12 @@ import {
   C_,
   type Colors,
   type SPBlendMode,
-  type SPDocument,
+  SPDocument,
   type SPGradient,
   SPGradientSpread,
   SPGradientType,
   SPMarkerLoc,
+  type SPPattern,
   SPRadialGradient,
   SPStrokeCapType,
   SPStrokeJoinType,
@@ -26,6 +27,7 @@ import {
   colorToRgba8,
   DASH_PATTERNS,
   deleteGradientStop,
+  get_stock_pattern,
   gradientStops,
   type Hsva,
   JOIN_NAMES,
@@ -33,7 +35,10 @@ import {
   type MarkerSelectorLoc,
   type PaintInfo,
   PaintMode,
+  type PatternItem,
   parseHexColor,
+  patternItem,
+  patternPreviewSvg,
   QUERY_STYLE_MULTIPLE_AVERAGED,
   queryBlendMode,
   queryBlur,
@@ -54,6 +59,7 @@ import {
   setMarker,
   setOpacity,
   setPaintMode,
+  setPattern,
   setStopColor,
   setStopOffset,
   setStrokeDash,
@@ -61,7 +67,9 @@ import {
   setStrokeMiter,
   setStrokeWidth,
   sliderBackground,
+  sp_get_pattern_list,
 } from '@inkscape-web/editor';
+import { Point } from '@inkscape-web/geom';
 import { useEffect, useId, useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { iconFallback, iconUrl } from '../icon-loader.ts';
@@ -76,7 +84,7 @@ const label = (s: string) => s.replace('_', '');
 /**
  * The Fill and Stroke dialog (dialog key "FillStroke"): the tabs Fill, Stroke paint and Stroke
  * style for the selection, and the opacity.
- * TODO: mesh, pattern and swatch paints, the gradient library, the Advanced tab, paint order,
+ * TODO: swatch paints, hatches, the mesh editor (meshes of the document), the gradient library, the Advanced tab, paint order,
  * hairline strokes, isolation, the marker editing options (size, orient, recolor), icons.
  */
 export function FillAndStrokeDialog() {
@@ -124,12 +132,12 @@ const PAINT_MODES: { mode: PaintMode; name: string; tip: string; implemented: bo
     tip: _('Linear gradient fill'),
     implemented: true,
   },
-  { mode: PaintMode.Mesh, name: C_('Paint type', 'Mesh'), tip: _('Mesh fill'), implemented: false },
+  { mode: PaintMode.Mesh, name: C_('Paint type', 'Mesh'), tip: _('Mesh fill'), implemented: true },
   {
     mode: PaintMode.Pattern,
     name: C_('Paint type', 'Pattern'),
     tip: _('Pattern and hatch fill'),
-    implemented: false,
+    implemented: true,
   },
   { mode: PaintMode.Swatch, name: C_('Paint type', 'Swatch'), tip: _('Swatch color'), implemented: false },
   { mode: PaintMode.Derived, name: C_('Paint type', 'Inherited'), tip: _('Inherited'), implemented: true },
@@ -151,11 +159,12 @@ function PaintPage({ desktop, isFill }: { desktop: SPDesktop; isFill: boolean })
             aria-pressed={info.mode === mode}
             disabled={!implemented}
             title={implemented ? tip : `${tip} (TODO)`}
-            onClick={() =>
-              mode === PaintMode.Solid
-                ? setFlatColor(desktop, info.color, isFill)
-                : setPaintMode(desktop, isFill, mode)
-            }
+            onClick={() => {
+              if (mode === PaintMode.Solid) setFlatColor(desktop, info.color, isFill);
+              else if (mode === PaintMode.Pattern && !sp_get_pattern_list(desktop.getDocument()).length)
+                void applyFirstStockPattern(desktop, isFill);
+              else setPaintMode(desktop, isFill, mode);
+            }}
           >
             {name}
           </button>
@@ -167,6 +176,10 @@ function PaintPage({ desktop, isFill }: { desktop: SPDesktop; isFill: boolean })
       {info.mode === PaintMode.Gradient && info.gradient && (
         <GradientEditor desktop={desktop} isFill={isFill} gradient={info.gradient} />
       )}
+      {info.mode === PaintMode.Pattern && info.pattern && (
+        <PatternEditor desktop={desktop} isFill={isFill} pattern={info.pattern} />
+      )}
+      {info.mode === PaintMode.Mesh && <p className="fillstroke-placeholder">{_('Mesh fill')}</p>}
       {info.mode === PaintMode.None && <p className="fillstroke-placeholder">{_('No paint')}</p>}
       {info.mode === PaintMode.Derived && <p className="fillstroke-placeholder">{_('Inherited')}</p>}
       {isFill && (
@@ -306,6 +319,239 @@ function GradientEditor(props: { desktop: SPDesktop; isFill: boolean; gradient: 
           <ColorEditor color={current.getColor()} onChange={(c) => setStopColor(current, c)} />
         </>
       )}
+    </div>
+  );
+}
+
+// Pattern editor --------------------------------------------------------------------------------
+
+/** A stock pattern file of share/paint (upstream PatternManager::Category). */
+interface StockCategory {
+  name: string;
+  doc: SPDocument;
+  patterns: SPPattern[];
+}
+
+let stockCategories: Promise<StockCategory[]> | null = null;
+
+/** Load the stock pattern files once; files without patterns (hatches) are left out. */
+function loadStockPatterns(): Promise<StockCategory[]> {
+  stockCategories ??= fetch('/share/paint/index.json')
+    .then((r) => r.json() as Promise<string[]>)
+    .then((files) =>
+      Promise.all(
+        files.map(async (file) => {
+          const doc = SPDocument.createNewDocFromMem(await (await fetch(`/share/paint/${file}`)).text());
+          if (!doc) return null;
+          doc.ensureUpToDate();
+          const patterns = sp_get_pattern_list(doc);
+          return patterns.length ? { name: file.replace(/\.svg$/, ''), doc, patterns } : null;
+        }),
+      ),
+    )
+    .then((list) => list.filter((c): c is StockCategory => c !== null))
+    .catch(() => []);
+  return stockCategories;
+}
+
+/** Copy a stock pattern into the document and apply it with its own settings (upstream update_ui on activation). */
+function applyStockPattern(
+  desktop: SPDesktop,
+  isFill: boolean,
+  category: StockCategory,
+  stock: SPPattern,
+): void {
+  const pattern = get_stock_pattern(desktop.getDocument(), category.doc, stock.getId() ?? '');
+  if (pattern) setPattern(desktop, isFill, pattern, patternItem(pattern));
+}
+
+/** The Pattern mode for a document without patterns: the first stock pattern. */
+async function applyFirstStockPattern(desktop: SPDesktop, isFill: boolean): Promise<void> {
+  const first = (await loadStockPatterns())[0];
+  const stock = first?.patterns[0];
+  if (first && stock) applyStockPattern(desktop, isFill, first, stock);
+}
+
+const previewUrl = (pattern: SPPattern) =>
+  `data:image/svg+xml;charset=utf-8,${encodeURIComponent(patternPreviewSvg(pattern, 32, 32))}`;
+
+/** A grid of pattern previews. */
+function PatternGallery(props: {
+  label: string;
+  patterns: SPPattern[];
+  selected: SPPattern | null;
+  onSelect: (p: SPPattern) => void;
+}) {
+  return (
+    <div className="pattern-gallery" role="listbox" aria-label={props.label}>
+      {props.patterns.map((p) => {
+        const name = patternItem(p).label;
+        return (
+          <button
+            key={p.getId()}
+            type="button"
+            role="option"
+            title={name}
+            aria-label={name}
+            aria-selected={p === props.selected}
+            onClick={() => props.onSelect(p)}
+          >
+            <img src={previewUrl(p)} alt="" width={32} height={32} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Editor of the pattern of the selection (upstream PatternEditor): the patterns of the document
+ * and the stock patterns, the name, scale, rotation, offset, gap and color.
+ * TODO: search, show names, tile size, a large preview, hatches (pitch, stroke).
+ */
+function PatternEditor(props: { desktop: SPDesktop; isFill: boolean; pattern: SPPattern }) {
+  const { desktop, isFill, pattern } = props;
+  const item = patternItem(pattern);
+  const root = pattern.rootPattern();
+  const [categories, setCategories] = useState<StockCategory[]>([]);
+  const [category, setCategory] = useState(0);
+  useEffect(() => {
+    void loadStockPatterns().then(setCategories);
+  }, []);
+  const apply = (change: Partial<PatternItem>) =>
+    setPattern(desktop, isFill, pattern, { ...item, ...change });
+  const stock = categories[category];
+  const spin = (
+    label: string,
+    value: number,
+    key: 'scale_x' | 'scale_y' | 'angle',
+    min: number,
+    max: number,
+    suffix?: string,
+  ) => (
+    <SpinButton
+      tooltip=""
+      label={label}
+      value={value}
+      min={min}
+      max={max}
+      step={key === 'angle' ? 1 : 0.1}
+      digits={key === 'angle' ? 0 : 3}
+      {...(suffix ? { suffix } : {})}
+      onChange={(v) =>
+        apply(key !== 'angle' && item.uniform_scale ? { scale_x: v, scale_y: v } : { [key]: v })
+      }
+    />
+  );
+
+  return (
+    <div className="pattern-editor">
+      <PatternGallery
+        label={_('Pattern fill')}
+        patterns={sp_get_pattern_list(desktop.getDocument())}
+        selected={root}
+        onSelect={(p) => setPattern(desktop, isFill, p, patternItem(p))}
+      />
+      <select
+        aria-label={_('All patterns')}
+        value={category}
+        onChange={(e) => setCategory(Number(e.target.value))}
+      >
+        {categories.map((c, i) => (
+          <option key={c.name} value={i}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      {stock && (
+        <PatternGallery
+          label={stock.name}
+          patterns={stock.patterns}
+          selected={null}
+          onSelect={(p) => applyStockPattern(desktop, isFill, stock, p)}
+        />
+      )}
+      <div className="fillstroke-row">
+        <input
+          type="text"
+          placeholder={_('name')}
+          value={item.label}
+          onChange={(e) => apply({ label: e.target.value })}
+        />
+        <input
+          type="color"
+          title={_('Apply color to the current pattern')}
+          value={item.color ? item.color.toString(false).slice(0, 7) : '#000000'}
+          onChange={(e) => {
+            const color = parseHexColor(e.target.value);
+            if (color) apply({ color });
+          }}
+        />
+      </div>
+      <div className="fillstroke-row">
+        <span>{_('Scale')}</span>
+        {spin(C_('Scale X', 'X'), item.scale_x, 'scale_x', 0.001, 1000)}
+        {spin(C_('Scale Y', 'Y'), item.scale_y, 'scale_y', 0.001, 1000)}
+        <button
+          type="button"
+          aria-pressed={item.uniform_scale}
+          onClick={() => apply({ uniform_scale: !item.uniform_scale, scale_x: item.scale_y })}
+        >
+          <Icon name={item.uniform_scale ? 'entries-linked' : 'entries-unlinked'} />
+        </button>
+      </div>
+      <div className="fillstroke-row">
+        <span>{_('Rotation')}</span>
+        {spin('', item.angle, 'angle', -180, 180, _('°'))}
+      </div>
+      <div className="fillstroke-row">
+        <span>{_('Offset')}</span>
+        <SpinButton
+          tooltip=""
+          label={C_('Offset X', 'X')}
+          value={item.offset.x}
+          min={-10000}
+          max={10000}
+          step={1}
+          digits={2}
+          onChange={(x) => apply({ offset: new Point(x, item.offset.y) })}
+        />
+        <SpinButton
+          tooltip=""
+          label={C_('Offset Y', 'Y')}
+          value={item.offset.y}
+          min={-10000}
+          max={10000}
+          step={1}
+          digits={2}
+          onChange={(y) => apply({ offset: new Point(item.offset.x, y) })}
+        />
+      </div>
+      <div className="fillstroke-row">
+        <span>{C_('pattern tile gap', 'Gap')}</span>
+        <SpinButton
+          tooltip=""
+          label={_('X')}
+          value={item.gap.x}
+          min={-99}
+          max={1000}
+          step={1}
+          digits={0}
+          suffix="%"
+          onChange={(x) => apply({ gap: new Point(x, item.gap.y) })}
+        />
+        <SpinButton
+          tooltip=""
+          label={_('Y')}
+          value={item.gap.y}
+          min={-99}
+          max={1000}
+          step={1}
+          digits={0}
+          suffix="%"
+          onChange={(y) => apply({ gap: new Point(item.gap.x, y) })}
+        />
+      </div>
     </div>
   );
 }

@@ -54,7 +54,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi
  *   x = cx + rad * t^exp * cos(2 pi revo t + arg), y = cy + rad * t^exp * sin(2 pi revo t + arg),
  * for t from t0 to 1.
  *
- * TODO: LPE, snap points, adjust_pattern and adjust_gradient in setTransform().
+ * TODO: LPE, snap points, adjust_gradient in setTransform().
  */
 export class SPSpiral extends SPShape {
   cx = 0;
@@ -311,7 +311,9 @@ export class SPSpiral extends SPShape {
 
     // Adjust stroke width
     this.adjustStroke(s);
-    // TODO: adjust_pattern(xform * ret.inverse()), adjust_gradient(xform * ret.inverse())
+    // Adjust pattern fill
+    this.adjust_pattern(xform.multiply(ret.inverse()));
+    // TODO: adjust_gradient(xform * ret.inverse())
 
     return ret;
   }

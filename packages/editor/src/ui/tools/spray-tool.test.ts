@@ -2,7 +2,7 @@
 // Upstream: src/ui/tools/spray-tool.cpp
 // @vitest-environment happy-dom
 import { Preferences, SPPath } from '@inkscape-web/core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { random_position, SprayMode } from './spray-tool.ts';
 import {
   key,
@@ -33,8 +33,21 @@ function setup(mode: SprayMode) {
   return { ...d, layer };
 }
 
-beforeEach(() => mockHitTest());
+/** A seeded generator for Math.random, so that the sprayed positions are the same in each run. */
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) % 4294967296;
+    return s / 4294967296;
+  };
+}
+
+beforeEach(() => {
+  mockHitTest();
+  vi.spyOn(Math, 'random').mockImplementation(seededRandom(42));
+});
 afterEach(() => {
+  vi.restoreAllMocks();
   unmockHitTest();
   for (const p of ['mode', 'population']) Preferences.get().remove(`/tools/spray/${p}`);
 });

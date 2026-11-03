@@ -58,6 +58,18 @@ export const raw_data_edit: readonly (readonly [string, string, string, string])
   ],
   ['app.duplicate', N_('Duplicate'), SECTION, N_('Duplicate Selected Objects')],
   [
+    'app.object-to-pattern',
+    N_('Objects to Pattern'),
+    SECTION,
+    N_('Convert selection to a rectangle with tiled pattern fill'),
+  ],
+  [
+    'app.pattern-to-object',
+    N_('Pattern to Objects'),
+    SECTION,
+    N_('Extract objects from a tiled pattern fill'),
+  ],
+  [
     'app.clone',
     N_('Create Clone'),
     SECTION,
@@ -162,6 +174,8 @@ export function add_actions_edit(app: InkscapeApplication): void {
   add('paste-width-separately', (s) => paste_size(s, true, true, false));
   add('paste-height-separately', (s) => paste_size(s, true, false, true));
   add('duplicate', (s) => s.duplicate());
+  add('object-to-pattern', (s) => s.tile());
+  add('pattern-to-object', (s) => s.untile());
   add('clone', (s) => s.clone());
   add('clone-unlink', (s) => s.unlink());
   add('clone-unlink-recursively', (s) => s.unlinkRecursive(false, true));
