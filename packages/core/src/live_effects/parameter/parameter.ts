@@ -48,7 +48,10 @@ export type ParamWidget =
   | { kind: 'path' }
   | { kind: 'buttons'; buttons: { label: string; onClick: () => void }[] }
   /** A framed text (upstream MessageParam); message may hold Pango markup such as <b>. */
-  | { kind: 'message'; legend: string; message: string };
+  | { kind: 'message'; legend: string; message: string }
+  | { kind: 'text'; value: string }
+  /** A link to an item: link to the copied item, and with select_original, select the linked item. */
+  | { kind: 'satellite'; select_original: boolean };
 
 /** Base class of the parameters of an effect (upstream Inkscape::LivePathEffect::Parameter). */
 export abstract class Parameter {

@@ -3,6 +3,7 @@
 import {
   _,
   type BoolParam,
+  C_,
   type Effect,
   type EnumParam,
   type Parameter,
@@ -10,8 +11,10 @@ import {
   type PathParam,
   type PointParam,
   type RandomParam,
+  type SatelliteParam,
   type ScalarParam,
   type SPLPEItem,
+  type TextParam,
   type ToggleButtonParam,
   type UnitParam,
 } from '@inkscape-web/core';
@@ -29,6 +32,32 @@ const label = (s: string) => s.replace('_', '').replaceAll('&amp;', '&');
 
 function Icon({ name }: { name: string }) {
   return <img className="lpe-icon" src={iconUrl(name)} onError={iconFallback(name)} alt="" />;
+}
+
+/** A text entry with a button that writes the text (upstream TextParam::param_newWidget). */
+function TextRow(props: { text: string; title: string | undefined; param: TextParam; value: string }) {
+  const { text, title, param, value } = props;
+  const [draft, setDraft] = useState<string | null>(null);
+  const write = () => {
+    if (draft !== null) param.param_write_from_widget(draft, C_('Undo', 'Change text parameter'));
+    setDraft(null);
+  };
+  return (
+    <label className="lpe-param" title={title}>
+      <span>{text}</span>
+      <input
+        type="text"
+        value={draft ?? value}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') write();
+        }}
+      />
+      <button type="button" onClick={write}>
+        ✔
+      </button>
+    </label>
+  );
 }
 
 /** The widget of one parameter (upstream param_newWidget). */
@@ -189,6 +218,30 @@ function ParamRow(props: {
           >
             <Icon name="tool-node-editor" />
           </button>
+        </div>
+      );
+    case 'text':
+      return <TextRow text={text} title={title} param={param as TextParam} value={widget.value} />;
+    case 'satellite':
+      return (
+        <div className="lpe-param lpe-path" title={title}>
+          <span>{text}</span>
+          <button
+            type="button"
+            title={widget.select_original ? _('Link to item') : _('Link to item on clipboard')}
+            onClick={() => LPE.satellite_link_from_clipboard(param as SatelliteParam)}
+          >
+            <Icon name={widget.select_original ? 'edit-paste' : 'edit-clone'} />
+          </button>
+          {widget.select_original && (
+            <button
+              type="button"
+              title={_('Select original')}
+              onClick={() => LPE.satellite_select_original(desktop, param as SatelliteParam)}
+            >
+              <Icon name="edit-select-original" />
+            </button>
+          )}
         </div>
       );
     case 'message':
