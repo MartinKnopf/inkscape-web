@@ -72,6 +72,7 @@ export * from './ui/desktop/menubar.ts';
 export * from './ui/dialog/attrdialog.ts';
 export * from './ui/dialog/document-properties.ts';
 export * from './ui/dialog/export.ts';
+export * from './ui/dialog/extensions-gallery.ts';
 export * from './ui/dialog/fill-and-stroke.ts';
 export * from './ui/dialog/global-palettes.ts';
 export * from './ui/dialog/guides.ts';

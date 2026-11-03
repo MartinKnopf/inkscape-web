@@ -7,6 +7,7 @@ import { getDocumentAnchor } from '../../app/documents.ts';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
+import { FilterGalleryDialog } from './extensions-gallery.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
@@ -39,6 +40,7 @@ const DIALOGS: Record<string, DialogData> = {
   DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
+  FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
   LivePathEffect: { label: _('Path E_ffects'), component: LivePathEffectDialog },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
