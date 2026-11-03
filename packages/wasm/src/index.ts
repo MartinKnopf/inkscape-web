@@ -56,6 +56,22 @@ export interface Geom {
   taperStretchAlong(d: string, pattern: string, width: number): string;
   /** live_effects/spiro.cpp spiro_run(): xy is [x0, y0, x1, y1, ...], ty one spiro_cp type per point. */
   spiroRun(xy: readonly number[], ty: string): string;
+  /**
+   * The Power stroke outline of the first path of d (lpe-powerstroke.cpp doEffect_path loop body).
+   * ts is [x0, y0, ...]: the width points of the subpath, x relative to its start, y scaled.
+   */
+  powerstrokePath(
+    d: string,
+    ts: readonly number[],
+    legacy: boolean,
+    sortPoints: boolean,
+    interpolator: number,
+    beta: number,
+    startCap: number,
+    endCap: number,
+    join: number,
+    miterLimit: number,
+  ): string;
   /** helper/geom-pathstroke.cpp half_outline() of the first path of d. join is a LineJoinType. */
   halfOutline(d: string, width: number, miter: number, join: number): string;
   /**
@@ -305,6 +321,8 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     nodesatLenToRad: (a, ci, co) => m.nodesatLenToRad(a, ci, co),
     taperStretchAlong: (d, pattern, width) => m.taperStretchAlong(d, pattern, width),
     spiroRun: (xy, ty) => m.spiroRun(xy, ty),
+    powerstrokePath: (d, ts, legacy, sortPoints, interpolator, beta, startCap, endCap, join, miterLimit) =>
+      m.powerstrokePath(d, ts, legacy, sortPoints, interpolator, beta, startCap, endCap, join, miterLimit),
     halfOutline: (d, width, miter, join) => m.halfOutline(d, width, miter, join),
     envelopePath: (d, [b1, b2, b3, b4], [x0, x1, y0, y1], xx, yy) =>
       m.envelopePath(d, b1, b2, b3, b4, x0, x1, y0, y1, xx, yy),
