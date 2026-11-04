@@ -213,6 +213,7 @@ export * from './transf_mat_3x4.ts';
 export * from './ui/knot/knot-holder-entity.ts';
 export * from './util/enums.ts';
 export * from './util/paper.ts';
+export * from './util/parse-int-range.ts';
 export * from './util/signal.ts';
 export * from './xml/css-selector.ts';
 export * from './xml/document.ts';
