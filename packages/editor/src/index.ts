@@ -129,6 +129,7 @@ export * from './ui/tools/gradient-tool.ts';
 export * from './ui/tools/measure-tool.ts';
 export * from './ui/tools/mesh-tool.ts';
 export * from './ui/tools/node-tool.ts';
+export * from './ui/tools/object-picker-tool.ts';
 export * from './ui/tools/pages-tool.ts';
 export * from './ui/tools/pen-tool.ts';
 export * from './ui/tools/pencil-tool.ts';

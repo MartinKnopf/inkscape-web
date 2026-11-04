@@ -20,6 +20,7 @@ import { GradientTool } from './tools/gradient-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
 import { MeshTool } from './tools/mesh-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
+import { ObjectPickerTool } from './tools/object-picker-tool.ts';
 import { PagesTool } from './tools/pages-tool.ts';
 import { PenTool } from './tools/pen-tool.ts';
 import { PencilTool } from './tools/pencil-tool.ts';
@@ -51,6 +52,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/connector': ConnectorTool,
   '/tools/measure': MeasureTool,
   '/tools/pages': PagesTool,
+  '/tools/picker': ObjectPickerTool,
   '/tools/zoom': ZoomTool,
   '/tools/select': SelectTool,
   '/tools/shapes/spiral': SpiralTool,
