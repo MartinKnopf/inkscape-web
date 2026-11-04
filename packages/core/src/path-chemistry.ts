@@ -19,7 +19,7 @@ import { C_ } from './i18n.ts';
 import type { ObjectSet } from './object/object-set.ts';
 import { SPItem } from './object/sp-item.ts';
 import { SPGroup } from './object/sp-item-group.ts';
-import { SPLPEItem } from './object/sp-lpe-item.ts';
+import { SPLPEItem, sp_lpe_item_update_patheffect } from './object/sp-lpe-item.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { SPPath } from './object/sp-path.ts';
 import { SPShape } from './object/sp-shape.ts';
@@ -407,4 +407,24 @@ export function copy_object_properties(dest: Node, src: Node): void {
       continue;
     dest.appendChild(child.duplicate(doc));
   }
+}
+
+/** Reverse the direction of the selected paths (upstream ObjectSet::pathReverse), with the undo step "Reverse path". */
+export function pathReverse(set: ObjectSet): void {
+  // TODO: flash "Select <b>path(s)</b> to reverse." and "<b>No paths</b> to reverse in the selection."
+  let did = false;
+  for (const item of set.items()) {
+    if (!(item instanceof SPPath)) continue;
+    const curve = item.curveForEdit();
+    if (!curve) continue;
+    did = true;
+    const str = sp_svg_write_path(PathVector.reversed(curve));
+    item.setAttribute(item.hasPathEffect() ? 'inkscape:original-d' : 'd', str);
+    // reverse nodetypes order (Bug #179866)
+    const nodetypes = item.getRepr().attribute('sodipodi:nodetypes');
+    if (nodetypes) item.setAttribute('sodipodi:nodetypes', [...nodetypes].reverse().join(''));
+    sp_lpe_item_update_patheffect(item, false, false);
+  }
+  const document = set.document();
+  if (did && document) DocumentUndo.done(document, C_('Undo', 'Reverse path'), 'path-reverse');
 }
