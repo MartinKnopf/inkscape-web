@@ -14,3 +14,15 @@ Because GSL is GPL-3.0-or-later, the built module is covered by the GNU GPL
 version 3 or later. `build.sh` copies the license files of all components into
 `dist/licenses/`. Boost is used as headers only; the Boost Software License
 does not require a notice in compiled code.
+
+# Third-party code in cairo-module.wasm
+
+Loaded only for PDF, PS and EPS export.
+
+| Component | Source | License |
+|---|---|---|
+| cairo 1.18.6 | cairographics.org | LGPL-2.1-only OR MPL-1.1 |
+| pixman 0.46.4 | cairographics.org | MIT |
+| FreeType, libpng, zlib | Emscripten ports | FTL or GPL-2.0, libpng, Zlib |
+
+`build.sh` copies the cairo and pixman license files into `dist/licenses/`.
