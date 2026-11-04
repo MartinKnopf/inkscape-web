@@ -164,16 +164,6 @@ export async function sp_file_open_recent(id: string): Promise<SPDocument | null
 }
 
 /**
- * win.document-save-copy (upstream sp_file_save_a_copy): save a copy of the document as Inkscape
- * SVG under a name the user picks; the document keeps its file and its modified state.
- */
-export function sp_file_save_a_copy(doc: SPDocument): Promise<boolean> {
-  const name = doc.documentName ?? 'drawing';
-  const blob = new Blob([saveBuf(doc.rdoc, SVG_NS_URI)], { type: 'image/svg+xml' });
-  return sp_file_save_blob(blob, name.endsWith('.svg') ? name : `${name}.svg`);
-}
-
-/**
  * win.document-revert (upstream sp_file_revert_dialog): read the file of the document again.
  * Returns null if the document has no file or it cannot be read.
  */

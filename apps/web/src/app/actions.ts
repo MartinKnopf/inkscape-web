@@ -42,12 +42,6 @@ const raw_data_app: readonly (readonly [string, string, string, string])[] = [
     SECTION_WINDOW_FILE,
     N_('Revert to the last saved version of document (changes will be lost)'),
   ],
-  [
-    'win.document-save-copy',
-    N_('Save a Copy'),
-    SECTION_WINDOW_FILE,
-    N_('Save a copy of the document under a new name'),
-  ],
   ['win.document-print', N_('Print'), SECTION_WINDOW_FILE, N_('Print document')],
   [
     'win.document-cleanup',
@@ -327,10 +321,6 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   });
 
   // actions-file-gui.cpp, actions-view-window.cpp
-  win.add_action(
-    'document-save-copy',
-    withDesktop((dt) => sp_file_save_a_copy(dt.doc)),
-  );
   win.add_action(
     'document-print',
     withDesktop((dt) => sp_print_document(dt.doc)),

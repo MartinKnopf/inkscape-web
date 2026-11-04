@@ -70,7 +70,7 @@ function MessagesTab() {
   useEffect(() => end.current?.scrollIntoView?.({ block: 'end' }), [log.lines.length]);
   return (
     <div className="debug-messages">
-      <pre className="debug-log" aria-label={_('Messages')}>
+      <pre className="debug-log" role="log" aria-label={_('Messages')}>
         {log.lines.join('\n')}
         <div ref={end} />
       </pre>
