@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/dialog/export-single.cpp, src/ui/dialog/export.cpp
 // @vitest-environment happy-dom
-import { DocumentUndo, SPDocument } from '@inkscape-web/core';
+import { DocumentUndo, SPDocument, type SPItem, setCairoBackendLoader } from '@inkscape-web/core';
 import { Point, Rect } from '@inkscape-web/geom';
-import { describe, expect, it } from 'vitest';
+import { loadCairo } from '@inkscape-web/wasm/cairo';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { pdfMediaBoxes, pdfText } from '../../../../core/src/extension/internal/pdf-test-utils.ts';
 import { SPDesktop } from '../../desktop.ts';
+import { db } from '../../extension/db.ts';
+import { CairoRendererPdfOutput } from '../../extension/internal/cairo-renderer-pdf-out.ts';
+import type { Output } from '../../extension/output.ts';
 import { render_svg_source } from '../../helper/png-write.ts';
 import { Canvas } from '../widget/canvas.ts';
 import {
@@ -16,6 +21,7 @@ import {
   export_bitmap_size,
   export_filename,
   export_hint_target,
+  export_vector_area,
   get_export_bg_color,
   get_export_hints,
   page_exports,
@@ -160,5 +166,42 @@ describe('render_svg_source', () => {
     const parsed = new DOMParser().parseFromString(only, 'image/svg+xml');
     expect(parsed.getElementById('a')?.getAttribute('style') ?? '').not.toContain('display:none');
     expect(parsed.getElementById('b')?.getAttribute('style')).toContain('display:none');
+  });
+});
+
+describe('vector export', () => {
+  beforeAll(() => {
+    const wasm = `${import.meta.dirname}/../../../../wasm/dist/cairo-module.wasm`;
+    setCairoBackendLoader(() => loadCairo({ locateFile: () => wasm }));
+    CairoRendererPdfOutput.init();
+  });
+
+  const setup = () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300">' +
+        '<defs><view viewBox="0 0 400 300"/><view id="p2" viewBox="410 0 100 50"/></defs>' +
+        '<rect id="r1" x="10" y="10" width="20" height="20" style="fill:#ff0000"/>' +
+        '<rect id="r2" x="420" y="10" width="20" height="20" style="fill:#0000ff"/></svg>',
+    );
+    if (!doc) throw new Error('parse failed');
+    return { doc, dt: new SPDesktop(new Canvas(document.createElement('div')), doc) };
+  };
+  const pdf = () => db.get('org.inkscape.output.pdf.cairorenderer') as Output;
+
+  it('exports the chosen page as the one page of the PDF', async () => {
+    const { doc, dt } = setup();
+    const page = doc.getPageManager().getPage(1)!;
+    const data = await export_vector_area(pdf(), dt, g(), [], [page]);
+    expect(pdfMediaBoxes(data!)).toEqual([[0, 0, 75, 37.5]]); // 100 x 50 px (the page became the document)
+    expect(pdfText(data!)).toContain('0 0 1 rg');
+    expect(doc.getPageManager().getPageCount()).toBe(2); // the document is not changed
+  });
+
+  it('exports an area as one page, only the selected objects', async () => {
+    const { doc, dt } = setup();
+    const r2 = doc.getObjectById('r2') as SPItem;
+    const data = await export_vector_area(pdf(), dt, g({ x0: 0, y0: 0, x1: 200, y1: 100 }), [r2], null);
+    expect(pdfMediaBoxes(data!)).toEqual([[0, 0, 150, 75]]);
+    expect(pdfText(data!)).not.toContain('1 0 0 rg');
   });
 });
