@@ -662,7 +662,7 @@ export enum GeomNodeType {
  * (the first control point that differs from the end, as upstream's derivatives give it),
  * numeric for other curve types.
  */
-function unitTangentAt(c: Curve, t: 0 | 1): Point {
+export function unitTangentAt(c: Curve, t: 0 | 1): Point {
   if (c instanceof BezierCurve) {
     const pts = t === 0 ? c.controlPoints() : [...c.controlPoints()].reverse();
     const p0 = pts[0] as Point;

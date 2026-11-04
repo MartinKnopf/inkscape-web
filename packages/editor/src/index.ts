@@ -126,6 +126,7 @@ export * from './ui/tools/dynamic-base.ts';
 export * from './ui/tools/eraser-tool.ts';
 export * from './ui/tools/flood-tool.ts';
 export * from './ui/tools/gradient-tool.ts';
+export * from './ui/tools/marker-tool.ts';
 export * from './ui/tools/measure-tool.ts';
 export * from './ui/tools/mesh-tool.ts';
 export * from './ui/tools/node-tool.ts';

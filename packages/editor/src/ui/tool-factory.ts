@@ -17,6 +17,7 @@ import { DropperTool } from './tools/dropper-tool.ts';
 import { EraserTool } from './tools/eraser-tool.ts';
 import { FloodTool } from './tools/flood-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
+import { MarkerTool } from './tools/marker-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
 import { MeshTool } from './tools/mesh-tool.ts';
 import { NodeTool } from './tools/node-tool.ts';
@@ -50,6 +51,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/mesh': MeshTool,
   '/tools/dropper': DropperTool,
   '/tools/connector': ConnectorTool,
+  '/tools/marker': MarkerTool,
   '/tools/measure': MeasureTool,
   '/tools/pages': PagesTool,
   '/tools/picker': ObjectPickerTool,
