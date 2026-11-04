@@ -17,17 +17,22 @@ import { PathVector } from '@inkscape-web/geom';
 import { DocumentUndo } from './document-undo.ts';
 import { C_ } from './i18n.ts';
 import type { ObjectSet } from './object/object-set.ts';
+import { SPFlowtext } from './object/sp-flowtext.ts';
 import { SPItem } from './object/sp-item.ts';
 import { SPGroup } from './object/sp-item-group.ts';
 import { SPLPEItem, sp_lpe_item_update_patheffect } from './object/sp-lpe-item.ts';
 import type { SPObject } from './object/sp-object.ts';
 import { SPPath } from './object/sp-path.ts';
 import { SPShape } from './object/sp-shape.ts';
+import { SPString } from './object/sp-string.ts';
+import { SPText } from './object/sp-text.ts';
 import { FillRule, pathBoolopBackend } from './path/path-boolop.ts';
 import { pathvector_append } from './path/path-curve.ts';
+import { SPStyle } from './style.ts';
 import { SPWindRule } from './style-enums.ts';
 import { sp_svg_transform_write } from './svg/svg-affine.ts';
 import { sp_svg_read_pathv, sp_svg_write_path } from './svg/svg-path.ts';
+import { sp_te_get_string_multiline, te_get_layout } from './text-editing.ts';
 import type { Node } from './xml/node.ts';
 import { sp_repr_compare_position } from './xml/repr-sorting.ts';
 
@@ -233,8 +238,7 @@ function to_livarot(fill_rule: SPWindRule): FillRule {
  * Convert the items of set to paths, with the undo step "Object to path"
  * unless skip_undo (upstream ObjectSet::toCurves). The converted items take
  * the place of the originals in the set.
- * TODO: unlink clones (unlinkRecursive), text, 3D boxes,
- * the messages in the status bar.
+ * TODO: unlink clones (unlinkRecursive), 3D boxes, the messages in the status bar.
  */
 export function toCurves(set: ObjectSet, skip_undo = false): void {
   if (set.isEmpty()) {
@@ -340,8 +344,81 @@ export function sp_item_list_to_curves(
   return did;
 }
 
-/** A new svg:path repr with the geometry, style and properties of item, or null. TODO: text. */
+/**
+ * The glyph outlines of a text: one svg:path per style source, grouped if
+ * there is more than one (upstream sp_text_to_curve_repr).
+ * TODO: SVG glyphs of color fonts (convertToSVG).
+ */
+export function sp_text_to_curve_repr(item: SPItem): Node | null {
+  const xml_doc = item.getRepr().document();
+  // Special treatment for text: convert each glyph to separate path, then group the paths
+  const layout = te_get_layout(item);
+  if (!layout) return null;
+
+  // Save original text for accessibility.
+  const original_text = sp_te_get_string_multiline(item, layout.begin(), layout.end());
+
+  let prev_parent: SPObject | null = null;
+  const curves: [PathVector, SPStyle][] = [];
+  const iter = layout.begin();
+  while (!iter.equals(layout.end())) {
+    const iter_next = iter.copy();
+    iter_next.nextGlyph(); // iter_next is one glyph ahead from iter
+    if (iter.equals(iter_next)) break;
+
+    /* This glyph's style */
+    let pos_obj = layout.getSourceOfCharacter(iter).source;
+    if (!pos_obj) break; // no source for glyph, abort
+    while (pos_obj instanceof SPString && pos_obj.parent) pos_obj = pos_obj.parent; // SPStrings don't have style
+
+    // get path from iter to iter_next:
+    const curve = layout.convertToCurves(iter, iter_next);
+    iter._char_index = iter_next._char_index; // shift to next glyph
+    iter._glyph_index = iter_next._glyph_index;
+    if (!curve.length) continue; // whitespace glyph?
+
+    // Create a new path for each span to group glyphs into
+    // which preserves styles such as paint-order
+    if (!prev_parent || prev_parent !== pos_obj) {
+      // Record the style for the dying tspan tree (see sp_style_merge_from_dying_parent in style.cpp)
+      const style = new SPStyle(item.document);
+      style.merge(pos_obj.style);
+      for (let sp = pos_obj.parent; sp && sp !== item; sp = sp.parent) style.merge(sp.style);
+      curves.push([curve, style]);
+    } else {
+      curves.at(-1)![0].push(...curve);
+    }
+    prev_parent = pos_obj;
+  }
+  if (!curves.length) return null;
+
+  let result = xml_doc.createElement('svg:g');
+  const result_style = new SPStyle(item.document);
+  for (const [pathv, style] of curves) {
+    const glyph_style = style.writeIfDiff(item.style);
+    const new_path = xml_doc.createElement('svg:path');
+    new_path.setAttributeOrRemoveIfEmpty('style', glyph_style);
+    new_path.setAttribute('d', sp_svg_write_path(pathv));
+    if (curves.length === 1) {
+      result = new_path;
+      result_style.merge(style);
+    } else {
+      result.appendChild(new_path);
+    }
+  }
+  result_style.merge(item.style);
+  const css = result_style.writeIfDiff(item.parent ? item.parent.style : null);
+
+  copy_object_properties(result, item.getRepr());
+  result.setAttributeOrRemoveIfEmpty('style', css);
+  result.setAttributeOrRemoveIfEmpty('transform', item.getRepr().attribute('transform'));
+  if (original_text) result.setAttribute('aria-label', original_text);
+  return result;
+}
+
+/** A new svg:path repr with the geometry, style and properties of item, or null. */
 export function sp_selected_item_to_curved_repr(item: SPItem): Node | null {
+  if (item instanceof SPText || item instanceof SPFlowtext) return sp_text_to_curve_repr(item);
   const xml_doc = item.getRepr().document();
   const curve = item instanceof SPShape ? item.curve() : null;
   // Prevent empty paths from being added to the document

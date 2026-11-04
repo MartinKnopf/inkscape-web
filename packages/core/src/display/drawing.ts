@@ -7,6 +7,7 @@
  * Copyright (C) 2011 Authors
  */
 import type { Affine, OptRect, PathVector, Point, Rect } from '@inkscape-web/geom';
+import type { FontInstance } from '../libnrtype/font-instance.ts';
 import type { SPFilter } from '../object/sp-filter.ts';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
@@ -82,12 +83,24 @@ export interface DrawingImage extends DrawingItem {
 }
 
 /**
- * The glyphs of a text span (upstream DrawingText). The style gives the font
- * and the paint. Upstream adds glyph ids of a font with a transform; here a
- * component is the text of a cluster with its position, because the browser
- * draws the glyphs (see Layout.show()).
+ * The glyphs of a text span (upstream DrawingText). The style gives the
+ * paint; each component is a glyph of a font with its transform (font size,
+ * rotation and position, y down), as Layout.show() adds them.
  */
 export interface DrawingText extends DrawingItem {
-  /** Add a cluster at (x, y) on the baseline, rotated by rotation (radians) around that point; width is its advance. */
-  addComponent(text: string, x: number, y: number, rotation: number, width: number): boolean;
+  /**
+   * Add a glyph: trans maps the glyph outline (em units, y up) to the text
+   * coordinates; width is its advance, ascent and descent the line box (for
+   * decorations), phase_length the distance from the start of the line (for
+   * the dash phase of decorations).
+   */
+  addComponent(
+    font: FontInstance,
+    glyph: number,
+    trans: Affine,
+    width: number,
+    ascent: number,
+    descent: number,
+    phase_length: number,
+  ): boolean;
 }

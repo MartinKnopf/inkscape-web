@@ -305,10 +305,89 @@ export interface Trace {
   floodPathData(d: string, offset: number): string;
 }
 
-export async function loadGeom(options?: { locateFile: (path: string) => string }): Promise<Geom & Trace> {
+/** An affine matrix as Geom::Affine stores it (the geom package's Affine has these fields). */
+export interface AffineLike {
+  readonly c0: number;
+  readonly c1: number;
+  readonly c2: number;
+  readonly c3: number;
+  readonly c4: number;
+  readonly c5: number;
+}
+
+/** A livarot Shape: a wrap shape of flowed text. delete() frees it. */
+export interface TextShapeHandle {
+  hasEdges(): boolean;
+  /** [left, top, right, bottom] */
+  bbox(): number[];
+  delete(): void;
+}
+
+/** The upstream ShapeScanlineMaker on a TextShapeHandle. delete() frees it. */
+export interface TextScanlineMakerHandle {
+  makeScanline(ascent: number, descent: number): number[];
+  completeLine(): void;
+  yCoordinate(): number;
+  setNewYCoordinate(y: number): void;
+  canExtendCurrentScanline(ascent: number, descent: number): boolean;
+  setLineHeight(ascent: number, descent: number): void;
+  delete(): void;
+}
+
+/** The livarot Path of a textPath. delete() frees it. */
+export interface TextPathHandle {
+  empty(): boolean;
+  closed(): boolean;
+  length(): number;
+  position(offset: number): number[];
+  lastPiece(): number;
+  pointAndTangentAt(piece: number, t: number): number[];
+  pointAt(piece: number, t: number): number[];
+  onSameSubpath(start_piece: number, end_piece: number): boolean;
+  nearestLength(x: number, y: number): number;
+  delete(): void;
+}
+
+/**
+ * The livarot part of text layout (bindings/text-layout.cpp): wrap shapes,
+ * the scanline maker and the textPath path. Structurally the core TextLayoutBackend.
+ */
+export interface TextLayout {
+  inclusionShape(d: string, transform: AffineLike, padding: number): TextShapeHandle;
+  exclusionShape(d: string, transform: AffineLike, margin: number): TextShapeHandle;
+  regionShape(d: string, transform: AffineLike, evenodd: boolean): TextShapeHandle;
+  rectShape(x0: number, y0: number, x1: number, y1: number): TextShapeHandle;
+  booleen(a: TextShapeHandle, b: TextShapeHandle, op: number): TextShapeHandle;
+  copyShape(a: TextShapeHandle): TextShapeHandle;
+  scanlineMaker(shape: TextShapeHandle, block_progression: number): TextScanlineMakerHandle;
+  textPath(d: string, transform: AffineLike): TextPathHandle;
+}
+
+const affineArray = (a: AffineLike) => [a.c0, a.c1, a.c2, a.c3, a.c4, a.c5];
+
+export async function loadGeom(options?: {
+  locateFile: (path: string) => string;
+}): Promise<Geom & Trace & TextLayout> {
   module ??= createModule(options);
   const m = await module;
   return {
+    inclusionShape: (d, t, padding) => m.TextShape.inclusion(d, affineArray(t), padding)!,
+    exclusionShape: (d, t, margin) => m.TextShape.exclusion(d, affineArray(t), margin)!,
+    regionShape: (d, t, evenodd) => m.TextShape.region(d, affineArray(t), evenodd)!,
+    rectShape: (x0, y0, x1, y1) => m.TextShape.rect(x0, y0, x1, y1)!,
+    booleen: (a, b, op) =>
+      m.TextShape.booleen(
+        a as Parameters<typeof m.TextShape.booleen>[0],
+        b as Parameters<typeof m.TextShape.booleen>[1],
+        op,
+      )!,
+    copyShape: (a) => m.TextShape.copy(a as Parameters<typeof m.TextShape.copy>[0])!,
+    scanlineMaker: (shape, block_progression) =>
+      new m.TextScanlineMaker(
+        shape as Parameters<typeof m.TextShape.booleen>[0],
+        block_progression,
+      ) as TextScanlineMakerHandle,
+    textPath: (d, t) => new m.TextPathPath(d, affineArray(t)) as TextPathHandle,
     potraceTrace: (bits, width, height, p) =>
       m.potraceTrace(bits, width, height, p.turdsize, p.alphamax, p.opticurve ? 1 : 0, p.opttolerance) as
         | PotracePath[]
@@ -440,3 +519,5 @@ export async function loadGeom(options?: { locateFile: (path: string) => string 
     },
   };
 }
+
+export * from './text.ts';

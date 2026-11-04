@@ -27,6 +27,32 @@ export interface AvoidRouter extends ClassHandle {
   route(_0: number, _1: number): any;
 }
 
+export interface TextShape extends ClassHandle {
+  hasEdges(): boolean;
+  bbox(): any;
+}
+
+export interface TextScanlineMaker extends ClassHandle {
+  makeScanline(_0: number, _1: number): any;
+  completeLine(): void;
+  yCoordinate(): number;
+  setNewYCoordinate(_0: number): void;
+  canExtendCurrentScanline(_0: number, _1: number): boolean;
+  setLineHeight(_0: number, _1: number): void;
+}
+
+export interface TextPathPath extends ClassHandle {
+  empty(): boolean;
+  closed(): boolean;
+  length(): number;
+  position(_0: number): any;
+  lastPiece(): number;
+  pointAndTangentAt(_0: number, _1: number): any;
+  pointAt(_0: number, _1: number): any;
+  onSameSubpath(_0: number, _1: number): boolean;
+  nearestLength(_0: number, _1: number): number;
+}
+
 interface EmbindModule {
   boolop(_0: EmbindString, _1: EmbindString, _2: number, _3: number, _4: number): string;
   cutPath(_0: EmbindString, _1: EmbindString): any;
@@ -69,6 +95,20 @@ interface EmbindModule {
   grayMapCanny(_0: any, _1: number, _2: number, _3: number, _4: number): any;
   quantizeBand(_0: any, _1: number, _2: number, _3: number): any;
   floodPathData(_0: EmbindString, _1: number): string;
+  TextShape: {
+    booleen(_0: TextShape, _1: TextShape, _2: number): TextShape | null;
+    copy(_0: TextShape): TextShape | null;
+    inclusion(_0: EmbindString, _1: any, _2: number): TextShape | null;
+    exclusion(_0: EmbindString, _1: any, _2: number): TextShape | null;
+    region(_0: EmbindString, _1: any, _2: boolean): TextShape | null;
+    rect(_0: number, _1: number, _2: number, _3: number): TextShape | null;
+  };
+  TextScanlineMaker: {
+    new(_0: TextShape, _1: number): TextScanlineMaker;
+  };
+  TextPathPath: {
+    new(_0: EmbindString, _1: any): TextPathPath;
+  };
 }
 
 export type MainModule = WasmModule & EmbindModule;

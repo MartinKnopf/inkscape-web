@@ -80,7 +80,6 @@ inkscape-web/
 │  ├─ wasm/        Emscripten builds of upstream lib2geom, livarot, path ops,
 │  │               potrace, HarfBuzz (+ typed TS wrappers). Built from the
 │  │               upstream checkout at the commit in upstream/sync.json.
-│  ├─ text/        Port of libnrtype (Layout-TNG): text and flowed-text layout.
 │  └─ assets/      Build step: pulls icons, keys, palettes, markers, po, ...
 │                  from the upstream checkout.
 ├─ apps/
@@ -131,18 +130,18 @@ Dependency direction: `geom ← core ← editor ← web`. `wasm` is used by `cor
 7. **Parity completion.** Close the remaining gaps from the inventory until
    only `SKIPPED.md` items are left.
 
-Separate track from phase 1: **text layout engine** (`packages/text`).
-
-Until that port exists, text uses an interim layout in the core:
-`Layout` (`libnrtype/Layout-TNG.ts`) has the upstream interface (input,
-iterators, cursor and selection shapes, bounds), but its `calculateFlow()`
-(`Layout-TNG-Compute.ts`) is a simple line layout. It places one glyph per
-code point, measured by an injected `TextMeasurer` (Canvas 2D in the
-browser, fixed width in tests), and breaks lines only at line tspans,
-preserved newlines and frame widths. There is no shaping, bidi or vertical
-text. The editor draws each span as `svg:text` with the layout's positions.
-The HarfBuzz port replaces `calculateFlow()` and the measurer; the objects,
-the tool and the dialogs keep using the `Layout` interface.
+Text layout engine (done 2026-11-04): `libnrtype/Layout-TNG*` in the core is a
+port of upstream Layout-TNG (compute, input, output, iterators). What upstream
+gets from Pango, FreeType and fontconfig comes from the text module
+(`text-module.wasm`: HarfBuzz for shaping, metrics and glyph outlines, FriBidi
+for bidi, libunibreak for line, word and grapheme breaks; `libnrtype/pango.ts`
+calls it like Pango). `FontFactory` matches CSS font descriptions to the
+registered faces: the bundled DejaVu fonts, system fonts (Local Font Access
+API) and font files; faces load on demand and text is laid out again when they
+arrive. The livarot part (wrap shapes of flowed text, the scanline maker and
+the path of `textPath`) is in the geom module. The editor draws the glyph
+outlines from the layout as `svg:path`. Without the text module (core tests),
+every character is a glyph of half an em.
 
 ## 6. Decisions
 

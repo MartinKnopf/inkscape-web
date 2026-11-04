@@ -14,6 +14,9 @@
  * Copyright (C) 2013 Tavmjong Bah
  */
 import {
+  FontFactory,
+  PangoStyle,
+  pango_font_description_from_string,
   Signal,
   type SPCSSAttr,
   SPCSSFontStyle,
@@ -83,14 +86,17 @@ function stretchName(css: string): string {
 interface LocalFontData {
   family: string;
   style: string;
+  blob(): Promise<Blob>;
 }
 
 /**
  * The font families and styles for the text toolbar and the Text and Font
  * dialog (upstream FontLister): the families used in the document first,
- * then the web fonts and, after loadLocalFonts(), the fonts of the system.
+ * then the faces of the FontFactory (bundled fonts, font files), the web
+ * fonts and, after loadLocalFonts(), the fonts of the system, which are
+ * registered in the FontFactory for text layout.
  * Styles are Pango style strings ("Bold Italic") as upstream.
- * TODO: font collections, the font list from fontconfig, variable fonts.
+ * TODO: font collections, variable font named instances.
  */
 export class FontLister {
   static #instance: FontLister | null = null;
@@ -107,10 +113,17 @@ export class FontLister {
   readonly #local_styles = new Map<string, string[]>();
   #local_loaded = false;
 
+  constructor() {
+    FontFactory.get().changedSignal.connect(() => this.changedSignal.emit());
+  }
+
   /** The families: those of the document, then the system ones. */
   families(): string[] {
     const doc = new Set(this.#document_families);
-    return [...this.#document_families, ...this.#system_families.filter((f) => !doc.has(f))];
+    const system = [...new Set([...this.#system_families, ...FontFactory.get().GetUIFamilies()])].sort(
+      (a, b) => a.localeCompare(b),
+    );
+    return [...this.#document_families, ...system.filter((f) => !doc.has(f))];
   }
 
   /** The number of document families at the start of families(). */
@@ -120,6 +133,8 @@ export class FontLister {
 
   /** The styles of family (the local font faces if known, else the default styles). */
   styles(family: string): string[] {
+    const faces = FontFactory.get().GetUIStyles(family);
+    if (faces.length) return [...new Set(faces.map((s) => s.css_name))];
     return this.#local_styles.get(family) ?? DEFAULT_STYLES;
   }
 
@@ -152,11 +167,22 @@ export class FontLister {
     if (!query) return false;
     try {
       const fonts = await query();
+      const factory = FontFactory.get();
       for (const f of fonts) {
         const styles = this.#local_styles.get(f.family) ?? [];
         const style = f.style === 'Regular' ? 'Normal' : f.style;
         if (!styles.includes(style)) styles.push(style);
         this.#local_styles.set(f.family, styles);
+        // The face for text layout: its data is read when a text uses it.
+        const descr = pango_font_description_from_string(style);
+        factory.addFontSource({
+          family: f.family,
+          style: descr.style,
+          weight: descr.weight,
+          stretch: descr.stretch,
+          display_name: f.style,
+          load: async () => new Uint8Array(await (await f.blob()).arrayBuffer()),
+        });
       }
       const families = new Set([...WEB_FONTS, ...this.#local_styles.keys()]);
       this.#system_families = [...families].sort((a, b) => a.localeCompare(b));
@@ -166,6 +192,37 @@ export class FontLister {
     } catch {
       return false; // not allowed
     }
+  }
+
+  /**
+   * Add the faces of a font file to the FontFactory (for text layout) and to
+   * document.fonts (FontFace API, for the font list and the preview).
+   * Returns the families of the file.
+   */
+  async addFontFile(bytes: Uint8Array): Promise<string[]> {
+    const factory = FontFactory.get();
+    const families = factory.addFontFile(bytes);
+    const fonts = (globalThis as { document?: Document }).document?.fonts;
+    if (fonts) {
+      for (const family of families) {
+        for (const style of factory.GetUIStyles(family)) {
+          const d = pango_font_description_from_string(style.css_name);
+          const face = new FontFace(family, bytes.slice().buffer, {
+            weight: String(d.weight),
+            style:
+              d.style === PangoStyle.PANGO_STYLE_ITALIC
+                ? 'italic'
+                : d.style === PangoStyle.PANGO_STYLE_OBLIQUE
+                  ? 'oblique'
+                  : 'normal',
+          });
+          fonts.add(face);
+          void face.load().catch(() => {});
+        }
+      }
+    }
+    this.changedSignal.emit();
+    return families;
   }
 
   /**

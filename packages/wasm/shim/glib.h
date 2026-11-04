@@ -10,6 +10,7 @@ typedef unsigned int guint;
 typedef double gdouble;
 typedef int gboolean;
 typedef char gchar;
+typedef unsigned int gunichar;
 #define g_malloc(n) std::malloc(n)
 #define g_realloc(p, n) std::realloc(p, n)
 #define g_free(p) std::free(p)

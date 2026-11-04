@@ -7,7 +7,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 24 | 26 | 92 |
 | Dialogs | 25 | 29 | 86 |
-| Actions | 265 | 409 | 65 |
+| Actions | 274 | 409 | 67 |
 | Live path effects | 23 | 56 | 41 |
 | Internal import/export modules | 6 | 35 | 17 |
 | Python extensions | 154 | 160 | 96 |
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (265/409)</summary>
+<details><summary>Actions (274/409)</summary>
 
 - [x] `app.about`
 - [x] `app.action-list`
@@ -244,15 +244,15 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.selection-unlock-below`
 - [ ] `app.swap-fill-and-stroke`
 - [x] `app.system-data-directory`
-- [ ] `app.text-convert-to-glyphs`
-- [ ] `app.text-convert-to-regular`
-- [ ] `app.text-flow-into-frame`
-- [ ] `app.text-flow-subtract-frame`
-- [ ] `app.text-put-on-path`
-- [ ] `app.text-remove-from-path`
-- [ ] `app.text-select-by-font`
-- [ ] `app.text-unflow`
-- [ ] `app.text-unflow-and-keep-shape`
+- [x] `app.text-convert-to-glyphs`
+- [x] `app.text-convert-to-regular`
+- [x] `app.text-flow-into-frame`
+- [x] `app.text-flow-subtract-frame`
+- [x] `app.text-put-on-path`
+- [x] `app.text-remove-from-path`
+- [x] `app.text-select-by-font`
+- [x] `app.text-unflow`
+- [x] `app.text-unflow-and-keep-shape`
 - [x] `app.text-unkern`
 - [x] `app.transform-grow`
 - [ ] `app.transform-grow-screen`

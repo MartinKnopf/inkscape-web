@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Build upstream lib2geom + livarot + path operations + libavoid + potrace and the trace filters to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/live_effects/lpe-dashed-stroke.cpp, src/live_effects/lpe-jointype.cpp, src/live_effects/lpe-sketch.cpp, src/live_effects/lpe-interpolate.cpp, src/live_effects/lpe-powerstroke.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp
+# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/live_effects/lpe-dashed-stroke.cpp, src/live_effects/lpe-jointype.cpp, src/live_effects/lpe-sketch.cpp, src/live_effects/lpe-interpolate.cpp, src/live_effects/lpe-powerstroke.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp, src/libnrtype/Layout-TNG-Scanline-Makers.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -92,6 +92,8 @@ SRCS="$SRCS $INK/src/helper/geom-nodesatellite.cpp"
 SRCS="$SRCS $INK/src/live_effects/spiro.cpp $INK/src/live_effects/spiro-converters.cpp"
 # The filters and color quantization of Trace Bitmap and the paint bucket (shim/gdkmm for their headers).
 SRCS="$SRCS $INK/src/trace/imagemap.cpp $INK/src/trace/filterset.cpp $INK/src/trace/quantize.cpp"
+# The scanline maker of flowed text (libnrtype; shim/pango and shim/sigc++ for its header).
+SRCS="$SRCS $INK/src/libnrtype/Layout-TNG-Scanline-Makers.cpp"
 
 # WASM has no FP rounding-mode control, so Boost.Interval gets its default (no-op)
 # rounding: we skip its hw_rounding.hpp (only used by 2geom/geometric-intersection.cpp).
@@ -109,7 +111,7 @@ OBJS=""
 for s in $SRCS; do OBJS="$OBJS $(obj "$s")"; done
 mkdir -p dist
 # shellcheck disable=SC2086
-em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/lpe-convert.cpp bindings/lpe-generate.cpp bindings/lpe-powerstroke.cpp bindings/avoid.cpp bindings/trace.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
+em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/lpe-convert.cpp bindings/lpe-generate.cpp bindings/lpe-powerstroke.cpp bindings/avoid.cpp bindings/trace.cpp bindings/text-layout.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit
@@ -175,3 +177,63 @@ cp "$B/vendor/cairo/COPYING-LGPL-2.1" dist/licenses/cairo-COPYING-LGPL-2.1
 cp "$B/vendor/cairo/COPYING-MPL-1.1" dist/licenses/cairo-COPYING-MPL-1.1
 cp "$B/vendor/pixman/COPYING" dist/licenses/pixman-COPYING
 echo "cairo wasm: $(du -h dist/cairo-module.wasm | cut -f1) ($(gzip -9c dist/cairo-module.wasm | wc -c | tr -d ' ') bytes gzip)"
+
+# --- Text module: HarfBuzz, FriBidi and libunibreak for text layout, and fallback fonts ---
+# Its own module (text-module.wasm) that libnrtype loads with the fonts; the geom module stays small.
+# Upstream links Pango (shaping with HarfBuzz, bidi with FriBidi, its own line breaking) and
+# FreeType; bindings/text.cpp gives libnrtype the same information.
+fetch_tar() { # url sha256 dir (any compression)
+    [ -d "$B/vendor/$3" ] && return
+    mkdir -p "$B/vendor" && curl -sSL "$1" -o "$B/vendor/$3.tar"
+    echo "$2  $B/vendor/$3.tar" | shasum -a 256 -c - >/dev/null
+    mkdir "$B/vendor/$3" && tar xf "$B/vendor/$3.tar" -C "$B/vendor/$3" --strip-components 1
+}
+fetch_tar https://github.com/harfbuzz/harfbuzz/releases/download/11.2.1/harfbuzz-11.2.1.tar.xz \
+    093714c8548a285094685f0bdc999e202d666b59eeb3df2ff921ab68b8336a49 harfbuzz
+fetch_tar https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz \
+    1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c fribidi
+fetch_tar https://github.com/adah1972/libunibreak/releases/download/libunibreak_6_1/libunibreak-6.1.tar.gz \
+    cc4de0099cf7ff05005ceabff4afed4c582a736abc38033e70fdac86335ce93f libunibreak
+# Fonts for when the system fonts are not available (no Local Font Access API permission).
+fetch_tar https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2 \
+    fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7 dejavu
+
+TX=$B/text && mkdir -p "$TX"
+FB=$B/vendor/fribidi/lib
+UB=$B/vendor/libunibreak/src
+sed -e 's/@configure_input@/generated by build.sh/' -e 's/@PACKAGE@/fribidi/' -e 's/@PACKAGE_NAME@/GNU FriBidi/' \
+    -e 's/@PACKAGE_BUGREPORT@//' -e 's/@FRIBIDI_VERSION@/1.0.16/' -e 's/@FRIBIDI_MAJOR_VERSION@/1/' \
+    -e 's/@FRIBIDI_MINOR_VERSION@/0/' -e 's/@FRIBIDI_MICRO_VERSION@/16/' -e 's/@FRIBIDI_INTERFACE_VERSION@/4/' \
+    -e 's/@SIZEOF_INT@/4/' -e 's/@FRIBIDI_MSVC_BUILD_PLACEHOLDER@/#undef FRIBIDI_BUILT_WITH_MSVC/' \
+    "$FB/fribidi-config.h.in" > "$TX/fribidi-config.h"
+TEXT_OBJS=""
+text_cc() { # compiler source flags...
+    local o
+    o="$TX/$(basename "$2").o"
+    [ "$o" -nt "$2" ] || "$1" -O3 "${@:3}" -c "$2" -o "$o"
+    TEXT_OBJS="$TEXT_OBJS $o"
+}
+text_cc em++ "$B/vendor/harfbuzz/src/harfbuzz.cc" -std=c++17 -DHB_NO_MT -fno-exceptions
+for f in fribidi fribidi-bidi fribidi-bidi-types fribidi-brackets fribidi-mirroring fribidi-run \
+    fribidi-joining fribidi-joining-types fribidi-arabic fribidi-shape fribidi-deprecated; do
+    text_cc emcc "$FB/$f.c" -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_STRINGIZE=1 -DFRIBIDI_LIB_STATIC -I"$TX" -I"$FB"
+done
+for f in unibreakbase unibreakdef linebreak linebreakdata linebreakdef wordbreak graphemebreak \
+    eastasianwidthdef emojidef; do
+    text_cc emcc "$UB/$f.c" -I"$UB"
+done
+# shellcheck disable=SC2086
+em++ -O3 -std=c++20 -lembind -I"$B/vendor/harfbuzz/src" -I"$FB" -I"$TX" -I"$UB" -DFRIBIDI_LIB_STATIC \
+    bindings/text.cpp $TEXT_OBJS \
+    -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
+    --emit-tsd text-module.d.mts -o dist/text-module.mjs
+mkdir -p dist/fonts
+for f in DejaVuSans DejaVuSans-Bold DejaVuSans-Oblique DejaVuSans-BoldOblique DejaVuSerif DejaVuSerif-Bold \
+    DejaVuSansMono DejaVuSansMono-Bold; do
+    cp "$B/vendor/dejavu/ttf/$f.ttf" dist/fonts/
+done
+cp "$B/vendor/harfbuzz/COPYING" dist/licenses/harfbuzz-COPYING
+cp "$B/vendor/fribidi/COPYING" dist/licenses/fribidi-COPYING
+cp "$B/vendor/libunibreak/LICENCE" dist/licenses/libunibreak-LICENCE
+cp "$B/vendor/dejavu/LICENSE" dist/licenses/dejavu-fonts-LICENSE
+echo "text wasm: $(du -h dist/text-module.wasm | cut -f1) ($(gzip -9c dist/text-module.wasm | wc -c | tr -d ' ') bytes gzip)"

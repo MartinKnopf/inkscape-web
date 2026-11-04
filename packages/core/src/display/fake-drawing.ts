@@ -2,6 +2,7 @@
 // Test helper: an in-memory Drawing that records what SPItem.show() and update() set.
 // Not used in production code.
 import type { Affine, OptRect, PathVector, Point, Rect } from '@inkscape-web/geom';
+import type { FontInstance } from '../libnrtype/font-instance.ts';
 import type { SPFilter } from '../object/sp-filter.ts';
 import type { SPItem } from '../object/sp-item.ts';
 import type { SPStyle } from '../style.ts';
@@ -167,12 +168,12 @@ export class FakeDrawingImage extends FakeDrawingItem implements DrawingImage {
 }
 
 export class FakeDrawingText extends FakeDrawingItem implements DrawingText {
-  components: { text: string; x: number; y: number; rotation: number; width: number }[] = [];
+  components: { font: FontInstance; glyph: number; trans: Affine; width: number }[] = [];
   constructor() {
     super('text');
   }
-  addComponent(text: string, x: number, y: number, rotation: number, width: number): boolean {
-    this.components.push({ text, x, y, rotation, width });
+  addComponent(font: FontInstance, glyph: number, trans: Affine, width: number): boolean {
+    this.components.push({ font, glyph, trans, width });
     return true;
   }
 }

@@ -26,15 +26,21 @@ describe('Layout output', () => {
   it('has a line break character between the lines', () => {
     const layout = twoLines();
     expect(layout._lines.map((l) => l.baseline_y)).toEqual([100, 112.5]);
-    expect(layout._characters.map((c) => [c.the_char, c.x, c.y, c.in_line])).toEqual([
+    const chars = layout._characters.map((c, i) => {
+      const it = layout.charIndexToIterator(i);
+      const p = layout.characterAnchorPoint(it);
+      return [c.the_char, p.x, p.y, layout.lineIndex(it)];
+    });
+    expect(chars).toEqual([
       ['a', 10, 100, 0],
       ['b', 15, 100, 0],
       ['c', 20, 100, 0],
-      ['\n', 25, 100, 0],
+      ['@', 25, 100, 0],
       ['d', 10, 112.5, 1],
       ['e', 15, 112.5, 1],
     ]);
-    expect(layout.characterAt(layout.charIndexToIterator(3))).toBe('\n');
+    // The paragraph break has no glyph.
+    expect(layout.charIndexToIterator(3).hasGlyph()).toBe(false);
   });
 
   it('gives the cursor shape from the descent to the ascent', () => {

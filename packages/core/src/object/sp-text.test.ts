@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/object/sp-text.cpp, src/object/sp-tspan.cpp, src/object/sp-string.cpp, src/object/sp-flowtext.cpp
 import { type Rect, Scale, Translate } from '@inkscape-web/geom';
-import { describe, expect, it } from 'vitest';
+import { loadGeom } from '@inkscape-web/wasm';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FakeDrawing, type FakeDrawingGroup, type FakeDrawingText } from '../display/fake-drawing.ts';
 import { SPDocument } from '../document.ts';
+import type { Layout } from '../libnrtype/Layout-TNG.ts';
+import { setTextLayoutBackend } from '../libnrtype/Layout-TNG-Scanline-Makers.ts';
 import { SPFlowtext } from './sp-flowtext.ts';
 import { SPString } from './sp-string.ts';
 import { SPText } from './sp-text.ts';
@@ -11,8 +14,7 @@ import { SP_TSPAN_ROLE_LINE, SP_TSPAN_ROLE_UNSPECIFIED, type SPTSpan } from './s
 
 SPDocument.scheduleIdle = () => {};
 
-// The default measurer (FixedWidthTextMeasurer): every character is 0.5 em wide,
-// ascent 0.8 em, descent 0.2 em.
+// Without the text module every character is a glyph of 0.5 em, ascent 0.8 em, descent 0.2 em.
 const SVG_OPEN =
   '<svg xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">';
 
@@ -28,6 +30,16 @@ const textOf = (doc: SPDocument, id = 't') => {
   return o;
 };
 const bounds = (r: Rect | null) => r && [r.left(), r.top(), r.right(), r.bottom()];
+
+/** [character, x, y] of the baseline anchor of each character, without paragraph breaks. */
+function anchors(layout: Layout): [string, number, number][] {
+  return layout._characters
+    .map((c, i): [string, number, number] => {
+      const p = layout.characterAnchorPoint(layout.charIndexToIterator(i));
+      return [c.the_char, p.x, p.y];
+    })
+    .filter(([c]) => c !== '@');
+}
 
 describe('SPString', () => {
   it('collapses white space by default and keeps it with xml:space="preserve"', () => {
@@ -81,9 +93,10 @@ describe('TextTagAttributes', () => {
     const s = doc.getObjectById('s') as SPTSpan;
     expect(s.role).toBe(SP_TSPAN_ROLE_UNSPECIFIED);
     const layout = textOf(doc).layout;
-    expect(layout._characters.map((c) => [c.x, c.y])).toEqual([
-      [10, 20],
-      [50, 25],
+    // dy moves the glyph, not the baseline of the line.
+    expect(layout._glyphs.map((g) => layout.glyphTransform(g).translation())).toMatchObject([
+      { x: 10, y: 20 },
+      { x: 50, y: 25 },
     ]);
   });
 });
@@ -102,9 +115,7 @@ describe('SPText', () => {
       '<text id="t" x="100" y="50" style="font-size:20px;text-anchor:middle">' +
         '<tspan sodipodi:role="line">ab</tspan><tspan sodipodi:role="line">abcd</tspan></text>',
     );
-    const xs = textOf(doc)
-      .layout._characters.filter((c) => !c.is_break)
-      .map((c) => c.x);
+    const xs = anchors(textOf(doc).layout).map(([, x]) => x);
     expect(xs).toEqual([90, 100, 80, 90, 100, 110]);
   });
 
@@ -114,7 +125,9 @@ describe('SPText', () => {
     const drawing = new FakeDrawing();
     const g = t.invokeShow(drawing, 1, 0) as FakeDrawingGroup;
     const texts = g.children as FakeDrawingText[];
-    expect(texts.map((x) => x.components.map((c) => [c.text, c.x, c.y]))).toEqual([
+    expect(
+      texts.map((x) => x.components.map((c) => [String.fromCodePoint(c.glyph), c.trans.c4, c.trans.c5])),
+    ).toEqual([
       [
         ['a', 10, 20],
         ['b', 15, 20],
@@ -139,6 +152,9 @@ describe('SPText', () => {
 });
 
 describe('SPFlowtext', () => {
+  beforeAll(async () => setTextLayoutBackend(await loadGeom()));
+  afterAll(() => setTextLayoutBackend(null));
+
   it('wraps the paragraphs in the flow region', () => {
     const doc = open(
       '<flowRoot id="f" style="font-size:10px;line-height:1.25">' +
@@ -147,7 +163,7 @@ describe('SPFlowtext', () => {
     );
     const f = doc.getObjectById('f');
     if (!(f instanceof SPFlowtext)) throw new Error('no flowtext');
-    const lines = f.layout._characters.filter((c) => !c.is_white).map((c) => [c.the_char, c.x, c.y]);
+    const lines = anchors(f.layout).filter(([c]) => c !== ' ');
     // "ab c" would be 20 wide, "ab cd" 25: "cd" goes to the next line. The first baseline is at
     // the ascent with half-leading (8 + 1.25), the lines are 12.5 apart.
     expect(lines).toEqual([

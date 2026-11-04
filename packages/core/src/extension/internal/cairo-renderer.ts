@@ -24,8 +24,9 @@ import { SPAttr } from '../../attributes.ts';
 import { ink_css_blend_to_cairo_operator } from '../../display/cairo-utils.ts';
 import type { SPDocument } from '../../document.ts';
 import { SPContentUnits } from '../../enums.ts';
-import type { Layout } from '../../libnrtype/Layout-TNG.ts';
-import { type FontDescription, ink_font_from_style } from '../../libnrtype/text-measurer.ts';
+import { PangoStretch, PangoStyle } from '../../libnrtype/font-factory.ts';
+import type { FontInstance } from '../../libnrtype/font-instance.ts';
+import { InputStreamTextSource, type Layout } from '../../libnrtype/Layout-TNG.ts';
 import { SPClipPath } from '../../object/sp-clippath.ts';
 import { SPFlowtext } from '../../object/sp-flowtext.ts';
 import { SPImage } from '../../object/sp-image.ts';
@@ -55,6 +56,49 @@ import {
   CairoRenderMode,
 } from './cairo-render-context.ts';
 
+/** The font of a face for CairoRendererHooks.loadFont (CSS values). */
+export interface FontDescription {
+  /** CSS font-family list. */
+  family: string;
+  /** Numeric weight, 1 to 1000. */
+  weight: number;
+  style: 'normal' | 'italic' | 'oblique';
+  /** CSS font-stretch keyword. */
+  stretch: string;
+  /** Font size in px. */
+  size?: number;
+  /** CSS font-variant keyword. */
+  variant?: string;
+}
+
+const STRETCH_KEYWORDS = [
+  'ultra-condensed',
+  'extra-condensed',
+  'condensed',
+  'semi-condensed',
+  'normal',
+  'semi-expanded',
+  'expanded',
+  'extra-expanded',
+  'ultra-expanded',
+];
+
+/** The CSS description of the font of a face. */
+function font_description(font: FontInstance): FontDescription {
+  const d = font.get_descr();
+  return {
+    family: d.family,
+    weight: d.weight,
+    style:
+      d.style === PangoStyle.PANGO_STYLE_ITALIC
+        ? 'italic'
+        : d.style === PangoStyle.PANGO_STYLE_OBLIQUE
+          ? 'oblique'
+          : 'normal',
+    stretch: STRETCH_KEYWORDS[d.stretch] ?? STRETCH_KEYWORDS[PangoStretch.PANGO_STRETCH_NORMAL]!,
+  };
+}
+
 /**
  * What the renderer needs from the platform. Upstream gets it from fontconfig, gdk-pixbuf and
  * its own rasterizer; in the browser the editor provides it. Without a hook the feature is
@@ -81,7 +125,7 @@ export interface CairoRendererHooks {
 export class CairoRenderer {
   readonly hooks: CairoRendererHooks;
   /** Font faces by font (upstream: CairoRenderContext::_font_table); null: no font file. */
-  readonly #fonts = new Map<string, Promise<CairoHandle>>();
+  readonly #fonts = new Map<string | object, Promise<CairoHandle>>();
   /** Decoded images by href. */
   readonly #images = new Map<string, Promise<CairoPixbuf | null>>();
 
@@ -102,13 +146,18 @@ export class CairoRenderer {
     this.#images.clear();
   }
 
-  /** The cairo font face for a font; 0 if there is no font file. */
-  fontFace(font: FontDescription): Promise<CairoHandle> {
-    const key = JSON.stringify([font.family, font.weight, font.style, font.stretch]);
+  /**
+   * The cairo font face of a face of the layout; 0 if there is no font file. The data of the
+   * face comes from the text module, else from hooks.loadFont.
+   */
+  fontFace(font: FontInstance): Promise<CairoHandle> {
+    const data = font.face?.fontData?.();
+    const d = font_description(font);
+    const key = data ? data : JSON.stringify([d.family, d.weight, d.style, d.stretch]);
     let face = this.#fonts.get(key);
     if (!face) {
       face = (async () => {
-        const file = await this.hooks.loadFont?.(font).catch(() => null);
+        const file = data ?? (await this.hooks.loadFont?.(d).catch(() => null));
         return file ? cairoBackend().ftFontFaceCreate(file.data, file.index ?? 0) : 0;
       })();
       this.#fonts.set(key, face);
@@ -561,12 +610,11 @@ async function sp_use_render(use: SPUse, ctx: CairoRenderContext, page: SPPage |
 }
 
 /**
- * Upstream Layout::showGlyphs(CairoRenderContext*) on the interim layout: one glyph per
- * character, the glyph of the character's code point in the font file. Runs of characters of
- * one span without rotation go out together. Returns false if a font file is missing.
+ * Upstream Layout::showGlyphs(CairoRenderContext*): the glyphs of the layout with their
+ * transforms. Glyphs of one span with the same font matrix go out together. Returns false if
+ * a font file is missing.
  */
 async function layout_show_glyphs(layout: Layout, ctx: CairoRenderContext): Promise<boolean> {
-  const c = cairoBackend();
   const renderer = ctx.getRenderer();
   interface Run {
     face: CairoHandle;
@@ -575,29 +623,60 @@ async function layout_show_glyphs(layout: Layout, ctx: CairoRenderContext): Prom
     style: SPStyle;
   }
   const runs: Run[] = [];
-  for (let span_index = 0; span_index < layout._spans.length; span_index++) {
-    const span = layout._spans[span_index]!;
-    if (!span.style || layout._lines[span.in_line]?.hidden) continue;
-    const chars = layout._characters.filter((ch) => ch.in_span === span_index && !ch.is_break);
-    if (!chars.length) continue;
-    const font = span.font ?? ink_font_from_style(span.style);
-    const face = await renderer.fontFace(font);
+  const glyphs = layout._glyphs;
+  for (let glyph_index = 0; glyph_index < glyphs.length; ) {
+    const glyph = glyphs[glyph_index]!;
+    if (layout._characters[glyph.in_character]!.in_glyph === -1) {
+      // invisible glyphs
+      const same_character = glyph.in_character;
+      while (glyph_index < glyphs.length && glyphs[glyph_index]!.in_character === same_character)
+        glyph_index++;
+      continue;
+    }
+    const span = layout._charSpan(layout._characters[glyph.in_character]!);
+    const text_source = layout._input_stream[span.in_input_stream_item];
+    if (!(text_source instanceof InputStreamTextSource) || !span.font) {
+      glyph_index++;
+      continue;
+    }
+    const face = await renderer.fontFace(span.font);
     if (!face) return false;
-    const indices = c.ftFontFaceGlyphIndices(
-      face,
-      Uint32Array.from(chars, (ch) => ch.the_char.codePointAt(0) ?? 0),
-    );
-    let run: Run | null = null;
-    let rotation = Number.NaN;
-    chars.forEach((ch, i) => {
-      if (!run || ch.rotation !== rotation) {
-        rotation = ch.rotation;
-        // The glyph transform without the position: the font size and the rotation.
-        const font_matrix = Scale(font.size, font.size).multiply(Rotate(rotation));
-        run = { face, font_matrix, glyphs: [], style: span.style! };
-        runs.push(run);
+    let glyph_matrix = layout.glyphTransform(glyph);
+    const font_matrix = new Affine(glyph_matrix.c0, glyph_matrix.c1, glyph_matrix.c2, glyph_matrix.c3, 0, 0);
+    // try to output as many characters as possible in one go
+    const this_span_index = layout._characters[glyph.in_character]!.in_span;
+    const first_index = glyph_index;
+    const glyphtext: CairoGlyphInfo[] = [];
+    do {
+      const same_character = glyphs[glyph_index]!.in_character;
+      while (glyph_index < glyphs.length && glyphs[glyph_index]!.in_character === same_character) {
+        if (glyph_index !== first_index) glyph_matrix = layout.glyphTransform(glyphs[glyph_index]!);
+        // this is the translation for x,y-offset
+        glyphtext.push({ index: glyphs[glyph_index]!.glyph, x: glyph_matrix.c4, y: glyph_matrix.c5 });
+        glyph_index++;
       }
-      run.glyphs.push({ index: indices[i] ?? 0, x: ch.x, y: ch.y });
+    } while (
+      glyph_index < glyphs.length &&
+      layout._path_fitted === null &&
+      font_matrix.multiply(glyph_matrix.inverse()).withoutTranslation().isIdentity() &&
+      layout._characters[glyphs[glyph_index]!.in_character]!.in_span === this_span_index
+    );
+    if (!span.font.face) {
+      // Without the text module the layout's glyphs are the code points: map them to the font file.
+      const indices = cairoBackend().ftFontFaceGlyphIndices(
+        face,
+        Uint32Array.from(glyphtext, (g) => g.index),
+      );
+      glyphtext.forEach((g, i) => {
+        g.index = indices[i] ?? 0;
+      });
+    }
+    // remove vertical flip
+    runs.push({
+      face,
+      font_matrix: Scale(1, -1).multiply(font_matrix),
+      glyphs: glyphtext,
+      style: text_source.style,
     });
   }
 

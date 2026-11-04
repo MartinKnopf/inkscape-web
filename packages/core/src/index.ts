@@ -25,9 +25,12 @@ export * from './helper/geom-nodesatellite.ts';
 export * from './helper/geom-pathvector_nodesatellites.ts';
 export * from './i18n.ts';
 export * from './id-clash.ts';
+export * from './libnrtype/font-factory.ts';
+export * from './libnrtype/font-instance.ts';
 export * from './libnrtype/Layout-TNG.ts';
 export * from './libnrtype/Layout-TNG-Compute.ts';
-export * from './libnrtype/text-measurer.ts';
+export * from './libnrtype/Layout-TNG-Scanline-Makers.ts';
+export * from './libnrtype/pango.ts';
 export {
   coordinates,
   determinant,
@@ -185,6 +188,7 @@ export * from './snap-preferences.ts';
 export * from './style.ts';
 export * from './style-enums.ts';
 export * from './style-internal.ts';
+export * from './style-text.ts';
 export * from './svg/css-ostringstream.ts';
 export * from './svg/path-string.ts';
 export * from './svg/stringstream.ts';
