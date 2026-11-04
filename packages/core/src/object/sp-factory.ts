@@ -56,6 +56,7 @@ import { SPMeshpatch } from './sp-mesh-patch.ts';
 import { SPMeshrow } from './sp-mesh-row.ts';
 import { SPNamedView } from './sp-namedview.ts';
 import { type SPObject, setObjectFactory } from './sp-object.ts';
+import { SPOffset } from './sp-offset.ts';
 import { SPPage } from './sp-page.ts';
 import { SPPath } from './sp-path.ts';
 import { SPPattern } from './sp-pattern.ts';
@@ -111,6 +112,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:rect', () => new SPRect()],
   ['rect', () => new SPRect()], // LPE rect
   ['spiral', () => new SPSpiral()],
+  ['inkscape:offset', () => new SPOffset()],
   ['star', () => new SPStar()],
   ['svg:use', () => new SPUse()],
   ['svg:view', () => new SPPage()],

@@ -136,6 +136,36 @@ export interface Geom {
       fuse_tolerance: number;
     },
   ): string;
+  /**
+   * The livarot outline of the stroke of `d` as an intersection free path (path-outline.cpp
+   * item_find_paths without bbox_only). `join` and `butt` are livarot JoinType and ButtType; the
+   * miter is multiplied by the width already; dashes are the computed dash array (empty: none).
+   */
+  strokeToPath(
+    d: string,
+    width: number,
+    join: number,
+    butt: number,
+    miter: number,
+    dashes: readonly number[],
+    dashOffset: number,
+    scale: number,
+  ): string;
+  /**
+   * Inset (negative width) or outset (positive) the filled path with livarot's MakeOffset
+   * (path-offset.cpp sp_selected_path_do_offset); fillRule is a FillRule. Empty if nothing is left.
+   */
+  /**
+   * The contour of the filled path without self-intersections (the original of an offset object,
+   * path-offset.cpp sp_selected_path_create_offset_object); fillRule is a FillRule. Empty if nothing is left.
+   */
+  normalizeShape(d: string, fillRule: number): string;
+  offsetShape(d: string, width: number, join: number, miter: number, fillRule: number): string;
+  /**
+   * The offset of the original path of an offset object by `rad` with round joins (sp-offset.cpp
+   * SPOffset::set_shape); size is the diagonal of its bounding box divided by the scale (0: none).
+   */
+  offsetOriginal(d: string, rad: number, size: number): string;
   /** The livarot outline of the stroke of `d` (path-outline.cpp item_find_paths, bbox only). */
   strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** Upstream do_offset() of helper/geom-pathstroke.cpp (Offset LPE). `join` is a LineJoinType. */
@@ -485,6 +515,11 @@ export async function loadGeom(options?: {
         p.fuse_tolerance,
       ),
     strokeOutline: (d, width, join, butt, miter) => m.strokeOutline(d, width, join, butt, miter),
+    strokeToPath: (d, width, join, butt, miter, dashes, dashOffset, scale) =>
+      m.strokeToPath(d, width, join, butt, miter, [...dashes], dashOffset, scale),
+    normalizeShape: (d, fillRule) => m.normalizeShape(d, fillRule),
+    offsetShape: (d, width, join, miter, fillRule) => m.offsetShape(d, width, join, miter, fillRule),
+    offsetOriginal: (d, rad, size) => m.offsetOriginal(d, rad, size),
     simplifyPath: (d, threshold, steps, justCoalesce) => m.simplifyPath(d, threshold, steps, justCoalesce),
     offsetPath: (d, toOffset, tolerance, miterLimit, fillRule, join, [px, py]) =>
       m.offsetPath(d, toOffset, tolerance, miterLimit, fillRule, join, px, py) as {

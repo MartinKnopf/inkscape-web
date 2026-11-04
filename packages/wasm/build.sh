@@ -111,7 +111,7 @@ OBJS=""
 for s in $SRCS; do OBJS="$OBJS $(obj "$s")"; done
 mkdir -p dist
 # shellcheck disable=SC2086
-em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/lpe-convert.cpp bindings/lpe-generate.cpp bindings/lpe-powerstroke.cpp bindings/avoid.cpp bindings/trace.cpp bindings/text-layout.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
+em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/lpe-convert.cpp bindings/lpe-generate.cpp bindings/lpe-powerstroke.cpp bindings/paths.cpp bindings/avoid.cpp bindings/trace.cpp bindings/text-layout.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit
