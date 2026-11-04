@@ -12,22 +12,28 @@ import { _, C_, Preferences } from '@inkscape-web/core';
 import {
   add_categories,
   add_effects,
+  db,
   type EffectItem,
   filter_effects,
+  GalleryType,
   get_thumbnail_size,
   InkscapeApplication,
   is_item_visible,
+  prepare_effects,
   render_icon_svg,
 } from '@inkscape-web/editor';
 import { useEffect, useMemo, useState } from 'react';
 
-const PREFS = '/dialogs/extensions-gallery/filters';
-
-let testSvg: Promise<string | null> | null = null;
-/** share/ui/resources/filter-test.svg, the document of the thumbnails. */
-function loadTestSvg(): Promise<string | null> {
-  testSvg ??= fetch('/share/ui/resources/filter-test.svg').then((r) => (r.ok ? r.text() : null));
-  return testSvg;
+const testSvgs = new Map<string, Promise<string | null>>();
+/** share/ui/resources/filter-test.svg, the document of the thumbnails of filters, or missing-icon.svg for extensions. */
+function loadTestSvg(type: GalleryType): Promise<string | null> {
+  const file = type === GalleryType.Effects ? 'missing-icon.svg' : 'filter-test.svg';
+  let svg = testSvgs.get(file);
+  if (!svg) {
+    svg = fetch(`/share/ui/resources/${file}`).then((r) => (r.ok ? r.text() : null));
+    testSvgs.set(file, svg);
+  }
+  return svg;
 }
 
 /** The thumbnails by effect id (upstream _image_cache). */
@@ -50,11 +56,28 @@ function Thumbnail({ item, size, test }: { item: EffectItem; size: number; test:
 /**
  * The Filter Gallery dialog (dialog key "FilterGallery"): the filter presets with thumbnails, by
  * category and search; Apply applies the selected filter to the selection (its app action).
- * TODO: the Extensions gallery (ExtensionsGallery::Effects), the drop shadow of the thumbnails.
+ * TODO: the drop shadow of the thumbnails.
  */
 export function FilterGalleryDialog() {
+  return <ExtensionsGallery type={GalleryType.Filters} />;
+}
+
+/**
+ * The Extensions Gallery dialog (dialog key "ExtensionsGallery"): the extensions of the Extensions
+ * menu by category and search; Run runs the selected extension (its app action).
+ */
+export function ExtensionsGalleryDialog() {
+  return <ExtensionsGallery type={GalleryType.Effects} />;
+}
+
+function ExtensionsGallery({ type }: { type: GalleryType }) {
+  const effects = type === GalleryType.Effects;
+  const PREFS = `/dialogs/extensions-gallery/${effects ? 'effects' : 'filters'}`;
   const prefs = Preferences.get();
-  const items = useMemo(() => add_effects(filter_effects), []);
+  const items = useMemo(
+    () => add_effects(effects ? prepare_effects(db.get_effect_list()) : filter_effects),
+    [effects],
+  );
   const categories = useMemo(() => add_categories(items), [items]);
   const [category, setCategory] = useState(() => {
     const c = prefs.getString(`${PREFS}/category`, 'all');
@@ -68,8 +91,8 @@ export function FilterGalleryDialog() {
   );
   const [test, setTest] = useState<string | null>(null);
   useEffect(() => {
-    void loadTestSvg().then(setTest);
-  }, []);
+    void loadTestSvg(type).then(setTest);
+  }, [type]);
 
   const visible = items.filter((i) => is_item_visible(i, category, search));
   const current = items.find((i) => i.id === selected) ?? null;
@@ -81,14 +104,16 @@ export function FilterGalleryDialog() {
   const run = (item: EffectItem | null) => {
     if (item) InkscapeApplication.instance().activate_action(`app.${item.id}`);
   };
-  const runLabel = C_('apply-filter', '_Apply').replace('_', '');
+  const runLabel = effects
+    ? C_('run-extension', '_Run').replace('_', '') + (current?.takes_input ? C_('take-input', '...') : '')
+    : C_('apply-filter', '_Apply').replace('_', '');
 
   return (
     <div className="filter-gallery">
       <div className="docprops-row">
         <button
           type="button"
-          title={_('Toggle list of filter categories')}
+          title={effects ? _('Toggle list of extension categories') : _('Toggle list of filter categories')}
           aria-pressed={showList}
           onClick={() => {
             setShowList(!showList);
@@ -119,13 +144,13 @@ export function FilterGalleryDialog() {
                   prefs.setString(`${PREFS}/category`, c);
                 }}
               >
-                {c === 'all' ? _('All Filters') : c}
+                {c === 'all' ? (effects ? _('All Extensions') : _('All Filters')) : c}
               </button>
             ))}
           </div>
         )}
         <div className="filter-gallery-grid">
-          <p>{_('Select filter to apply:')}</p>
+          <p>{effects ? _('Select extension to run:') : _('Select filter to apply:')}</p>
           {visible.map((item) => (
             <button
               key={item.id}

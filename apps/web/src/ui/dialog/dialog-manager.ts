@@ -8,7 +8,7 @@ import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { CloneTilerDialog } from './clonetiler.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
-import { FilterGalleryDialog } from './extensions-gallery.tsx';
+import { ExtensionsGalleryDialog, FilterGalleryDialog } from './extensions-gallery.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { FilterEffectsDialog } from './filter-effects-dialog.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
@@ -43,6 +43,7 @@ const DIALOGS: Record<string, DialogData> = {
   CloneTiler: { label: _('Tiled Clones'), component: CloneTilerDialog, width: 440 },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
+  ExtensionsGallery: { label: _('_Extension Gallery'), component: ExtensionsGalleryDialog, width: 480 },
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
   FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
