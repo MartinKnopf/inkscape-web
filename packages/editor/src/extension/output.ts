@@ -22,12 +22,15 @@ export class Output extends Extension {
   readonly dataloss: boolean;
   readonly raster: boolean;
   readonly priority: number;
+  /** The Export dialog offers the output (is_exported="true"). */
+  readonly exported: boolean;
 
   constructor(in_repr: Node, implementation: Implementation, base_directory = '') {
     super(in_repr, implementation, base_directory);
     const { attrs, fields } = read_io_fields(in_repr, 'output');
     this.priority = Number.parseInt(attrs.get('priority') ?? '0', 10) || 0;
     this.raster = attrs.get('raster') === 'true';
+    this.exported = attrs.get('is_exported') === 'true';
     this.extension = fields.get('extension') ?? null;
     this.mimetype = fields.get('mimetype') ?? null;
     this.filetypename = fields.get('filetypename') ?? null;
@@ -35,6 +38,9 @@ export class Output extends Extension {
     this.dataloss = fields.get('dataloss') !== 'false';
   }
 
+  is_exported(): boolean {
+    return this.exported;
+  }
   get_extension(): string | null {
     return this.extension;
   }
