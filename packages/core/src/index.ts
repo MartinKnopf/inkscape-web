@@ -2,6 +2,7 @@
 // Headless document core: XML repr, SP objects, styles, document and undo.
 // No DOM, no React.
 
+export * from './3rdparty/libcroco/cr-stylesheet.ts';
 export * from './attributes.ts';
 export * from './axis-manip.ts';
 // Upstream namespace Inkscape::Colors.
@@ -10,6 +11,7 @@ export * from './conn-avoid-ref.ts';
 export * from './display/cairo-utils.ts';
 export type * from './display/drawing.ts';
 export * from './display/nr-filter-types.ts';
+export * from './display/nr-svgfonts.ts';
 export * from './document.ts';
 export * from './document-undo.ts';
 export * from './enums.ts';
@@ -125,6 +127,10 @@ export * from './object/sp-filter-units.ts';
 export * from './object/sp-flowdiv.ts';
 export * from './object/sp-flowregion.ts';
 export * from './object/sp-flowtext.ts';
+export * from './object/sp-font.ts';
+export * from './object/sp-font-face.ts';
+export * from './object/sp-glyph.ts';
+export * from './object/sp-glyph-kerning.ts';
 export * from './object/sp-gradient.ts';
 export * from './object/sp-grid.ts';
 export * from './object/sp-guide.ts';
@@ -173,6 +179,7 @@ export * from './object/sp-spiral.ts';
 export * from './object/sp-star.ts';
 export * from './object/sp-stop.ts';
 export * from './object/sp-string.ts';
+export * from './object/sp-style-elem.ts';
 export * from './object/sp-symbol.ts';
 export * from './object/sp-text.ts';
 export * from './object/sp-tspan.ts';
@@ -223,6 +230,7 @@ export * from './trace/trace.ts';
 export * from './trace/trace-backend.ts';
 export * from './transf_mat_3x4.ts';
 export * from './ui/knot/knot-holder-entity.ts';
+export * from './unicoderange.ts';
 export * from './util/enums.ts';
 export * from './util/paper.ts';
 export * from './util/parse-int-range.ts';
