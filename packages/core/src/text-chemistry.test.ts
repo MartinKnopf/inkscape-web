@@ -7,6 +7,7 @@ import type { SPFlowtext } from './object/sp-flowtext.ts';
 import type { SPItem } from './object/sp-item.ts';
 import { SPText } from './object/sp-text.ts';
 import { SP_IS_TEXT_TEXTPATH } from './object/sp-tspan.ts';
+import { toCurves } from './path-chemistry.ts';
 import { Selection } from './selection.ts';
 import {
   flowtext_to_text,
@@ -99,5 +100,16 @@ describe('text chemistry', () => {
     expect(
       selection.items().map((i) => (i as SPText).layout._characters.map((c) => c.the_char).join('')),
     ).toEqual(['c', 'b', 'a']);
+  });
+
+  it('converts text to a path with the glyph outlines (Object to Path)', () => {
+    const { doc, select } = open(`<text id="t" x="10" y="50" style="${STYLE};fill:red">ab</text>`);
+    toCurves(select('t'));
+    doc.ensureUpToDate();
+    const path = doc.getObjectById('t')!.getRepr();
+    expect(path.name()).toBe('svg:path');
+    expect(path.attribute('aria-label')).toBe('ab');
+    expect(path.attribute('style')).toContain('fill:red');
+    expect(path.attribute('d')!.length).toBeGreaterThan(50);
   });
 });
