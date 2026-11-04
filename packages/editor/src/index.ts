@@ -107,6 +107,7 @@ export * from './ui/dialog/icon-preview.ts';
 export * as LivePathEffectEditor from './ui/dialog/livepatheffect-editor.ts';
 export * from './ui/dialog/object-properties.ts';
 export * from './ui/dialog/objects.ts';
+export * from './ui/dialog/selectorsdialog.ts';
 export * from './ui/dialog/swatches.ts';
 export * from './ui/dialog/symbols.ts';
 export * from './ui/dialog/text-edit.ts';

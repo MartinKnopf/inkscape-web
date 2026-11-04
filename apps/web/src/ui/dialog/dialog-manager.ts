@@ -18,6 +18,7 @@ import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
+import { SelectorsDialog } from './selectorsdialog.tsx';
 import { SwatchesDialog } from './swatches.tsx';
 import { SymbolsDialog } from './symbols.tsx';
 import { TextEditDialog } from './text-edit.tsx';
@@ -56,6 +57,7 @@ const DIALOGS: Record<string, DialogData> = {
   LivePathEffect: { label: _('Path E_ffects'), component: LivePathEffectDialog },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
+  Selectors: { label: _('_Selectors and CSS'), component: SelectorsDialog },
   Swatches: { label: _('S_watches'), component: SwatchesDialog },
   Symbols: { label: _('S_ymbols'), component: SymbolsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
