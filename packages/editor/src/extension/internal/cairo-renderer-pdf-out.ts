@@ -17,6 +17,7 @@ import {
   CairoRenderer,
   type CairoRendererHooks,
   ensureCairoBackend,
+  latex_render_document_text_to_file,
   N_,
   type SPDocument,
 } from '@inkscape-web/core';
@@ -81,6 +82,12 @@ export async function pdf_render_document_to_file(
   }
 }
 
+/** The LaTeX file that accompanies the file name ("drawing.pdf" -> "drawing.pdf_tex"). */
+export function latex_file(filename: string, latex: string): { name: string; data: Uint8Array } {
+  const base = filename.split(/[\\/]/).pop() || 'drawing';
+  return { name: `${base}_tex`, data: new TextEncoder().encode(latex) };
+}
+
 /** The PDF output (upstream CairoRendererPdfOutput). */
 export class CairoRendererPdfOutput extends Implementation {
   override check(_module: Extension): boolean {
@@ -88,11 +95,10 @@ export class CairoRendererPdfOutput extends Implementation {
   }
 
   /**
-   * Save the document as PDF; the file data. Upstream writes a file (and the LaTeX file of the
-   * "Omit text in PDF and create LaTeX file" option).
-   * TODO: the LaTeX file (latex_render_document_text_to_file).
+   * Save the document as PDF; the file data. The LaTeX file of the "Omit text in PDF and create
+   * LaTeX file" option goes to mod.extra_files ("<filename>_tex").
    */
-  override async save(mod: Output, doc: SPDocument, _filename: string): Promise<Uint8Array | null> {
+  override async save(mod: Output, doc: SPDocument, filename: string): Promise<Uint8Array | null> {
     const ext = db.get('org.inkscape.output.pdf.cairorenderer');
     if (!ext) return null;
 
@@ -138,7 +144,16 @@ export class CairoRendererPdfOutput extends Implementation {
     }
 
     // Create PDF file
-    return pdf_render_document_to_file(doc, level, flags, new_bitmapResolution);
+    const ret = await pdf_render_document_to_file(doc, level, flags, new_bitmapResolution);
+    if (!ret) return null;
+
+    // Create LaTeX file (if requested)
+    if (flags.text_to_latex) {
+      const latex = latex_render_document_text_to_file(doc, filename, true);
+      if (latex === null) return null;
+      mod.extra_files.push(latex_file(filename, latex));
+    }
+    return ret;
   }
 
   /**

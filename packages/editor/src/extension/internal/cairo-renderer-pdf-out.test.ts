@@ -91,6 +91,19 @@ describe('PDF output', () => {
     expect(text).not.toMatch(/\bTJ\b|\bTj\b/);
   });
 
+  it('omits the text and writes the LaTeX file with the LaTeX option', async () => {
+    const out = output('org.inkscape.output.pdf.cairorenderer');
+    out.set_param_any('textToPath', 'LaTeX');
+    const doc = SPDocument.createNewDocFromMem(DOC)!;
+    const pdf = pdfText((await out.save(doc, 'figure.pdf'))!);
+    out.set_param_any('textToPath', 'embed');
+    expect(pdf).not.toMatch(/\bTJ\b|\bTj\b/);
+    expect(out.extra_files.map((f) => f.name)).toEqual(['figure.pdf_tex']);
+    const tex = new TextDecoder().decode(out.extra_files[0]!.data);
+    expect(tex).toContain('{figure.pdf}');
+    expect(tex).toContain('Hello');
+  });
+
   it('writes links to URIs and to objects of the document', async () => {
     const doc = SPDocument.createNewDocFromMem(
       `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="100">

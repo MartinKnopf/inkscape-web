@@ -303,6 +303,10 @@ async function saveToHandle(doc: SPDocument, handle: FileHandle, copy = false): 
       new Blob([data as BlobPart], { type: output.mimetype ?? 'application/octet-stream' }),
     );
     await writable.close();
+    // Files that go next to it (the LaTeX file of the PDF, PS and EPS outputs).
+    for (const extra of output.extra_files) {
+      await sp_file_save_blob(new Blob([extra.data as BlobPart], { type: 'text/plain' }), extra.name);
+    }
     return true;
   }
   try {
