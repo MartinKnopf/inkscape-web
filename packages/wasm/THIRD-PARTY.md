@@ -8,6 +8,7 @@
 | GNU Scientific Library 2.8 | ftp.gnu.org | GPL-3.0-or-later |
 | double-conversion 3.4.0 | github.com/google/double-conversion | BSD-3-Clause |
 | Potrace 1.16 (libpotrace) | potrace.sourceforge.net | GPL-2.0-or-later |
+| Inkscape `src/libnrtype/Layout-TNG-Scanline-Makers.cpp` | upstream checkout | GPL-2.0-or-later |
 | Boost (headers only) | system / Homebrew | BSL-1.0 |
 
 Because GSL is GPL-3.0-or-later, the built module is covered by the GNU GPL
@@ -26,3 +27,16 @@ Loaded only for PDF, PS and EPS export.
 | FreeType, libpng, zlib | Emscripten ports | FTL or GPL-2.0, libpng, Zlib |
 
 `build.sh` copies the cairo and pixman license files into `dist/licenses/`.
+
+# Third-party code in text-module.wasm and dist/fonts
+
+| Component | Source | License |
+|---|---|---|
+| HarfBuzz 11.2.1 | github.com/harfbuzz/harfbuzz | MIT ("Old MIT") |
+| GNU FriBidi 1.0.16 | github.com/fribidi/fribidi | LGPL-2.1-or-later |
+| libunibreak 6.1 | github.com/adah1972/libunibreak | Zlib |
+| DejaVu fonts 2.37 (`dist/fonts`) | github.com/dejavu-fonts/dejavu-fonts | Bitstream Vera license, public domain changes |
+
+The bindings (`bindings/text.cpp`) are GPL-2.0-or-later, so the text module is
+covered by the GNU GPL version 2 or later. `build.sh` copies the license files
+into `dist/licenses/`.
