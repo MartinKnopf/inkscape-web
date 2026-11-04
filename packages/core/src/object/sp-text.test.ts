@@ -110,6 +110,15 @@ describe('SPText', () => {
     expect(t.displayName()).toBe('Text');
   });
 
+  it('lays out again when a text without tspans moves', () => {
+    const doc = open('<text id="t" x="10" y="100" style="font-size:20px">abcd</text>');
+    const t = textOf(doc);
+    t.move_rel(Translate(5, -30));
+    doc.ensureUpToDate();
+    expect(t.getRepr().attribute('y')).toBe('70');
+    expect(bounds(t.geometricBounds())).toEqual([15, 54, 55, 74]);
+  });
+
   it('aligns lines with text-anchor', () => {
     const doc = open(
       '<text id="t" x="100" y="50" style="font-size:20px;text-anchor:middle">' +

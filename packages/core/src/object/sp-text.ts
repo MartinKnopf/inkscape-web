@@ -121,7 +121,11 @@ export class SPText extends SPItem {
 
   override set(key: SPAttr, value: string | null): void {
     if (this.attributes.readSingleAttribute(key, value, this.style, this.viewport)) {
-      this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+      // Upstream requests only SP_OBJECT_MODIFIED_FLAG; its layout follows because write()
+      // sets the content of the string children again, and upstream's setContent() always
+      // notifies. The port's setContent() does not notify for equal content, so a moved text
+      // without tspans asks for the new layout here.
+      this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG | SP_TEXT_LAYOUT_MODIFIED_FLAG);
       return;
     }
     if (key === SPAttr.SODIPODI_LINESPACING) {
