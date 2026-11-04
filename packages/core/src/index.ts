@@ -182,6 +182,8 @@ export * from './object/sp-string.ts';
 export * from './object/sp-style-elem.ts';
 export * from './object/sp-symbol.ts';
 export * from './object/sp-text.ts';
+export * from './object/sp-tref.ts';
+export * from './object/sp-tref-reference.ts';
 export * from './object/sp-tspan.ts';
 export * from './object/sp-use.ts';
 export * from './object/sp-use-reference.ts';

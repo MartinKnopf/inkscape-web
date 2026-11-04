@@ -54,6 +54,7 @@ import { SPRoot } from './sp-root.ts';
 import { SPShape } from './sp-shape.ts';
 import { SPSymbol } from './sp-symbol.ts';
 import { SPText } from './sp-text.ts';
+import { SPTRef, sp_tref_convert_to_tspan } from './sp-tref.ts';
 import { SPCloneCompensation, SPUse } from './sp-use.ts';
 
 /** The part of upstream LayerManager that the selection uses (the editor implements it). */
@@ -1036,7 +1037,9 @@ export class ObjectSet {
    * Replace the selected clones by copies of their originals and select them
    * (with the other selected items), with the undo step "Unlink clone" unless
    * skip_undo. Returns whether a clone was unlinked.
-   * TODO: clipped and masked items, text references (tref), the messages.
+   * Texts with trefs get tspans in place of the trefs; a selected tref
+   * becomes a tspan (upstream sp_tref_convert_to_tspan).
+   * TODO: clipped and masked items, the messages.
    */
   unlink(skip_undo = false, _silent = false): boolean {
     if (this.isEmpty()) {
@@ -1049,6 +1052,21 @@ export class ObjectSet {
     let unlinked = false;
 
     for (const item of this.items().reverse()) {
+      if (item instanceof SPText) {
+        const tspan = sp_tref_convert_to_tspan(item);
+        if (tspan) item.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+        // Set unlink to true, and fall into the next if which
+        // will include this text item in the new selection
+        unlinked = true;
+      }
+      if (item instanceof SPTRef) {
+        const unlink = sp_tref_convert_to_tspan(item);
+        if (unlink instanceof SPItem) {
+          unlinked = true;
+          new_select.push(unlink);
+        }
+        continue;
+      }
       if (!(item instanceof SPUse)) {
         // keep the non-use item in the new selection
         new_select.push(item);
@@ -1889,7 +1907,12 @@ function object_set_contains_original(item: SPItem, set: ObjectSet): boolean {
     contains_original = !!item_use && set.includes(item_use);
     if (item_use === item) break;
   }
-  // TODO: text references (tref)
+  // If it's a tref, check whether the object containing the character
+  // data is part of the selection
+  if (!contains_original && item instanceof SPTRef) {
+    const referred = item.getObjectReferredTo();
+    contains_original = !!referred && set.includes(referred);
+  }
   return contains_original;
 }
 

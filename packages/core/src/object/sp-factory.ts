@@ -76,6 +76,7 @@ import { SPString } from './sp-string.ts';
 import { SPStyleElem } from './sp-style-elem.ts';
 import { SPSymbol } from './sp-symbol.ts';
 import { SPText } from './sp-text.ts';
+import { SPTRef } from './sp-tref.ts';
 import { SPTextPath, SPTSpan } from './sp-tspan.ts';
 import { SPUse } from './sp-use.ts';
 
@@ -132,6 +133,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:symbol', () => new SPSymbol()],
   ['svg:text', () => new SPText()],
   ['svg:tspan', () => new SPTSpan()],
+  ['svg:tref', () => new SPTRef()],
   ['svg:textPath', () => new SPTextPath()],
   ['svg:flowDiv', () => new SPFlowdiv()],
   ['svg:flowSpan', () => new SPFlowtspan()],

@@ -37,6 +37,7 @@ import {
   type SPObject,
 } from './sp-object.ts';
 import { SPString } from './sp-string.ts';
+import { SPTRef } from './sp-tref.ts';
 import { SPUsePath } from './sp-use-reference.ts';
 import { TextTagAttributes } from './text-tag-attributes.ts';
 
@@ -164,15 +165,15 @@ export class SPTSpan extends SPItem {
       const l: Node[] = [];
       for (const child of this.children) {
         let c_repr: Node | null = null;
-        if (child instanceof SPTSpan) c_repr = child.write(xmlDoc, null, flags);
+        if (child instanceof SPTSpan || child instanceof SPTRef) c_repr = child.write(xmlDoc, null, flags);
         else if (child instanceof SPString) c_repr = xmlDoc.createTextNode(child.string);
-        // TODO: tref children. textPath children shouldn't happen.
+        // textPath children shouldn't happen.
         if (c_repr) l.push(c_repr);
       }
       for (const c of l) repr.appendChild(c);
     } else {
       for (const child of this.children) {
-        if (child instanceof SPTSpan) child.updateRepr(flags);
+        if (child instanceof SPTSpan || child instanceof SPTRef) child.updateRepr(flags);
         else if (child instanceof SPString) child.getRepr().setContent(child.string);
       }
     }
