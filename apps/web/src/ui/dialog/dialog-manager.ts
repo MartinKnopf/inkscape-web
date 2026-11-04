@@ -6,6 +6,7 @@ import type { FunctionComponent } from 'react';
 import { getDocumentAnchor } from '../../app/documents.ts';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { CloneTilerDialog } from './clonetiler.tsx';
+import { DebugDialog } from './debug.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
 import { ExtensionsGalleryDialog, FilterGalleryDialog } from './extensions-gallery.tsx';
@@ -39,6 +40,7 @@ interface DialogData {
  */
 const DIALOGS: Record<string, DialogData> = {
   AlignDistribute: { label: _('_Align and Distribute'), component: AlignAndDistributeDialog },
+  DebugWindow: { label: _('_Debugger'), component: DebugDialog },
   DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
   CloneTiler: { label: _('Tiled Clones'), component: CloneTilerDialog, width: 440 },
   Export: { label: _('_Export'), component: ExportDialog },

@@ -160,6 +160,8 @@ export * from './ui/widget/canvas.ts';
 export * from './ui/widget/canvas-grid.ts';
 export * from './ui/widget/color-notebook.ts';
 export * from './ui/widget/ink-ruler.ts';
+export * from './ui/widget/memory.ts';
+export * from './ui/widget/messages.ts';
 export * from './ui/widget/object-composite-settings.ts';
 export * from './ui/widget/scalar-unit.ts';
 export * from './ui/widget/style/marker-combo-box.ts';
