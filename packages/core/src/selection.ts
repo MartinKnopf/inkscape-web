@@ -98,6 +98,30 @@ export class Selection extends ObjectSet {
   }
 
   /**
+   * Scale around the center of the visual bounds. With fixed, amount is the growth in px of the
+   * largest side; else it is the scale factor. Undo steps of the same direction merge.
+   * TODO: the anchor.
+   */
+  scaleAnchored(amount: number, fixed = true): void {
+    const bbox = this.visualBounds();
+    const document = this.document();
+    if (!bbox || !document) return;
+    // Scale the amount by the size to get the final scale amount
+    if (fixed) {
+      const max_len = bbox.maxExtent();
+      if (max_len + amount <= 1e-3) return;
+      amount = 1.0 + amount / max_len;
+    }
+    this.scaleRelative(bbox.midpoint(), amount, amount);
+    DocumentUndo.maybeDone(
+      document,
+      amount > 0 ? 'selector:grow:larger' : 'selector:grow:smaller',
+      amount > 0 ? C_('Undo', 'Grow') : C_('Undo', 'Shrink'),
+      'tool-pointer',
+    );
+  }
+
+  /**
    * Rotate by angle_degrees around the rotation center, with an undo step
    * that merges with the previous rotation in the same direction. With
    * zoom ≠ 1, the angle is the distance in screen pixels that the farthest

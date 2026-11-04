@@ -5,8 +5,22 @@
  *
  * Copyright (C) 2020 Tavmjong Bah
  */
-import { C_, DocumentUndo, N_, NC_, Preferences, type Selection, toCurves } from '@inkscape-web/core';
+import {
+  C_,
+  DocumentUndo,
+  N_,
+  NC_,
+  Preferences,
+  type Selection,
+  type SPDocument,
+  spReprCssAttr,
+  spReprCssProperty,
+  spReprCssSet,
+  spReprCssSetProperty,
+  toCurves,
+} from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
+import { show_output } from './actions-helper.ts';
 
 const SECTION = NC_('Action Section', 'Object');
 
@@ -49,6 +63,47 @@ export const raw_data_object: readonly (readonly [string, string, string, string
     N_('Apply mask to selection (using the topmost object as mask)'),
   ],
   ['app.object-release-mask', N_('Release Object Mask'), SECTION, N_('Remove mask from selection')],
+  [
+    'app.object-set-attribute',
+    N_('Set Attribute'),
+    SECTION,
+    N_(
+      'Set or update an attribute of selected objects; usage: object-set-attribute:attribute name, attribute value;',
+    ),
+  ],
+  [
+    'app.object-set-property',
+    N_('Set Property'),
+    SECTION,
+    N_(
+      'Set or update a property on selected objects; usage: object-set-property:property name, property value;',
+    ),
+  ],
+  [
+    'app.object-get-attribute',
+    N_('Get Attribute'),
+    SECTION,
+    N_('Get the attribute of selected objects; usage: object-get-attribute:attribute name;'),
+  ],
+  [
+    'app.object-get-property',
+    N_('Get Property'),
+    SECTION,
+    N_('Get the property of selected objects; usage: object-get-property:property name;'),
+  ],
+  [
+    'app.object-remove-attribute',
+    N_('Remove Attribute'),
+    SECTION,
+    N_('Remove the attribute from selected objects; usage: object-remove-attribute:attribute name;'),
+  ],
+  [
+    'app.object-remove-property',
+    N_('Remove Property'),
+    SECTION,
+    N_('Remove the property from selected objects; usage: object-remove-property:property name;'),
+  ],
+  ['app.object-unlink-clones', N_('Unlink Clones'), SECTION, N_('Unlink clones and symbols')],
 ];
 
 function should_remove_original(): boolean {
@@ -105,5 +160,64 @@ export function add_actions_object(app: InkscapeApplication): void {
   add('object-release-clip', (s) => object_mask(s, true, false));
   add('object-set-mask', (s) => object_mask(s, false, true));
   add('object-release-mask', (s) => object_mask(s, false, false));
+  add('object-unlink-clones', (s) => void s.unlink());
+
+  // The attribute and property actions work on the XML of the selected objects; no sanity checking.
+  const param = (name: string, run: (value: string, selection: Selection, doc: SPDocument) => void) =>
+    app.actions.app.add_action_with_parameter(name, 's', (value) => {
+      const selection = app.get_active_selection();
+      const doc = app.get_active_document();
+      if (!doc || !selection) return;
+      if (selection.isEmpty()) {
+        show_output(`action:${name.replaceAll('-', '_')}: selection empty!`);
+        return;
+      }
+      run(value, selection, doc);
+    });
+  param('object-get-attribute', (attribute, selection) => {
+    for (const obj of selection.objects()) show_output(obj.getRepr().attribute(attribute) ?? '', false);
+  });
+  param('object-get-property', (property, selection) => {
+    for (const obj of selection.objects()) {
+      show_output(spReprCssProperty(spReprCssAttr(obj.getRepr(), 'style'), property, ''), false);
+    }
+  });
+  param('object-remove-attribute', (attribute, selection, doc) => {
+    for (const obj of selection.objects()) obj.getRepr().removeAttribute(attribute);
+    DocumentUndo.done(doc, C_('Undo', 'Action remove attribute from objects'), '');
+  });
+  param('object-remove-property', (property, selection, doc) => {
+    for (const obj of selection.objects()) {
+      const css = spReprCssAttr(obj.getRepr(), 'style');
+      spReprCssSetProperty(css, property, null);
+      spReprCssSet(obj.getRepr(), css, 'style');
+    }
+    DocumentUndo.done(doc, C_('Undo', 'Action remove property from objects'), '');
+  });
+  param('object-set-attribute', (argument, selection, doc) => {
+    const comma = argument.indexOf(',');
+    if (comma <= 0) {
+      show_output("action:object_set_attribute: requires 'attribute name, attribute value'");
+      return;
+    }
+    for (const obj of selection.objects()) {
+      obj.getRepr().setAttribute(argument.slice(0, comma), argument.slice(comma + 1));
+    }
+    // Needed to update repr (is this the best way?).
+    DocumentUndo.done(doc, 'ActionObjectSetAttribute', '');
+  });
+  param('object-set-property', (argument, selection, doc) => {
+    const tokens = argument.split(',');
+    if (tokens.length !== 2) {
+      show_output("action:object_set_property: requires 'property name, property value'");
+      return;
+    }
+    for (const obj of selection.objects()) {
+      const css = spReprCssAttr(obj.getRepr(), 'style');
+      spReprCssSetProperty(css, tokens[0] as string, tokens[1] as string);
+      spReprCssSet(obj.getRepr(), css, 'style');
+    }
+    DocumentUndo.done(doc, 'ActionObjectSetProperty', '');
+  });
   app.get_action_extra_data().add_data(raw_data_object);
 }

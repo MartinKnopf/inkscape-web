@@ -163,6 +163,33 @@ export async function sp_file_open_recent(id: string): Promise<SPDocument | null
   }
 }
 
+/**
+ * win.document-revert (upstream sp_file_revert_dialog): read the file of the document again.
+ * Returns null if the document has no file or it cannot be read.
+ */
+export async function sp_file_reload(doc: SPDocument): Promise<SPDocument | null> {
+  const handle = fileHandles.get(doc);
+  if (!handle) return null;
+  try {
+    return await openPickedFile(await handle.getFile(), handle);
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+/** Print the document (upstream sp_print_document): the browser prints it from a hidden frame. */
+export function sp_print_document(doc: SPDocument): void {
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden';
+  frame.srcdoc = `<!doctype html><title>${_('Print')}</title><style>@page{margin:0}body{margin:0}svg{max-width:100%}</style>${saveBuf(doc.rdoc, SVG_NS_URI).replace(/^<\?xml[^>]*\?>/, '')}`;
+  frame.onload = () => {
+    frame.contentWindow?.print();
+    setTimeout(() => frame.remove(), 1000);
+  };
+  document.body.append(frame);
+}
+
 /** Input formats for import: SVG and the bitmaps that the browser shows (upstream GdkpixbufInput). */
 const IMPORT_TYPE = (): FilePickerType => ({
   description: _('Images'),

@@ -10,7 +10,7 @@ import type { SPDesktop } from '../desktop.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 
 // Only the options that the desktop supports so far.
-// TODO: prev/next, snapshot, rotate, flip.
+// TODO: prev/next, snapshot, rotate, flip (the canvas does not rotate yet).
 export enum CanvasTransform {
   INK_CANVAS_ZOOM_IN,
   INK_CANVAS_ZOOM_OUT,
@@ -99,6 +99,8 @@ export const raw_data_canvas_transform: readonly (readonly [string, string, stri
   ['win.canvas-zoom-page', N_('Zoom Page'), SECTION, N_('Zoom to fit page in window')],
   ['win.canvas-zoom-page-width', N_('Zoom Page Width'), SECTION, N_('Zoom to fit page width in window')],
   ['win.canvas-zoom-center-page', N_('Center Page'), SECTION, N_('Center page in window')],
+  ['win.canvas-zoom-absolute', N_('Zoom Absolute'), SECTION, N_('Zoom to an absolute value')],
+  ['win.canvas-zoom-relative', N_('Zoom Relative'), SECTION, N_('Zoom by a relative amount')],
 ];
 
 /** Register the win.canvas-zoom-* actions. */
@@ -109,5 +111,16 @@ export function add_actions_canvas_transform(app: InkscapeApplication): void {
       if (dt) canvas_transform(dt, option);
     });
   }
+  app.actions.win.add_action_with_parameter('canvas-zoom-absolute', 'd', (value) => {
+    const dt = app.get_active_desktop();
+    if (!dt) return;
+    if (Preferences.get().getDouble('/options/zoomcorrection/shown', 1))
+      dt.zoom_realworld(dt.current_center(), value);
+    else dt.zoom_absolute(dt.current_center(), value, false);
+  });
+  app.actions.win.add_action_with_parameter('canvas-zoom-relative', 'd', (value) => {
+    const dt = app.get_active_desktop();
+    dt?.zoom_relative(dt.current_center(), value);
+  });
   app.get_action_extra_data().add_data(raw_data_canvas_transform);
 }

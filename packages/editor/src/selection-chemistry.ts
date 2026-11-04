@@ -29,9 +29,27 @@ import {
   SP_STYLE_FLAG_IFSET,
   type SPCSSAttr,
   type SPDocument,
+  SPFlowtext,
+  SPGenericEllipse,
+  SPGradient,
   SPGroup,
+  SPImage,
   SPItem,
+  SPLine,
+  SPLinearGradient,
   type SPObject,
+  SPPath,
+  SPPattern,
+  SPPolygon,
+  SPPolyLine,
+  SPRadialGradient,
+  SPRect,
+  SPSpiral,
+  SPStar,
+  SPStyle,
+  SPText,
+  SPTSpan,
+  SPUse,
   spCssAttrScale,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
@@ -42,7 +60,11 @@ import {
 } from '@inkscape-web/core';
 import { get_active_tool, set_active_tool } from './actions/actions-tools.ts';
 import type { SPDesktop } from './desktop.ts';
-import { sp_desktop_apply_css_recursive, sp_desktop_set_style } from './desktop-style.ts';
+import {
+  objects_query_strokewidth,
+  sp_desktop_apply_css_recursive,
+  sp_desktop_set_style,
+} from './desktop-style.ts';
 import { NodeTool } from './ui/tools/node-tool.ts';
 
 /** Values of /options/kbselection/inlayer. */
@@ -279,4 +301,195 @@ export function removeFilter(set: ObjectSet, desktop: SPDesktop | null): boolean
   const document = set.document();
   if (document) DocumentUndo.done(document, C_('Undo', 'Remove filter'), '');
   return true;
+}
+
+/** What sp_get_same_style() compares (upstream SPSelectStrokeStyleType). */
+export enum SPSelectStrokeStyleType {
+  SP_FILL_COLOR,
+  SP_STROKE_COLOR,
+  SP_STROKE_STYLE_WIDTH,
+  SP_STROKE_STYLE_DASHES,
+  SP_STROKE_STYLE_MARKERS,
+  SP_STROKE_STYLE_ALL,
+  SP_STYLE_ALL,
+}
+
+/** The items of src that have the same fill or stroke (color, gradient vector, pattern, none) as sel. */
+export function sp_get_same_fill_or_stroke_color(
+  sel: SPItem,
+  src: readonly SPItem[],
+  type: SPSelectStrokeStyleType,
+): SPItem[] {
+  const fill = type === SPSelectStrokeStyleType.SP_FILL_COLOR;
+  const sel_paint = sel.style.getFillOrStroke(fill);
+  const server = (item: SPItem) =>
+    fill ? item.style.getFillPaintServer() : item.style.getStrokePaintServer();
+  const check_gradient = (g: SPGradient) =>
+    g instanceof SPLinearGradient || g instanceof SPRadialGradient || g.getVector().isSwatch();
+  const matches: SPItem[] = [];
+  for (const iter of [...src].reverse()) {
+    const iter_paint = iter.style.getFillOrStroke(fill);
+    let match = false;
+    if (
+      sel_paint.isColor() &&
+      iter_paint.isColor() &&
+      sel_paint.getColor().isSimilar(iter_paint.getColor())
+    ) {
+      match = true;
+    } else if (sel_paint.isPaintserver() && iter_paint.isPaintserver()) {
+      const sel_server = server(sel);
+      const iter_server = server(iter);
+      if (
+        sel_server instanceof SPGradient &&
+        iter_server instanceof SPGradient &&
+        check_gradient(sel_server) &&
+        check_gradient(iter_server)
+      ) {
+        match = sel_server.getVector() === iter_server.getVector();
+      } else if (sel_server instanceof SPPattern && iter_server instanceof SPPattern) {
+        match = sel_server.rootPattern() === iter_server.rootPattern();
+      }
+    } else if (sel_paint.isNone() && iter_paint.isNone()) {
+      match = true;
+    } else if (sel_paint.isNoneSet() && iter_paint.isNoneSet()) {
+      match = true;
+    }
+    if (match) matches.push(iter);
+  }
+  return matches;
+}
+
+/** The items of src that match sel in the fill, stroke color or stroke style that type names. */
+export function sp_get_same_style(
+  sel: SPItem,
+  src: readonly SPItem[],
+  type: SPSelectStrokeStyleType = SPSelectStrokeStyleType.SP_STYLE_ALL,
+): SPItem[] {
+  const T = SPSelectStrokeStyleType;
+  let items = src;
+  if (type === T.SP_FILL_COLOR || type === T.SP_STYLE_ALL) {
+    items = sp_get_same_fill_or_stroke_color(sel, items, T.SP_FILL_COLOR);
+  }
+  if (type === T.SP_STROKE_COLOR || type === T.SP_STYLE_ALL) {
+    items = sp_get_same_fill_or_stroke_color(sel, items, T.SP_STROKE_COLOR);
+  }
+
+  // Stroke width needs to handle transformations, so query the transformed stroke width.
+  const stroke_width = (item: SPItem): number => {
+    const style = new SPStyle(item.document);
+    objects_query_strokewidth([item], style);
+    return style.stroke_width.computed;
+  };
+  const check_width =
+    type === T.SP_STROKE_STYLE_WIDTH || type === T.SP_STROKE_STYLE_ALL || type === T.SP_STYLE_ALL;
+  const sel_width = check_width ? stroke_width(sel) : 0;
+  const check_dashes =
+    type === T.SP_STROKE_STYLE_DASHES || type === T.SP_STROKE_STYLE_ALL || type === T.SP_STYLE_ALL;
+  const check_markers =
+    type === T.SP_STROKE_STYLE_MARKERS || type === T.SP_STROKE_STYLE_ALL || type === T.SP_STYLE_ALL;
+
+  const matches: SPItem[] = [];
+  for (const iter of items) {
+    let match = true;
+    if (check_width) {
+      match = sel.style.stroke_width.set === iter.style.stroke_width.set;
+      if (sel.style.stroke_width.set && iter.style.stroke_width.set) match = sel_width === stroke_width(iter);
+    }
+    if (match && check_dashes) {
+      match = sel.style.stroke_dasharray.set === iter.style.stroke_dasharray.set;
+      if (sel.style.stroke_dasharray.set && iter.style.stroke_dasharray.set) {
+        match = sel.style.stroke_dasharray.equals(iter.style.stroke_dasharray);
+      }
+    }
+    if (match && check_markers) {
+      match = sel.style.marker_ptrs.every(
+        (m, i) => (m?.value() ?? null) === (iter.style.marker_ptrs[i]?.value() ?? null),
+      );
+    }
+    if (match) matches.unshift(iter);
+  }
+  return matches;
+}
+
+/** Whether the items are of the same type (rect, ellipse, star or polygon, spiral, path, text, clone, image). */
+function item_type_match(i: SPItem, j: SPItem): boolean {
+  if (i instanceof SPRect) return j instanceof SPRect;
+  if (i instanceof SPGenericEllipse) return j instanceof SPGenericEllipse;
+  if (i instanceof SPStar || i instanceof SPPolygon) return j instanceof SPStar || j instanceof SPPolygon;
+  if (i instanceof SPSpiral) return j instanceof SPSpiral;
+  if (i instanceof SPPath || i instanceof SPLine || i instanceof SPPolyLine) {
+    return j instanceof SPPath || j instanceof SPLine || j instanceof SPPolyLine;
+  }
+  if (i instanceof SPText || i instanceof SPFlowtext || i instanceof SPTSpan) {
+    return j instanceof SPText || j instanceof SPFlowtext || j instanceof SPTSpan;
+  }
+  if (i instanceof SPUse) return j instanceof SPUse;
+  if (i instanceof SPImage) return j instanceof SPImage;
+  return false;
+}
+
+/** The items of src that have the same object type as sel. */
+export function sp_get_same_object_type(sel: SPItem, src: readonly SPItem[]): SPItem[] {
+  return [...src].reverse().filter((item) => item_type_match(sel, item));
+}
+
+/**
+ * Select all the visible items with the same fill and/or stroke color/style as the items in the
+ * current selection (upstream sp_select_same_fill_stroke_style).
+ */
+export function sp_select_same_fill_stroke_style(
+  desktop: SPDesktop,
+  fill: boolean,
+  stroke: boolean,
+  style: boolean,
+): void {
+  if (!fill && !stroke && !style) return;
+  const selection = desktop.getSelection();
+  const prefs = Preferences.get();
+  const inlayersame = prefs.getBool('/options/selection/samelikeall', false);
+  const onlyvisible = prefs.getBool('/options/kbselection/onlyvisible', true);
+  const onlysensitive = prefs.getBool('/options/kbselection/onlysensitive', true);
+
+  let root: SPObject | null = desktop.layerManager().currentRoot();
+  let ingroup = true;
+  // Apply the same layer logic to select same as used for select all.
+  if (inlayersame) {
+    const inlayer: PrefsSelectionContext = prefs.getInt(
+      '/options/kbselection/inlayer',
+      PrefsSelectionContext.PREFS_SELECTION_LAYER,
+    );
+    if (inlayer !== PrefsSelectionContext.PREFS_SELECTION_ALL) {
+      root = selection.activeContext();
+      ingroup = inlayer === PrefsSelectionContext.PREFS_SELECTION_LAYER_RECURSIVE;
+    }
+  }
+  if (!root) return;
+  const all_list = get_all_items(root, desktop, onlyvisible, onlysensitive, ingroup).filter(
+    (item) => !(item instanceof SPGroup),
+  );
+
+  const T = SPSelectStrokeStyleType;
+  const all_matches: SPItem[] = [];
+  for (const sel of selection.items()) {
+    if (fill && stroke && style) all_matches.push(...sp_get_same_style(sel, all_list));
+    else if (fill) all_matches.push(...sp_get_same_style(sel, all_list, T.SP_FILL_COLOR));
+    else if (stroke) all_matches.push(...sp_get_same_style(sel, all_list, T.SP_STROKE_COLOR));
+    else if (style) all_matches.push(...sp_get_same_style(sel, all_list, T.SP_STROKE_STYLE_ALL));
+  }
+  selection.clear();
+  selection.setList(all_matches);
+}
+
+/** Select all the visible items with the same object type as the items in the current selection. */
+export function sp_select_same_object_type(desktop: SPDesktop): void {
+  const prefs = Preferences.get();
+  const onlyvisible = prefs.getBool('/options/kbselection/onlyvisible', true);
+  const onlysensitive = prefs.getBool('/options/kbselection/onlysensitive', true);
+  const root = desktop.layerManager().currentRoot();
+  if (!root) return;
+  let matches = get_all_items(root, desktop, onlyvisible, onlysensitive, true);
+  const selection = desktop.getSelection();
+  for (const sel of selection.items()) matches = sp_get_same_object_type(sel, matches);
+  selection.clear();
+  selection.setList(matches);
 }

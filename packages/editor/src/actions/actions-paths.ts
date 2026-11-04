@@ -14,6 +14,7 @@ import {
   pathCut,
   pathDiff,
   pathIntersect,
+  pathReverse,
   pathSlice,
   pathSymDiff,
   pathUnion,
@@ -61,6 +62,12 @@ export const raw_data_path: readonly (readonly [string, string, string, string])
   ['app.path-combine', N_('Combine'), SECTION, N_('Combine several paths into one')],
   ['app.path-break-apart', N_('Break Apart'), SECTION, N_('Break selected paths into subpaths')],
   ['app.path-split', N_('Split Apart'), SECTION, N_('Split selected paths into non-overlapping sections')],
+  [
+    'win.path-reverse',
+    N_('Reverse'),
+    SECTION,
+    N_('Reverse the direction of selected paths (useful for flipping markers)'),
+  ],
 ];
 
 /** Register the app.path-* actions. */
@@ -71,5 +78,9 @@ export function add_actions_path(app: InkscapeApplication): void {
       if (selection) run(selection);
     });
   }
+  app.actions.win.add_action('path-reverse', () => {
+    const selection = app.get_active_selection();
+    if (selection) pathReverse(selection);
+  });
   app.get_action_extra_data().add_data(raw_data_path);
 }

@@ -31,6 +31,7 @@ import { SPRoot } from './object/sp-root.ts';
 import { PageManager } from './page-manager.ts';
 import { convertUnit, type SVGLength, SVGLengthUnit, svgUnitOf } from './svg/svg-length.ts';
 import { Signal } from './util/signal.ts';
+import { parseSelectorList, selectorListMatches } from './xml/css-selector.ts';
 import type { XmlDocument } from './xml/document.ts';
 import type { Node } from './xml/node.ts';
 import { spReprCssAttrAddFromString, spReprCssAttrNew, spReprCssSet } from './xml/repr-css.ts';
@@ -177,6 +178,36 @@ export class SPDocument {
   }
 
   // Id and repr tables
+
+  /** The objects with the class (anywhere in the tree, in document order). */
+  getObjectsByClass(klass: string): SPObject[] {
+    if (!klass) return [];
+    return this.#collect((o) => (o.getAttribute('class') ?? '').split(/\s+/).includes(klass));
+  }
+
+  /** The objects of the element svg:element (or inkscape:element for custom). */
+  getObjectsByElement(element: string, custom = false): SPObject[] {
+    if (!element) return [];
+    const prefixed = `${custom ? 'inkscape:' : 'svg:'}${element}`;
+    return this.#collect((o) => o.getRepr().name() === prefixed);
+  }
+
+  /** The objects that a CSS selector (a comma separated list) matches. */
+  getObjectsBySelector(selector: string): SPObject[] {
+    if (!selector) return [];
+    const list = parseSelectorList(selector);
+    return this.#collect((o) => selectorListMatches(list, o.getRepr()));
+  }
+
+  #collect(pred: (o: SPObject) => boolean): SPObject[] {
+    const out: SPObject[] = [];
+    const visit = (o: SPObject) => {
+      if (pred(o)) out.push(o);
+      for (const c of o.children) visit(c);
+    };
+    visit(this.root);
+    return out;
+  }
 
   getObjectById(id: string | null): SPObject | null {
     return id ? (this.#iddef.get(id) ?? null) : null;

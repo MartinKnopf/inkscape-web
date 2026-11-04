@@ -6,15 +6,19 @@ import type { FunctionComponent } from 'react';
 import { getDocumentAnchor } from '../../app/documents.ts';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { CloneTilerDialog } from './clonetiler.tsx';
+import { DebugDialog } from './debug.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
+import { DocumentResourcesDialog } from './document-resources.tsx';
 import { ExportDialog } from './export.tsx';
-import { FilterGalleryDialog } from './extensions-gallery.tsx';
+import { ExtensionsGalleryDialog, FilterGalleryDialog } from './extensions-gallery.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { FilterEffectsDialog } from './filter-effects-dialog.tsx';
+import { IconPreviewDialog } from './icon-preview.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
+import { SelectorsDialog } from './selectorsdialog.tsx';
 import { SwatchesDialog } from './swatches.tsx';
 import { SymbolsDialog } from './symbols.tsx';
 import { TextEditDialog } from './text-edit.tsx';
@@ -39,16 +43,21 @@ interface DialogData {
  */
 const DIALOGS: Record<string, DialogData> = {
   AlignDistribute: { label: _('_Align and Distribute'), component: AlignAndDistributeDialog },
+  DebugWindow: { label: _('_Debugger'), component: DebugDialog },
   DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
   CloneTiler: { label: _('Tiled Clones'), component: CloneTilerDialog, width: 440 },
+  DocumentResources: { label: _('_Document Resources'), component: DocumentResourcesDialog, width: 480 },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
+  ExtensionsGallery: { label: _('_Extension Gallery'), component: ExtensionsGalleryDialog, width: 480 },
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
   FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
+  IconPreview: { label: _('Icon Preview'), component: IconPreviewDialog },
   LivePathEffect: { label: _('Path E_ffects'), component: LivePathEffectDialog },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
+  Selectors: { label: _('_Selectors and CSS'), component: SelectorsDialog },
   Swatches: { label: _('S_watches'), component: SwatchesDialog },
   Symbols: { label: _('S_ymbols'), component: SymbolsDialog },
   Text: { label: _('_Text and Font'), component: TextEditDialog },
