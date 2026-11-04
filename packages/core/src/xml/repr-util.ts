@@ -11,6 +11,7 @@
  * g++ port Copyright (C) 2003 Nathan Hurst
  */
 import type { Node } from './node.ts';
+import { spReprCssAttr, spReprCssProperty } from './repr-css.ts';
 
 export const SODIPODI_NS_URI = 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd';
 export const BROKEN_SODIPODI_NS_URI = 'http://inkscape.sourceforge.net/DTD/sodipodi-0.dtd';
@@ -131,4 +132,24 @@ export function sp_repr_lookup_descendant(repr: Node, key: string, value: string
 export function sp_repr_visit_descendants(repr: Node, visitor: (node: Node) => boolean): void {
   if (!visitor(repr)) return;
   for (let child = repr.firstChild(); child; child = child.next()) sp_repr_visit_descendants(child, visitor);
+}
+
+/**
+ * The elements of repr and below, to maxdepth levels (-1: no limit), whose style sets the property to value
+ * (upstream sp_repr_lookup_property_many).
+ */
+export function sp_repr_lookup_property_many(
+  repr: Node,
+  property: string,
+  value: string,
+  maxdepth = -1,
+): Node[] {
+  const nodes: Node[] = [];
+  if (value === spReprCssProperty(spReprCssAttr(repr, 'style'), property, '')) nodes.push(repr);
+  if (maxdepth !== 0) {
+    for (let child = repr.firstChild(); child; child = child.next()) {
+      nodes.push(...sp_repr_lookup_property_many(child, property, value, maxdepth - 1));
+    }
+  }
+  return nodes;
 }

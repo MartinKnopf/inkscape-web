@@ -99,6 +99,31 @@ export class SvgDrawing implements Drawing {
     return this.#renderMode;
   }
 
+  #pageClip: SVGClipPathElement | null = null;
+
+  /**
+   * Show only what is in the rectangle (desktop coordinates), or everything with null (the canvas
+   * of upstream clips to the page, Canvas::set_clip_to_page_mode).
+   */
+  setClipToRect(rect: { x: number; y: number; width: number; height: number } | null): void {
+    if (!rect) {
+      this.root.element.removeAttribute('clip-path');
+      return;
+    }
+    if (!this.#pageClip) {
+      this.#pageClip = this.#doc.createElementNS(SVG_NS, 'clipPath') as SVGClipPathElement;
+      this.#pageClip.id = `${this.#prefix}-page-clip`;
+      this.#pageClip.append(this.#doc.createElementNS(SVG_NS, 'rect'));
+      this.defs.append(this.#pageClip);
+    }
+    const r = this.#pageClip.firstElementChild as SVGRectElement;
+    r.setAttribute('x', String(rect.x));
+    r.setAttribute('y', String(rect.y));
+    r.setAttribute('width', String(rect.width));
+    r.setAttribute('height', String(rect.height));
+    this.root.element.setAttribute('clip-path', `url(#${this.#pageClip.id})`);
+  }
+
   /** Render the drawing in the mode (upstream Drawing::setRenderMode). */
   setRenderMode(mode: RenderMode): void {
     this.#renderMode = mode;

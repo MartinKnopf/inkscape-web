@@ -15,24 +15,23 @@ import { show_output } from './actions-helper.ts';
 
 const SECTION = NC_('Action Section', 'Canvas Display');
 
+/** The radio actions; the detailed names in the raw data add the value, like "win.canvas-display-mode(1)". */
+const DISPLAY_MODE = 'win.canvas-display-mode';
+const SPLIT_MODE = 'win.canvas-split-mode';
+
 /** Action id, label, section and tooltip (untranslated). */
 export const raw_data_canvas_mode: readonly (readonly [string, string, string, string])[] = [
-  ['win.canvas-display-mode(0)', N_('Display Mode: Normal'), SECTION, N_('Use normal rendering mode')],
-  ['win.canvas-display-mode(1)', N_('Display Mode: Outline'), SECTION, N_('Show only object outlines')],
+  [`${DISPLAY_MODE}(0)`, N_('Display Mode: Normal'), SECTION, N_('Use normal rendering mode')],
+  [`${DISPLAY_MODE}(1)`, N_('Display Mode: Outline'), SECTION, N_('Show only object outlines')],
+  [`${DISPLAY_MODE}(2)`, N_('Display Mode: No Filters'), SECTION, N_('Do not render filters (for speed)')],
   [
-    'win.canvas-display-mode(2)',
-    N_('Display Mode: No Filters'),
-    SECTION,
-    N_('Do not render filters (for speed)'),
-  ],
-  [
-    'win.canvas-display-mode(3)',
+    `${DISPLAY_MODE}(3)`,
     N_('Display Mode: Enhance Thin Lines'),
     SECTION,
     N_('Ensure all strokes are displayed on screen as at least 1 pixel wide'),
   ],
   [
-    'win.canvas-display-mode(4)',
+    `${DISPLAY_MODE}(4)`,
     N_('Display Mode: Outline Overlay'),
     SECTION,
     N_('Show objects as outlines, and the actual drawing below them with reduced opacity'),
@@ -44,19 +43,9 @@ export const raw_data_canvas_mode: readonly (readonly [string, string, string, s
     SECTION,
     N_('Toggle between normal and last non-normal mode'),
   ],
-  ['win.canvas-split-mode(0)', N_('Split Mode: Normal'), SECTION, N_('Do not split canvas')],
-  [
-    'win.canvas-split-mode(1)',
-    N_('Split Mode: Split'),
-    SECTION,
-    N_('Render part of the canvas in outline mode'),
-  ],
-  [
-    'win.canvas-split-mode(2)',
-    N_('Split Mode: X-Ray'),
-    SECTION,
-    N_('Render a circular area in outline mode'),
-  ],
+  [`${SPLIT_MODE}(0)`, N_('Split Mode: Normal'), SECTION, N_('Do not split canvas')],
+  [`${SPLIT_MODE}(1)`, N_('Split Mode: Split'), SECTION, N_('Render part of the canvas in outline mode')],
+  [`${SPLIT_MODE}(2)`, N_('Split Mode: X-Ray'), SECTION, N_('Render a circular area in outline mode')],
   ['win.canvas-color-mode', N_('Color Mode'), SECTION, N_('Toggle between normal and grayscale modes')],
   [
     'win.canvas-color-manage',

@@ -541,6 +541,15 @@ export class SPDesktop {
       this.#viewport.hide();
     }
 
+    // Clip to page (upstream SPNamedView::set_clip_to_page): to the selected page, else the viewport.
+    const clip = nv.clip_to_page.value ? (pm.getSelectedPageRect() ?? this.doc.preferredBounds()) : null;
+    const clip_dt = clip?.transformed(this.doc2dt());
+    this.#drawing.setClipToRect(
+      clip_dt
+        ? { x: clip_dt.left(), y: clip_dt.top(), width: clip_dt.width(), height: clip_dt.height() }
+        : null,
+    );
+
     const pages = new Set(pm.getPages());
     for (const [page, view] of this.#page_views) {
       if (pages.has(page)) continue;

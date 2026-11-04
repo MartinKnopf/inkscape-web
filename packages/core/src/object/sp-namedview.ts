@@ -64,6 +64,8 @@ export class SPNamedView extends SPObject {
   editable = true;
   showguides = new SVGBool(true);
   lockguides = new SVGBool(false);
+  /** inkscape:clip-to-page: the canvas shows only what is on the page. */
+  clip_to_page = new SVGBool(false);
   /** Desk color and its checkerboard flag (inkscape:deskcolor, inkscape:pagecheckerboard). */
   desk_color: Color | undefined;
   /** Page: border visible, on top, shadow, checkerboard, colors (page-manager.h). */
@@ -132,6 +134,7 @@ export class SPNamedView extends SPObject {
       SPAttr.INKSCAPE_CY,
       SPAttr.INKSCAPE_CURRENT_LAYER,
       SPAttr.INKSCAPE_LOCKGUIDES,
+      SPAttr.INKSCAPE_CLIP_TO_PAGE_RENDERING,
       SPAttr.INKSCAPE_CONNECTOR_SPACING,
     ]) {
       this.readAttr(key);
@@ -188,6 +191,9 @@ export class SPNamedView extends SPObject {
       case SPAttr.INKSCAPE_LOCKGUIDES:
         this.lockguides.readOrUnset(value);
         for (const guide of this.guides) guide.set_locked(this.lockguides.value, false);
+        break;
+      case SPAttr.INKSCAPE_CLIP_TO_PAGE_RENDERING:
+        this.clip_to_page.readOrUnset(value);
         break;
       case SPAttr.GRIDTOLERANCE:
         this.grid_tolerance = value ? Number.parseFloat(value) : 10;

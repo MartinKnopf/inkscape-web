@@ -515,6 +515,15 @@ export class SPItem extends SPObject {
     return this.documentVisualBounds()?.transformed(this.document.doc2dt()) ?? null;
   }
 
+  /**
+   * Remove the transforms of the ancestors up to root and keep the item as it is on the canvas
+   * (upstream removeTransformsRecursively). The default moves the transform of the ancestors into
+   * the item; groups remove theirs, and paths apply it to their curve.
+   */
+  removeTransformsRecursively(root: SPObject): void {
+    this.setAttribute('transform', sp_svg_transform_write(i2i_affine(this, root)) || null);
+  }
+
   /** Move the item above its next sibling item; false if it is already the topmost (upstream raiseOne). */
   raiseOne(): boolean {
     const parent = this.parent;

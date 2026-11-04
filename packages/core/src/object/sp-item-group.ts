@@ -37,6 +37,7 @@ import {
   SP_OBJECT_WRITE_BUILD,
   SP_OBJECT_WRITE_EXT,
   type SPCtx,
+  type SPObject,
 } from './sp-object.ts';
 
 export enum LayerMode {
@@ -91,6 +92,11 @@ export class SPGroup extends SPLPEItem {
   /** Move the child items by tr (desktop coordinates). */
   translateChildItems(tr: Affine): void {
     for (const item of this.item_list()) item.move_rel(tr);
+  }
+
+  override removeTransformsRecursively(root: SPObject): void {
+    for (const item of this.item_list()) item.removeTransformsRecursively(root);
+    this.removeAttribute('transform');
   }
 
   item_list(): SPItem[] {
