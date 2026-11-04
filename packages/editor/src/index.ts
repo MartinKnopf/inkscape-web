@@ -2,6 +2,7 @@
 // Desktop, canvas, display tree, tools, snapping and actions.
 // Uses the DOM, but not React.
 export * from './actions/action-map.ts';
+export * from './actions/actions-base.ts';
 export * from './actions/actions-canvas-snapping.ts';
 export * from './actions/actions-canvas-transform.ts';
 export * from './actions/actions-edit.ts';
@@ -9,11 +10,15 @@ export * from './actions/actions-edit-document.ts';
 export * from './actions/actions-edit-window.ts';
 export * from './actions/actions-effect.ts';
 export * from './actions/actions-extra-data.ts';
+export * from './actions/actions-help-url.ts';
+export * from './actions/actions-helper.ts';
+export * from './actions/actions-hide-lock.ts';
 export * from './actions/actions-node-tool.ts';
 export * from './actions/actions-object.ts';
 export * from './actions/actions-object-align.ts';
 export * from './actions/actions-pages.ts';
 export * from './actions/actions-paths.ts';
+export * from './actions/actions-selection.ts';
 export * from './actions/actions-selection-object.ts';
 export * from './actions/actions-selection-window.ts';
 export * from './actions/actions-text.ts';

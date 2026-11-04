@@ -7,6 +7,7 @@
  */
 import { type Selection, Signal, type SPDocument } from '@inkscape-web/core';
 import { ActionRegistry } from './actions/action-map.ts';
+import { add_actions_base } from './actions/actions-base.ts';
 import { add_actions_canvas_snapping } from './actions/actions-canvas-snapping.ts';
 import { add_actions_canvas_transform } from './actions/actions-canvas-transform.ts';
 import { add_actions_edit } from './actions/actions-edit.ts';
@@ -14,6 +15,7 @@ import { add_actions_edit_document } from './actions/actions-edit-document.ts';
 import { add_actions_edit_window } from './actions/actions-edit-window.ts';
 import { add_actions_effect } from './actions/actions-effect.ts';
 import { InkActionExtraData } from './actions/actions-extra-data.ts';
+import { add_actions_help_url } from './actions/actions-help-url.ts';
 import { add_actions_hide_lock } from './actions/actions-hide-lock.ts';
 import { add_actions_node_tool } from './actions/actions-node-tool.ts';
 import { add_actions_object } from './actions/actions-object.ts';
@@ -56,6 +58,7 @@ export class InkscapeApplication {
 
   constructor() {
     // ======================== Actions =========================
+    add_actions_base(this); // actions that are independent of the GUI
     add_actions_edit(this); // actions for editing
     add_actions_effect(this); // actions for Filters and Extensions
     add_actions_hide_lock(this); // actions for hiding and locking
@@ -70,6 +73,7 @@ export class InkscapeApplication {
     add_actions_canvas_snapping(this); // Actions to toggle snapping.
     add_actions_canvas_transform(this); // Actions to transform canvas view.
     add_actions_edit_window(this); // Actions to edit.
+    add_actions_help_url(this); // Actions to open the help pages.
     add_actions_node_tool(this); // Actions to add, delete, etc. nodes (requiring Node tool).
     add_actions_select_window(this); // Actions with desktop selection
     add_actions_tools(this, toolIsPorted); // Actions to switch between tools.
