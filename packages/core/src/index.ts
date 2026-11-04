@@ -121,6 +121,8 @@ export * from './object/sp-flowtext.ts';
 export * from './object/sp-gradient.ts';
 export * from './object/sp-grid.ts';
 export * from './object/sp-guide.ts';
+export * from './object/sp-hatch.ts';
+export * from './object/sp-hatch-path.ts';
 export * from './object/sp-image.ts';
 export * from './object/sp-item.ts';
 export * from './object/sp-item-group.ts';

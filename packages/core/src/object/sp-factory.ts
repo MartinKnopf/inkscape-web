@@ -42,6 +42,8 @@ import { SPFlowregion, SPFlowregionExclude } from './sp-flowregion.ts';
 import { SPFlowtext } from './sp-flowtext.ts';
 import { SPGrid } from './sp-grid.ts';
 import { SPGuide } from './sp-guide.ts';
+import { SPHatch } from './sp-hatch.ts';
+import { SPHatchPath } from './sp-hatch-path.ts';
 import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
@@ -96,6 +98,9 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:meshpatch', () => new SPMeshpatch()],
   ['svg:marker', () => new SPMarker()],
   ['svg:mask', () => new SPMask()],
+  ['svg:hatch', () => new SPHatch()],
+  ['svg:hatchpath', () => new SPHatchPath()],
+  ['svg:hatchPath', () => new SPHatchPath()],
   ['svg:path', () => new SPPath()],
   ['svg:pattern', () => new SPPattern()],
   ['svg:polygon', () => new SPPolygon()],
