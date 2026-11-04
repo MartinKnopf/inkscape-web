@@ -7,16 +7,20 @@
 // An item counts as ported when our code (packages/*, apps/*) refers to it:
 // - "header" items: the upstream file is named in an "Upstream:" header.
 // - "literal" items: the upstream key appears as a string literal
-//   (action ids, dialog keys, LPE keys, extension ids).
+//   (action ids, dialog keys, LPE keys).
+// - "loaded" items: the item is in a list that the category computes (Python extensions: the
+//   extension system loads the .inx and can run its script, see extensionIsLoaded()).
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { checkUpstream, ourSources, repoRoot, sync, upstreamReferences, upstreamRoot } from './upstream.ts';
 
 interface Category {
   name: string;
-  match: 'header' | 'literal';
-  /** Upstream paths ('header') or keys ('literal'). */
+  match: 'header' | 'literal' | 'loaded';
+  /** Upstream paths ('header') or keys ('literal', 'loaded'). */
   items: string[];
+  /** The items that count as ported, for 'loaded'. */
+  loaded?: Set<string>;
 }
 
 const src = (p: string) => readFileSync(join(upstreamRoot, p), 'utf8');
@@ -26,6 +30,22 @@ const ls = (dir: string, re: RegExp) =>
     .map((f) => `${dir}/${f}`)
     .sort();
 const unique = (a: string[]) => [...new Set(a)].sort();
+
+/**
+ * Whether the extension system loads the .inx and can run it. packages/assets/build.ts serves
+ * every .inx of share/extensions; build_from_reprdoc() (packages/editor/src/extension/system.ts)
+ * takes input, output and effect extensions with a script, and skips ids with "win32"; the script
+ * runs in Pyodide, so its interpreter must be python (or none). XSLT and plugin extensions are not
+ * loaded.
+ */
+function extensionIsLoaded(inx: string, id: string): boolean {
+  return (
+    /<(input|output|effect)[\s>]/.test(inx) &&
+    /<script[\s>]/.test(inx) &&
+    !/interpreter="(?!python")/.test(inx) &&
+    !id.includes('win32')
+  );
+}
 
 function categories(): Category[] {
   const actions = ls('src/actions', /\.cpp$/).flatMap((f) =>
@@ -39,8 +59,9 @@ function categories(): Category[] {
     (m) => m[1]!,
   );
   const extensions = ls('share/extensions', /\.inx$/).flatMap((f) => {
-    const id = /<id>([^<]+)<\/id>/.exec(src(f))?.[1];
-    return id ? [id] : [];
+    const text = src(f);
+    const id = /<id>([^<]+)<\/id>/.exec(text)?.[1];
+    return id ? [{ id, loaded: extensionIsLoaded(text, id) }] : [];
   });
   return [
     { name: 'Tools', match: 'header', items: ls('src/ui/tools', /-tool\.cpp$/) },
@@ -52,7 +73,12 @@ function categories(): Category[] {
       match: 'header',
       items: ls('src/extension/internal', /\.cpp$/),
     },
-    { name: 'Python extensions', match: 'literal', items: unique(extensions) },
+    {
+      name: 'Python extensions',
+      match: 'loaded',
+      items: unique(extensions.map((e) => e.id)),
+      loaded: new Set(extensions.filter((e) => e.loaded).map((e) => e.id)),
+    },
   ];
 }
 
@@ -64,7 +90,9 @@ const ours = ourSources()
 const isPorted = (c: Category, item: string) =>
   c.match === 'header'
     ? refs.has(item)
-    : [`'${item}'`, `"${item}"`, `\`${item}\``].some((q) => ours.includes(q));
+    : c.match === 'loaded'
+      ? !!c.loaded?.has(item)
+      : [`'${item}'`, `"${item}"`, `\`${item}\``].some((q) => ours.includes(q));
 
 const cats = categories();
 const rows = cats.map((c) => {
