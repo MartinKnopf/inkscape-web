@@ -45,7 +45,7 @@ import {
   spReprCssSet,
   type Node as XmlNode,
 } from '@inkscape-web/core';
-import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
+import { Affine, Point, Rect, Rotate, Scale } from '@inkscape-web/geom';
 import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
 import { sp_dt_guide_event, sp_dt_guide_key_event } from './desktop-events.ts';
 import { CanvasItemGroup } from './display/control/canvas-item.ts';
@@ -67,14 +67,24 @@ export const SP_DESKTOP_ZOOM_MIN = 0.01;
 /** Upstream default of the desk color (sp-namedview.cpp default_desk_color). */
 const DEFAULT_DESK_COLOR = 0xd1d1d1ff;
 
+/** The flip of the canvas (upstream SPDesktop::CanvasFlip, a bit set). */
+export enum CanvasFlip {
+  FLIP_NONE = 0,
+  FLIP_HORIZONTAL = 1,
+  FLIP_VERTICAL = 2,
+}
+
 /**
  * How the drawing maps to the window (upstream SPDesktop::DesktopAffine).
- * d2w is the scale (with the y-axis direction); the offset is the world
- * point at the top left corner of the window.
- * TODO: rotation and flip.
+ * d2w is the scale (with the y-axis direction) times the rotation times the flip; the offset is
+ * the world point at the top left corner of the window. Scale and rotation are kept apart so that
+ * they need not be extracted from the affine.
  */
-class DesktopAffine {
+export class DesktopAffine {
   #scale = Scale(1, 1);
+  #rotate = Affine.identity();
+  #angle = 0;
+  #flip = Affine.identity();
   #d2w = Affine.identity();
   #w2d = Affine.identity();
   #offset = new Point(0, 0);
@@ -89,6 +99,34 @@ class DesktopAffine {
     this.#scale = scale;
     this.#update();
   }
+  /** Set the rotation, an angle in radians (clockwise on the screen). */
+  setRotate(angle: number): void {
+    this.#angle = angle;
+    this.#rotate = Rotate(angle);
+    this.#update();
+  }
+  addRotate(angle: number): void {
+    this.setRotate(this.#angle + angle);
+  }
+  /** The rotation in radians. */
+  getRotation(): number {
+    return this.#angle;
+  }
+  setFlip(flip: CanvasFlip): void {
+    this.#flip = Affine.identity();
+    this.addFlip(flip);
+  }
+  addFlip(flip: CanvasFlip): void {
+    if (flip & CanvasFlip.FLIP_HORIZONTAL) this.#flip = this.#flip.multiply(Scale(-1, 1));
+    if (flip & CanvasFlip.FLIP_VERTICAL) this.#flip = this.#flip.multiply(Scale(1, -1));
+    this.#update();
+  }
+  isFlipped(flip: CanvasFlip): boolean {
+    return (
+      !!(flip & CanvasFlip.FLIP_HORIZONTAL && Math.abs(this.#flip.c0 + 1) < 1e-6) ||
+      !!(flip & CanvasFlip.FLIP_VERTICAL && Math.abs(this.#flip.c3 + 1) < 1e-6)
+    );
+  }
   getZoom(): number {
     return this.#d2w.descrim();
   }
@@ -101,8 +139,30 @@ class DesktopAffine {
   getOffset(): Point {
     return this.#offset;
   }
+  clone(): DesktopAffine {
+    const c = new DesktopAffine();
+    c.#scale = this.#scale;
+    c.#rotate = this.#rotate;
+    c.#angle = this.#angle;
+    c.#flip = this.#flip;
+    c.#d2w = this.#d2w;
+    c.#w2d = this.#w2d;
+    c.#offset = this.#offset;
+    return c;
+  }
+  /** Copy the state of other into this one. */
+  assign(other: DesktopAffine): void {
+    const c = other.clone();
+    this.#scale = c.#scale;
+    this.#rotate = c.#rotate;
+    this.#angle = c.#angle;
+    this.#flip = c.#flip;
+    this.#d2w = c.#d2w;
+    this.#w2d = c.#w2d;
+    this.#offset = c.#offset;
+  }
   #update(): void {
-    this.#d2w = this.#scale;
+    this.#d2w = this.#scale.multiply(this.#rotate).multiply(this.#flip);
     this.#w2d = this.#d2w.inverse();
   }
 }
@@ -742,20 +802,114 @@ export class SPDesktop {
   set_display_area(log?: boolean): void;
   set_display_area(c: Point, w: Point, log?: boolean): void;
   set_display_area(r: Rect, border: number, log?: boolean): void;
-  set_display_area(a?: boolean | Point | Rect, b?: Point | number, _log = true): void {
+  set_display_area(a?: boolean | Point | Rect, b?: Point | number, log = true): void {
     if (a instanceof Point && b instanceof Point) {
       // The relative offset needed to keep c at w.
       this._current_affine.addOffset(this.d2w(a).sub(b));
-    } else if (a instanceof Rect && typeof b === 'number') {
-      this.#setDisplayAreaRect(a, b);
+      this.#applyDisplayArea(log);
       return;
+    }
+    if (a instanceof Rect && typeof b === 'number') {
+      this.#setDisplayAreaRect(a, b, log);
+      return;
+    }
+    this.#applyDisplayArea(typeof a === 'boolean' ? a : true);
+  }
+
+  /** Apply _current_affine (complete, with the offset) to the canvas; with log, remember it for zoom previous/next. */
+  #applyDisplayArea(log: boolean): void {
+    if (log) {
+      this.#transforms_past.unshift(this._current_affine.clone());
+      // a logged transform invalidates the transforms that came after
+      this.#transforms_future.length = 0;
     }
     this.canvas.set_pos(this._current_affine.getOffset());
     this.canvas.set_affine(this._current_affine.d2w());
     this.signal_zoom_changed.emit(this._current_affine.getZoom());
   }
 
-  #setDisplayAreaRect(r: Rect, border: number): void {
+  /** The transforms that were shown, the current one first (upstream transforms_past). */
+  readonly #transforms_past: DesktopAffine[] = [];
+  readonly #transforms_future: DesktopAffine[] = [];
+
+  /** Go back to the previous transform of the history (upstream prev_transform); false if there is none. */
+  prev_transform(): boolean {
+    if (this.#transforms_past.length <= 1) return false; // "No previous transform."
+    const current = this.#transforms_past.shift();
+    if (current) this.#transforms_future.unshift(current);
+    const prev = this.#transforms_past[0];
+    if (prev) this._current_affine.assign(prev);
+    this.#applyDisplayArea(false);
+    return true;
+  }
+
+  /** Go to the next transform of the history (upstream next_transform); false if there is none. */
+  next_transform(): boolean {
+    const next = this.#transforms_future.shift();
+    if (!next) return false; // "No next transform."
+    this._current_affine.assign(next);
+    this.#applyDisplayArea(false);
+    this.#transforms_past.unshift(next.clone());
+    return true;
+  }
+
+  clear_transform_history(): void {
+    this.#transforms_past.length = 0;
+    this.#transforms_future.length = 0;
+  }
+
+  /** The rotation of the canvas in radians. */
+  current_rotation(): number {
+    return this._current_affine.getRotation();
+  }
+
+  /** Whether the rotation is locked (upstream set_rotation_lock; /options/rotationlock). */
+  rotation_lock = Preferences.get().getBool('/options/rotationlock', false);
+
+  /** Set the rotation (radians), keeping desktop point c fixed in the window. */
+  rotate_absolute_keep_point(c: Point, rotate: number): void {
+    const w = this.d2w(c); // Must be before rotate changed.
+    this._current_affine.setRotate(rotate);
+    this.set_display_area(c, w);
+  }
+  rotate_relative_keep_point(c: Point, rotate: number): void {
+    const w = this.d2w(c);
+    this._current_affine.addRotate(rotate);
+    this.set_display_area(c, w);
+  }
+  /** Set the rotation (radians), aligning desktop point c to the center of the window. */
+  rotate_absolute_center_point(c: Point, rotate: number): void {
+    this._current_affine.setRotate(rotate);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+  rotate_relative_center_point(c: Point, rotate: number): void {
+    this._current_affine.addRotate(rotate);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+
+  flip_absolute_keep_point(c: Point, flip: CanvasFlip): void {
+    const w = this.d2w(c);
+    this._current_affine.setFlip(flip);
+    this.set_display_area(c, w);
+  }
+  flip_relative_keep_point(c: Point, flip: CanvasFlip): void {
+    const w = this.d2w(c);
+    this._current_affine.addFlip(flip);
+    this.set_display_area(c, w);
+  }
+  flip_absolute_center_point(c: Point, flip: CanvasFlip): void {
+    this._current_affine.setFlip(flip);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+  flip_relative_center_point(c: Point, flip: CanvasFlip): void {
+    this._current_affine.addFlip(flip);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+  is_flipped(flip: CanvasFlip): boolean {
+    return this._current_affine.isFlipped(flip);
+  }
+
+  #setDisplayAreaRect(r: Rect, border: number, log: boolean): void {
     // A rectangle the size of the window aligned with origin, shrunk by the border.
     const w = new Rect(new Point(0, 0), this.canvas.get_dimensions()).expandBy(-border);
     // Determine which direction limits scale.
@@ -765,7 +919,7 @@ export class SPDesktop {
     this._current_affine.setScale(Scale(zoom, this.yaxisdir() * zoom));
     // Zero offset, actual offset calculated later.
     this._current_affine.setOffset(new Point(0, 0));
-    this.set_display_area(r.midpoint(), w.midpoint());
+    this.set_display_area(r.midpoint(), w.midpoint(), log);
   }
 
   /**

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Application shell: menu bar, toolbox, docked panels and status bar.
+
+import { _ } from '@inkscape-web/core';
 import { attachActionShortcuts } from '@inkscape-web/editor';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react';
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import 'dockview-react/dist/styles/dockview.css';
 import { PdfImportDialogHost } from '../extension/internal/pdfinput/pdf-input.tsx';
 import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
@@ -41,9 +43,33 @@ function onReady(e: DockviewReadyEvent) {
 
 /** Status bar with the zoom of the active desktop (upstream ui/widget/status-bar). */
 function StatusBar() {
-  const zoom = useZoom(useActiveDesktop());
+  const desktop = useActiveDesktop();
+  const zoom = useZoom(desktop);
+  // The rotation changes with the same signal as the zoom (upstream: update_rotation).
+  const rotation = useSyncExternalStore(
+    (cb) => desktop?.signal_zoom_changed.connect(cb) ?? (() => {}),
+    () => desktop?.current_rotation() ?? 0,
+  );
+  const degrees = Math.round((((rotation * 180) / Math.PI + 540) % 360) - 180);
   return (
     <footer className="statusbar">
+      <label className="rotation" title={_('Canvas rotation in degrees (Ctrl+Shift+wheel)')}>
+        <input
+          type="number"
+          aria-label={_('Rotation')}
+          value={degrees}
+          min={-180}
+          max={180}
+          disabled={!desktop}
+          onChange={(e) => {
+            const value = Number.parseFloat(e.target.value);
+            if (desktop && Number.isFinite(value)) {
+              desktop.rotate_absolute_center_point(desktop.current_center(), (value * Math.PI) / 180);
+            }
+          }}
+        />
+        °
+      </label>
       <span className="zoom">{`${Math.round(zoom * 100)}%`}</span>
     </footer>
   );
