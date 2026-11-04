@@ -7,8 +7,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 24 | 26 | 92 |
 | Dialogs | 25 | 29 | 86 |
-| Actions | 274 | 409 | 67 |
-| Live path effects | 23 | 56 | 41 |
+| Actions | 338 | 409 | 83 |
+| Live path effects | 24 | 56 | 43 |
 | Internal import/export modules | 7 | 35 | 20 |
 | Python extensions | 154 | 160 | 96 |
 
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (274/409)</summary>
+<details><summary>Actions (338/409)</summary>
 
 - [x] `app.about`
 - [x] `app.action-list`
@@ -86,7 +86,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.active-window-start`
 - [ ] `app.chameleon-fill`
 - [x] `app.clone`
-- [ ] `app.clone-link`
+- [x] `app.clone-link`
 - [x] `app.clone-link-lpe`
 - [x] `app.clone-unlink`
 - [x] `app.clone-unlink-recursively`
@@ -100,7 +100,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.document-new`
 - [x] `app.document-open`
 - [x] `app.duplicate`
-- [ ] `app.duplicate-transform`
+- [x] `app.duplicate-transform`
 - [x] `app.edit-remove-filter`
 - [ ] `app.element-a-open-link`
 - [ ] `app.element-image-crop`
@@ -139,13 +139,13 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.file-open-window`
 - [ ] `app.file-rebase`
 - [ ] `app.file-rebase-from-saved`
-- [ ] `app.fit-canvas-to-selection`
+- [x] `app.fit-canvas-to-selection`
 - [x] `app.inkscape-version`
 - [x] `app.last-effect`
 - [x] `app.last-effect-pref`
 - [x] `app.list-input-types`
 - [x] `app.no-convert-baseline`
-- [ ] `app.object-add-corners-lpe`
+- [x] `app.object-add-corners-lpe`
 - [x] `app.object-align`
 - [ ] `app.object-align-on-canvas`
 - [ ] `app.object-align-text`
@@ -155,25 +155,25 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.object-flip-vertical`
 - [x] `app.object-get-attribute`
 - [x] `app.object-get-property`
-- [ ] `app.object-rearrange`
+- [x] `app.object-rearrange`
 - [x] `app.object-release-clip`
 - [x] `app.object-release-mask`
 - [x] `app.object-remove-attribute`
-- [ ] `app.object-remove-overlaps`
+- [x] `app.object-remove-overlaps`
 - [x] `app.object-remove-property`
 - [x] `app.object-rotate-90-ccw`
 - [x] `app.object-rotate-90-cw`
 - [x] `app.object-set-attribute`
 - [x] `app.object-set-clip`
-- [ ] `app.object-set-clip-group`
+- [x] `app.object-set-clip-group`
 - [x] `app.object-set-inverse-clip`
-- [ ] `app.object-set-inverse-mask`
+- [x] `app.object-set-inverse-mask`
 - [x] `app.object-set-mask`
 - [x] `app.object-set-property`
 - [ ] `app.object-star-turn-upright`
-- [ ] `app.object-stroke-to-path`
-- [ ] `app.object-to-guides`
-- [ ] `app.object-to-marker`
+- [x] `app.object-stroke-to-path`
+- [x] `app.object-to-guides`
+- [x] `app.object-to-marker`
 - [x] `app.object-to-path`
 - [x] `app.object-to-pattern`
 - [x] `app.object-unlink-clones`
@@ -182,7 +182,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.page-rotate`
 - [x] `app.paste-height`
 - [x] `app.paste-height-separately`
-- [ ] `app.paste-path-effect`
+- [x] `app.paste-path-effect`
 - [x] `app.paste-size`
 - [x] `app.paste-size-separately`
 - [x] `app.paste-style`
@@ -194,13 +194,13 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.path-difference`
 - [x] `app.path-division`
 - [x] `app.path-exclusion`
-- [ ] `app.path-fill-between-paths`
-- [ ] `app.path-flatten`
-- [ ] `app.path-fracture`
-- [ ] `app.path-inset`
+- [x] `app.path-fill-between-paths`
+- [x] `app.path-flatten`
+- [x] `app.path-fracture`
+- [x] `app.path-inset`
 - [x] `app.path-intersection`
-- [ ] `app.path-offset`
-- [ ] `app.path-simplify`
+- [x] `app.path-offset`
+- [x] `app.path-simplify`
 - [x] `app.path-split`
 - [x] `app.path-union`
 - [x] `app.pattern-to-object`
@@ -214,7 +214,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.quit`
 - [x] `app.quit-immediate`
 - [x] `app.refresh-user-extensions`
-- [ ] `app.remove-path-effect`
+- [x] `app.remove-path-effect`
 - [x] `app.save-preferences`
 - [x] `app.select`
 - [x] `app.select-all`
@@ -228,21 +228,21 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.selection-bottom`
 - [x] `app.selection-group`
 - [x] `app.selection-hide`
-- [ ] `app.selection-link`
+- [x] `app.selection-link`
 - [x] `app.selection-lock`
 - [x] `app.selection-lower`
-- [ ] `app.selection-make-bitmap-copy`
+- [x] `app.selection-make-bitmap-copy`
 - [x] `app.selection-raise`
-- [ ] `app.selection-stack-down`
-- [ ] `app.selection-stack-up`
+- [x] `app.selection-stack-down`
+- [x] `app.selection-stack-up`
 - [x] `app.selection-top`
 - [x] `app.selection-ungroup`
-- [ ] `app.selection-ungroup-pop`
+- [x] `app.selection-ungroup-pop`
 - [x] `app.selection-unhide`
 - [x] `app.selection-unhide-below`
 - [x] `app.selection-unlock`
 - [x] `app.selection-unlock-below`
-- [ ] `app.swap-fill-and-stroke`
+- [x] `app.swap-fill-and-stroke`
 - [x] `app.system-data-directory`
 - [x] `app.text-convert-to-glyphs`
 - [x] `app.text-convert-to-regular`
@@ -282,17 +282,17 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.window-open`
 - [x] `app.window-query-geometry`
 - [ ] `app.window-set-geometry`
-- [ ] `doc.add-strokes-to-paths`
+- [x] `doc.add-strokes-to-paths`
 - [x] `doc.all-clones-to-objects`
 - [x] `doc.all-objects-to-paths`
-- [ ] `doc.clip-to-page`
+- [x] `doc.clip-to-page`
 - [x] `doc.create-guides-around-page`
 - [x] `doc.delete-all-guides`
 - [x] `doc.fit-canvas-to-drawing`
 - [x] `doc.insert-bounding-boxes`
-- [ ] `doc.insert-hatch-polyfill`
-- [ ] `doc.insert-mesh-polyfill`
-- [ ] `doc.insert-path-data`
+- [x] `doc.insert-hatch-polyfill`
+- [x] `doc.insert-mesh-polyfill`
+- [x] `doc.insert-path-data`
 - [ ] `doc.insert-text-fallback`
 - [x] `doc.lock-all-guides`
 - [x] `doc.normalize-all-paths`
@@ -305,9 +305,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `doc.prune-inkscape-namespaces`
 - [x] `doc.prune-proprietary-namespaces`
 - [x] `doc.redo`
-- [ ] `doc.remove-all-transforms`
-- [ ] `doc.remove-marker-context-paint`
-- [ ] `doc.reverse-auto-start-markers`
+- [x] `doc.remove-all-transforms`
+- [x] `doc.remove-marker-context-paint`
+- [x] `doc.reverse-auto-start-markers`
 - [x] `doc.set-inkscape-version`
 - [x] `doc.set-svg-version-1`
 - [x] `doc.set-svg-version-2`
@@ -315,32 +315,32 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `doc.show-grids`
 - [x] `doc.undo`
 - [x] `doc.vacuum-defs`
-- [ ] `win.canvas-color-manage`
-- [ ] `win.canvas-color-mode`
+- [x] `win.canvas-color-manage`
+- [x] `win.canvas-color-mode`
 - [ ] `win.canvas-command-palette`
 - [ ] `win.canvas-commands-bar`
-- [ ] `win.canvas-display-mode`
-- [ ] `win.canvas-display-mode-cycle`
-- [ ] `win.canvas-display-mode-toggle`
-- [ ] `win.canvas-flip-horizontal`
-- [ ] `win.canvas-flip-reset`
-- [ ] `win.canvas-flip-vertical`
+- [x] `win.canvas-display-mode`
+- [x] `win.canvas-display-mode-cycle`
+- [x] `win.canvas-display-mode-toggle`
+- [x] `win.canvas-flip-horizontal`
+- [x] `win.canvas-flip-reset`
+- [x] `win.canvas-flip-vertical`
 - [ ] `win.canvas-interface-mode`
 - [ ] `win.canvas-palette`
-- [ ] `win.canvas-rotate-absolute-degrees`
-- [ ] `win.canvas-rotate-absolute-radians`
-- [ ] `win.canvas-rotate-ccw`
-- [ ] `win.canvas-rotate-cw`
-- [ ] `win.canvas-rotate-lock`
-- [ ] `win.canvas-rotate-relative-degrees`
-- [ ] `win.canvas-rotate-relative-radians`
-- [ ] `win.canvas-rotate-reset`
+- [x] `win.canvas-rotate-absolute-degrees`
+- [x] `win.canvas-rotate-absolute-radians`
+- [x] `win.canvas-rotate-ccw`
+- [x] `win.canvas-rotate-cw`
+- [x] `win.canvas-rotate-lock`
+- [x] `win.canvas-rotate-relative-degrees`
+- [x] `win.canvas-rotate-relative-radians`
+- [x] `win.canvas-rotate-reset`
 - [ ] `win.canvas-rulers`
 - [ ] `win.canvas-scroll-bars`
 - [ ] `win.canvas-snap-controls-bar`
-- [ ] `win.canvas-snapshot-set`
-- [ ] `win.canvas-snapshot-toggle`
-- [ ] `win.canvas-split-mode`
+- [x] `win.canvas-snapshot-set`
+- [x] `win.canvas-snapshot-toggle`
+- [x] `win.canvas-split-mode`
 - [ ] `win.canvas-statusbar`
 - [ ] `win.canvas-tool-control-bar`
 - [ ] `win.canvas-toolbox`
@@ -351,11 +351,11 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.canvas-zoom-center-page`
 - [x] `win.canvas-zoom-drawing`
 - [x] `win.canvas-zoom-in`
-- [ ] `win.canvas-zoom-next`
+- [x] `win.canvas-zoom-next`
 - [x] `win.canvas-zoom-out`
 - [x] `win.canvas-zoom-page`
 - [x] `win.canvas-zoom-page-width`
-- [ ] `win.canvas-zoom-prev`
+- [x] `win.canvas-zoom-prev`
 - [x] `win.canvas-zoom-relative`
 - [x] `win.canvas-zoom-selection`
 - [ ] `win.dialog-open`
@@ -383,17 +383,17 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.help-url-svg2-spec`
 - [x] `win.layer-bottom`
 - [x] `win.layer-delete`
-- [ ] `win.layer-duplicate`
+- [x] `win.layer-duplicate`
 - [x] `win.layer-from-group`
 - [x] `win.layer-hide-toggle`
 - [x] `win.layer-lock-toggle`
 - [x] `win.layer-lower`
-- [ ] `win.layer-new`
+- [x] `win.layer-new`
 - [x] `win.layer-new-above`
 - [x] `win.layer-next`
 - [x] `win.layer-previous`
 - [x] `win.layer-raise`
-- [ ] `win.layer-rename`
+- [x] `win.layer-rename`
 - [x] `win.layer-to-group`
 - [x] `win.layer-top`
 - [ ] `win.node-align-horizontal`
@@ -420,10 +420,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.paste-in-place`
 - [ ] `win.paste-on-page`
 - [ ] `win.path-effect-parameter-next`
-- [ ] `win.path-inset-screen`
-- [ ] `win.path-offset-dynamic`
-- [ ] `win.path-offset-linked`
-- [ ] `win.path-offset-screen`
+- [x] `win.path-inset-screen`
+- [x] `win.path-offset-dynamic`
+- [x] `win.path-offset-linked`
+- [x] `win.path-offset-screen`
 - [x] `win.path-reverse`
 - [x] `win.select-all`
 - [x] `win.select-all-layers`
@@ -437,9 +437,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.select-same-stroke-style`
 - [x] `win.selection-group-enter`
 - [x] `win.selection-group-exit`
-- [ ] `win.selection-move-to-layer`
-- [ ] `win.selection-move-to-layer-above`
-- [ ] `win.selection-move-to-layer-below`
+- [x] `win.selection-move-to-layer`
+- [x] `win.selection-move-to-layer-above`
+- [x] `win.selection-move-to-layer-below`
 - [ ] `win.shape-builder-mode`
 - [ ] `win.shape-builder-replace`
 - [x] `win.simple-snap-alignment`
@@ -491,7 +491,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (23/56)</summary>
+<details><summary>Live path effects (24/56)</summary>
 
 - [ ] `angle_bisector`
 - [ ] `attach_path`
@@ -530,7 +530,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `path_length`
 - [ ] `perp_bisector`
 - [ ] `powerclip`
-- [ ] `powermask`
+- [x] `powermask`
 - [x] `powerstroke`
 - [ ] `pts2ellipse`
 - [ ] `recursive_skeleton`

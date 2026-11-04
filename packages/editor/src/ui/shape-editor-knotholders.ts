@@ -12,7 +12,7 @@
  *
  * Licensed under GNU GPL
  *
- * TODO: the knot holders of the other shapes (rect, ellipse, star, spiral, offset, text, ...).
+ * TODO: the knot holders of the other shapes (rect, ellipse, star, spiral, text, ...).
  */
 import {
   _,
@@ -28,7 +28,10 @@ import {
   type SPItem,
   SPMarker,
   SPMarkerLoc,
+  SPOffset,
   sp_marker_content_bounds,
+  sp_offset_distance_to_original,
+  sp_offset_top_point,
 } from '@inkscape-web/core';
 import { type Affine, Point, Rect, Rotate, Translate } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
@@ -508,5 +511,45 @@ export class MarkerKnotHolder extends KnotHolder {
     this.add(entity_scale);
     this.add(entity_scale2);
     this.add(entity_scale3);
+  }
+}
+
+/* SPOffset */
+
+/** The knot that sets the radius of an offset object (upstream OffsetKnotHolderEntity). */
+class OffsetKnotHolderEntity extends KnotHolderEntity {
+  knot_get(): Point {
+    return this.item instanceof SPOffset
+      ? (sp_offset_top_point(this.item) ?? new Point(0, 0))
+      : new Point(0, 0);
+  }
+
+  knot_ungrabbed(): void {}
+
+  knot_set(p: Point, _origin: Point, state: KnotState): void {
+    const offset = this.item;
+    if (!(offset instanceof SPOffset)) return;
+    const p_snapped = this.snap_knot_position(p, state);
+    offset.rad = sp_offset_distance_to_original(offset, p_snapped);
+    offset.knot = p_snapped;
+    offset.knotSet = true;
+    offset.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+  }
+}
+
+/** The knot of an offset object (upstream OffsetKnotHolder). TODO: pattern and hatch knots. */
+export class OffsetKnotHolder extends KnotHolder {
+  constructor(desktop: SPDesktop, item: SPOffset) {
+    super(desktop, item);
+    const entity_offset = new OffsetKnotHolderEntity();
+    entity_offset.create(
+      desktop,
+      item,
+      this,
+      'CANVAS_ITEM_CTRL_TYPE_SHAPER',
+      'Offset:entity',
+      _('Adjust the <b>offset distance</b>'),
+    );
+    this.add(entity_offset);
   }
 }

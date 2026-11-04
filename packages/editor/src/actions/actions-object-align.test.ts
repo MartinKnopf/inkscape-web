@@ -2,7 +2,10 @@
 // Upstream: src/actions/actions-object-align.cpp
 import { ObjectSet, Preferences, SPDocument, type SPItem } from '@inkscape-web/core';
 import { describe, expect, it } from 'vitest';
-import { object_align, object_distribute } from './actions-object-align.ts';
+import { useWasmBackend } from '../ui/tools/tool-test-utils.ts';
+import { object_align, object_align_actions, object_distribute } from './actions-object-align.ts';
+
+await useWasmBackend();
 
 // Three rects without stroke: visual and geometric bounds are the same.
 const SVG =
@@ -114,5 +117,48 @@ describe('object_distribute', () => {
     object_distribute(set, 'bottom');
     // Bottoms 10, 40, 45 → 10, 27.5, 45
     expect(box('b')).toEqual([30, 7.5, 50, 27.5]);
+  });
+});
+
+describe('object-rearrange', () => {
+  it('exchange moves each item to the center of the previous one, the first to the one of the last', () => {
+    const { set, box, undo } = setup('a', 'b', 'c');
+    object_align_actions['object-rearrange']?.(set, 'exchange');
+    expect(box('a')).toEqual([100, 20, 110, 30]); // the center of c
+    expect(box('b')).toEqual([-5, -5, 15, 15]); // the center of a
+    expect(box('c')).toEqual([35, 10, 45, 50]); // the center of b
+    expect(undo()).toEqual(['Rearrange']);
+  });
+
+  it('does nothing for less than two items', () => {
+    const { set, undo } = setup('a');
+    object_align_actions['object-rearrange']?.(set, 'exchange');
+    expect(undo()).toEqual([]);
+  });
+});
+
+describe('object-remove-overlaps', () => {
+  it('moves overlapping items apart by the gaps and keeps the others', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">' +
+        '<rect id="a" x="0" y="0" width="20" height="20"/>' +
+        '<rect id="b" x="10" y="0" width="20" height="20"/>' +
+        '<rect id="c" x="100" y="50" width="20" height="20"/></svg>',
+    );
+    if (!doc) throw new Error('parse failed');
+    doc.ensureUpToDate();
+    const set = new ObjectSet(doc);
+    set.setList(['a', 'b', 'c'].map((id) => doc.getObjectById(id)).filter((o) => o !== null));
+    object_align_actions['object-remove-overlaps']?.(set, '5,5');
+    doc.ensureUpToDate();
+    const a = (doc.getObjectById('a') as SPItem).desktopVisualBounds();
+    const b = (doc.getObjectById('b') as SPItem).desktopVisualBounds();
+    const c = (doc.getObjectById('c') as SPItem).desktopVisualBounds();
+    // a and b are at least 5 apart, c has not moved.
+    expect(
+      Math.max(a?.left() ?? 0, b?.left() ?? 0) - Math.min(a?.right() ?? 0, b?.right() ?? 0),
+    ).toBeGreaterThanOrEqual(5);
+    expect([c?.left(), c?.top()]).toEqual([100, 50]);
+    expect(doc.undoStack.undo.map((s) => s.description)).toEqual(['Remove overlaps']);
   });
 });

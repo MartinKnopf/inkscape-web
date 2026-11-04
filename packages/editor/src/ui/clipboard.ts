@@ -16,13 +16,16 @@
 import {
   BBoxType,
   Colors,
+  EffectType,
   gdkpixbuf_input_open,
+  LivePathEffectObject,
   type ObjectSet,
   Preferences,
   type SPCSSAttr,
   SPDocument,
   SPGroup,
   SPItem,
+  SPLPEItem,
   type SPObject,
   SPSymbol,
   SPUse,
@@ -35,12 +38,14 @@ import {
   sp_repr_lookup_name,
   sp_repr_lookup_name_many,
   sp_svg_transform_write,
+  sp_uri_reference_resolve,
   spReprCssAttr,
   spReprCssAttrInherited,
   spReprCssAttrNew,
   spReprCssSet,
   spReprCssSetPropertyDouble,
   spReprCssSetPropertyString,
+  toLPEItems,
   type XmlDocument,
   type Node as XmlNode,
 } from '@inkscape-web/core';
@@ -359,6 +364,56 @@ export class ClipboardManager {
     // pasted style might depend on defs from the source
     if (pasted) set.document()?.importDefs(tempdoc);
     return pasted;
+  }
+
+  /**
+   * Implements the Paste Live Path Effect action: apply the effect stack of the copied object to
+   * the selected objects. Returns whether an effect was pasted.
+   */
+  async pastePathEffect(set: ObjectSet): Promise<boolean> {
+    const document = set.document();
+    if (!set.desktop() || !document) return false;
+    if (set.isEmpty()) {
+      this.#userWarn('Select object(s) to paste live path effect to.');
+      return false;
+    }
+
+    await this.#retrieveDocument();
+    const tempdoc = this.#clipboardSPDoc;
+    const clipnode = tempdoc ? sp_repr_lookup_name(tempdoc.getReprRoot(), 'inkscape:clipboard', 1) : null;
+    if (tempdoc && clipnode?.attribute('inkscape:path-effect')) {
+      document.importDefs(tempdoc);
+      // importing defs can adjust node names, so grab the current names again
+      const effectstack = clipnode.attribute('inkscape:path-effect') ?? '';
+      // make sure all selected items are converted to paths first (i.e. rectangles)
+      toLPEItems(set);
+      for (const item of set.items()) {
+        this.#applyPathEffect(item, effectstack);
+        item.doWriteTransform(item.transform);
+      }
+      return true;
+    }
+    this.#userWarn('No effect on the clipboard.');
+    return false;
+  }
+
+  /** Add the effects of the ';' separated list of hrefs to the item, unless it has a Spiro or BSpline already. */
+  #applyPathEffect(item: SPItem, effectstack: string): void {
+    if (!(item instanceof SPLPEItem)) return;
+    for (const href of effectstack.split(';')) {
+      const obj = sp_uri_reference_resolve(item.document, href);
+      if (!obj) return;
+      if (obj instanceof LivePathEffectObject) {
+        const type = obj.effecttype;
+        const has_spiro = item.hasPathEffectOfType(EffectType.SPIRO);
+        const has_bspline = item.hasPathEffectOfType(EffectType.BSPLINE);
+        if ((type !== EffectType.SPIRO || !has_spiro) && (type !== EffectType.BSPLINE || !has_bspline)) {
+          item.addPathEffect(obj);
+        }
+      }
+    }
+    // for each effect in the stack, check if we need to fork it before adding it to the item
+    item.forkPathEffectsIfNecessary(1);
   }
 
   /**

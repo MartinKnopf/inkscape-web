@@ -169,3 +169,94 @@ describe('Selection.rotateAnchored', () => {
     expect(undoSteps()).toEqual(['Rotate 90° CW', 'Rotate 90° CCW']);
   });
 });
+
+describe('ObjectSet.stackUp and stackDown', () => {
+  it('move the selected items one step among the items', () => {
+    const { select, order, undoSteps } = open(STACK); // a, b, d, c
+    select('a', 'b').stackUp();
+    expect(order()).toEqual(['d', 'a', 'b', 'c']);
+    select('c').stackDown();
+    expect(order()).toEqual(['d', 'a', 'c', 'b']);
+    expect(undoSteps()).toEqual(['stack up', 'stack down']);
+  });
+
+  it('change nothing and add no undo step when one item is at the end already', () => {
+    const { select, order, undoSteps } = open(STACK);
+    select('c', 'a').stackUp();
+    expect(order()).toEqual(['a', 'b', 'd', 'c']);
+    expect(undoSteps()).toEqual([]);
+  });
+});
+
+describe('ObjectSet.popFromGroup', () => {
+  it('moves the item into the parent of the group, above the group', () => {
+    const { select, order, undoSteps } = open(
+      '<g id="g"><rect id="a" x="0" y="0" width="5" height="5"/><rect id="b" width="5" height="5"/></g>',
+    );
+    select('a').popFromGroup();
+    expect(order()).toEqual(['g', 'a']);
+    expect(order('g')).toEqual(['b']);
+    expect(undoSteps()).toEqual(['Pop selection from group']);
+  });
+
+  it('keeps the place on the canvas of an item from a transformed group', () => {
+    const { doc, item, select } = open(
+      '<g id="g" transform="translate(50,0)"><rect id="a" x="0" y="0" width="5" height="5"/></g>',
+    );
+    select('a').popFromGroup();
+    doc.ensureUpToDate();
+    expect(item('a').documentVisualBounds()?.left()).toBe(50);
+  });
+});
+
+describe('ObjectSet.toGuides', () => {
+  it('makes four guides along the edges of a rectangle and deletes it', () => {
+    const { doc, select } = open('<rect id="r" x="10" y="20" width="30" height="40"/>');
+    select('r').toGuides();
+    expect(doc.getObjectById('r')).toBeNull();
+    expect(doc.getNamedView()?.guides).toHaveLength(4);
+  });
+});
+
+describe('ObjectSet.fitCanvas', () => {
+  it('resizes the page to the visual bounds of the selection', () => {
+    const { doc, select, undoSteps } = open('<rect id="r" x="10" y="20" width="30" height="40"/>');
+    expect(select('r').fitCanvas(true)).toBe(true);
+    expect(doc.getDimensions().x).toBe(30);
+    expect(doc.getDimensions().y).toBe(40);
+    expect(undoSteps()).toEqual(['Fit Page to Selection']);
+  });
+});
+
+describe('ObjectSet.setClipGroup', () => {
+  it('puts the items in a group "Clip" that a clone of itself clips', () => {
+    const { doc, select, undoSteps } = open(STACK);
+    const s = select('a', 'b');
+    s.setClipGroup();
+    const outer = s.singleItem();
+    expect(outer?.getRepr().name()).toBe('svg:g');
+    expect(outer?.getAttribute('clip-path')).toMatch(/^url\(#clipPath/);
+    const inner = outer?.getRepr().firstChild();
+    expect(inner?.attribute('inkscape:label')).toBe('Clip');
+    expect([...(inner?.children() ?? [])].map((c) => c.attribute('id'))).toEqual(['a', 'b']);
+    const clip = doc.getObjectById(/#(.*)\)/.exec(outer?.getAttribute('clip-path') ?? '')?.[1] ?? '');
+    expect(clip?.getRepr().firstChild()?.name()).toBe('svg:use');
+    expect(undoSteps()).toEqual(['Create Clip Group']);
+  });
+});
+
+describe('ObjectSet.toMarker', () => {
+  it('moves copies of the items into a marker of the size of their bounds', () => {
+    const { doc, select, undoSteps } = open('<rect id="r" x="10" y="20" width="30" height="40"/>');
+    select('r').toMarker();
+    const marker = doc.getDefs()?.getRepr().firstChild();
+    expect(marker?.name()).toBe('svg:marker');
+    expect(marker?.attribute('markerWidth')).toBe('30');
+    expect(marker?.attribute('markerHeight')).toBe('40');
+    expect(marker?.attribute('refX')).toBe('15');
+    expect(marker?.attribute('refY')).toBe('20');
+    expect(marker?.attribute('orient')).toBe('auto');
+    expect(marker?.firstChild()?.name()).toBe('svg:rect');
+    expect(undoSteps()).toEqual(['Objects to marker']);
+  });
+});

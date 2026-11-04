@@ -45,15 +45,16 @@ import {
   spReprCssSet,
   type Node as XmlNode,
 } from '@inkscape-web/core';
-import { Affine, Point, Rect, Scale } from '@inkscape-web/geom';
+import { Affine, Point, Rect, Rotate, Scale } from '@inkscape-web/geom';
 import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
+import { CanvasFlip } from './canvas-flip.ts';
 import { sp_dt_guide_event, sp_dt_guide_key_event } from './desktop-events.ts';
 import { CanvasItemGroup } from './display/control/canvas-item.ts';
 import { CanvasItemGridXY } from './display/control/canvas-item-grid.ts';
 import { CanvasItemGuideLine } from './display/control/canvas-item-guideline.ts';
 import { CanvasPage } from './display/control/canvas-page.ts';
 import { SnapIndicator } from './display/control/snap-indicator.ts';
-import { SvgDrawing } from './display/drawing.ts';
+import { RenderMode, SvgDrawing } from './display/drawing.ts';
 import { SvgDrawingItem } from './display/drawing-item.ts';
 import { LayerManager } from './layer-manager.ts';
 import { SnapManager } from './snap.ts';
@@ -61,20 +62,34 @@ import { createTool } from './ui/tool-factory.ts';
 import type { ToolBase } from './ui/tools/tool-base.ts';
 import type { Canvas } from './ui/widget/canvas.ts';
 
+export { CanvasFlip };
+
 export const SP_DESKTOP_ZOOM_MAX = 256.0;
 export const SP_DESKTOP_ZOOM_MIN = 0.01;
 
 /** Upstream default of the desk color (sp-namedview.cpp default_desk_color). */
 const DEFAULT_DESK_COLOR = 0xd1d1d1ff;
 
+/** How the canvas shows an outline view beside the normal drawing (upstream Inkscape::SplitMode). */
+export enum SplitMode {
+  NORMAL,
+  /** The right half of the window in outline mode. */
+  SPLIT,
+  /** A circle around the pointer in outline mode. */
+  XRAY,
+}
+
 /**
  * How the drawing maps to the window (upstream SPDesktop::DesktopAffine).
- * d2w is the scale (with the y-axis direction); the offset is the world
- * point at the top left corner of the window.
- * TODO: rotation and flip.
+ * d2w is the scale (with the y-axis direction) times the rotation times the flip; the offset is
+ * the world point at the top left corner of the window. Scale and rotation are kept apart so that
+ * they need not be extracted from the affine.
  */
-class DesktopAffine {
+export class DesktopAffine {
   #scale = Scale(1, 1);
+  #rotate = Affine.identity();
+  #angle = 0;
+  #flip = Affine.identity();
   #d2w = Affine.identity();
   #w2d = Affine.identity();
   #offset = new Point(0, 0);
@@ -89,6 +104,34 @@ class DesktopAffine {
     this.#scale = scale;
     this.#update();
   }
+  /** Set the rotation, an angle in radians (clockwise on the screen). */
+  setRotate(angle: number): void {
+    this.#angle = angle;
+    this.#rotate = Rotate(angle);
+    this.#update();
+  }
+  addRotate(angle: number): void {
+    this.setRotate(this.#angle + angle);
+  }
+  /** The rotation in radians. */
+  getRotation(): number {
+    return this.#angle;
+  }
+  setFlip(flip: CanvasFlip): void {
+    this.#flip = Affine.identity();
+    this.addFlip(flip);
+  }
+  addFlip(flip: CanvasFlip): void {
+    if (flip & CanvasFlip.FLIP_HORIZONTAL) this.#flip = this.#flip.multiply(Scale(-1, 1));
+    if (flip & CanvasFlip.FLIP_VERTICAL) this.#flip = this.#flip.multiply(Scale(1, -1));
+    this.#update();
+  }
+  isFlipped(flip: CanvasFlip): boolean {
+    return (
+      !!(flip & CanvasFlip.FLIP_HORIZONTAL && Math.abs(this.#flip.c0 + 1) < 1e-6) ||
+      !!(flip & CanvasFlip.FLIP_VERTICAL && Math.abs(this.#flip.c3 + 1) < 1e-6)
+    );
+  }
   getZoom(): number {
     return this.#d2w.descrim();
   }
@@ -101,8 +144,30 @@ class DesktopAffine {
   getOffset(): Point {
     return this.#offset;
   }
+  clone(): DesktopAffine {
+    const c = new DesktopAffine();
+    c.#scale = this.#scale;
+    c.#rotate = this.#rotate;
+    c.#angle = this.#angle;
+    c.#flip = this.#flip;
+    c.#d2w = this.#d2w;
+    c.#w2d = this.#w2d;
+    c.#offset = this.#offset;
+    return c;
+  }
+  /** Copy the state of other into this one. */
+  assign(other: DesktopAffine): void {
+    const c = other.clone();
+    this.#scale = c.#scale;
+    this.#rotate = c.#rotate;
+    this.#angle = c.#angle;
+    this.#flip = c.#flip;
+    this.#d2w = c.#d2w;
+    this.#w2d = c.#w2d;
+    this.#offset = c.#offset;
+  }
   #update(): void {
-    this.#d2w = this.#scale;
+    this.#d2w = this.#scale.multiply(this.#rotate).multiply(this.#flip);
     this.#w2d = this.#d2w.inverse();
   }
 }
@@ -144,6 +209,10 @@ export class SPDesktop {
   readonly _canvas_group_controls: SVGGElement;
 
   readonly #drawing: SvgDrawing;
+  /** A second view of the document in outline mode for the split modes, shown through a clip. */
+  #outline: { drawing: SvgDrawing; key: number; group: SVGGElement; clip: SVGPathElement } | null = null;
+  #splitMode = SplitMode.NORMAL;
+  #disconnectSplit: (() => void)[] = [];
   readonly #pages_bg: CanvasItemGroup;
   readonly #pages_fg: CanvasItemGroup;
   /** The document viewport, drawn as a page when no page covers it (upstream SPNamedView::_viewport). */
@@ -382,6 +451,7 @@ export class SPDesktop {
     const ai = doc.getRoot().invokeShow(this.#drawing, this.dkey, SP_ITEM_SHOW_DISPLAY);
     if (ai) this.#drawing.root.appendChild(ai);
     this.#drawing.root.setTransform(this.doc2dt());
+    if (this.#splitMode !== SplitMode.NORMAL) this.setSplitMode(this.#splitMode);
     this.#layerManager._setDocument(doc);
     this.#updateLayersFromDocument();
     this.#updatePage();
@@ -440,6 +510,7 @@ export class SPDesktop {
     this.#hideNamedView();
     for (const view of this.#page_views.values()) view.remove();
     this.#page_views.clear();
+    this.#hideOutline();
     this.doc.getRoot().invokeHide(this.dkey);
     this.#drawing.paintServers.clear();
   }
@@ -469,6 +540,15 @@ export class SPDesktop {
     } else {
       this.#viewport.hide();
     }
+
+    // Clip to page (upstream SPNamedView::set_clip_to_page): to the selected page, else the viewport.
+    const clip = nv.clip_to_page.value ? (pm.getSelectedPageRect() ?? this.doc.preferredBounds()) : null;
+    const clip_dt = clip?.transformed(this.doc2dt());
+    this.#drawing.setClipToRect(
+      clip_dt
+        ? { x: clip_dt.left(), y: clip_dt.top(), width: clip_dt.width(), height: clip_dt.height() }
+        : null,
+    );
 
     const pages = new Set(pm.getPages());
     for (const [page, view] of this.#page_views) {
@@ -742,20 +822,219 @@ export class SPDesktop {
   set_display_area(log?: boolean): void;
   set_display_area(c: Point, w: Point, log?: boolean): void;
   set_display_area(r: Rect, border: number, log?: boolean): void;
-  set_display_area(a?: boolean | Point | Rect, b?: Point | number, _log = true): void {
+  set_display_area(a?: boolean | Point | Rect, b?: Point | number, log = true): void {
     if (a instanceof Point && b instanceof Point) {
       // The relative offset needed to keep c at w.
       this._current_affine.addOffset(this.d2w(a).sub(b));
-    } else if (a instanceof Rect && typeof b === 'number') {
-      this.#setDisplayAreaRect(a, b);
+      this.#applyDisplayArea(log);
       return;
+    }
+    if (a instanceof Rect && typeof b === 'number') {
+      this.#setDisplayAreaRect(a, b, log);
+      return;
+    }
+    this.#applyDisplayArea(typeof a === 'boolean' ? a : true);
+  }
+
+  /** Apply _current_affine (complete, with the offset) to the canvas; with log, remember it for zoom previous/next. */
+  #applyDisplayArea(log: boolean): void {
+    if (log) {
+      this.#transforms_past.unshift(this._current_affine.clone());
+      // a logged transform invalidates the transforms that came after
+      this.#transforms_future.length = 0;
     }
     this.canvas.set_pos(this._current_affine.getOffset());
     this.canvas.set_affine(this._current_affine.d2w());
     this.signal_zoom_changed.emit(this._current_affine.getZoom());
   }
 
-  #setDisplayAreaRect(r: Rect, border: number): void {
+  /** The transforms that were shown, the current one first (upstream transforms_past). */
+  readonly #transforms_past: DesktopAffine[] = [];
+  readonly #transforms_future: DesktopAffine[] = [];
+
+  /** Go back to the previous transform of the history (upstream prev_transform); false if there is none. */
+  prev_transform(): boolean {
+    if (this.#transforms_past.length <= 1) return false; // "No previous transform."
+    const current = this.#transforms_past.shift();
+    if (current) this.#transforms_future.unshift(current);
+    const prev = this.#transforms_past[0];
+    if (prev) this._current_affine.assign(prev);
+    this.#applyDisplayArea(false);
+    return true;
+  }
+
+  /** Go to the next transform of the history (upstream next_transform); false if there is none. */
+  next_transform(): boolean {
+    const next = this.#transforms_future.shift();
+    if (!next) return false; // "No next transform."
+    this._current_affine.assign(next);
+    this.#applyDisplayArea(false);
+    this.#transforms_past.unshift(next.clone());
+    return true;
+  }
+
+  clear_transform_history(): void {
+    this.#transforms_past.length = 0;
+    this.#transforms_future.length = 0;
+  }
+
+  /** Render the drawing in the mode (upstream setRenderMode). */
+  setRenderMode(mode: RenderMode): void {
+    this.#drawing.setRenderMode(mode);
+  }
+  getRenderMode(): RenderMode {
+    return this.#drawing.getRenderMode();
+  }
+
+  getSplitMode(): SplitMode {
+    return this.#splitMode;
+  }
+
+  /**
+   * Show part of the canvas in outline mode (upstream Canvas::set_split_mode): the outline view is
+   * a second view of the document, clipped to the right half of the window or to a circle around
+   * the pointer.
+   */
+  setSplitMode(mode: SplitMode): void {
+    this.#splitMode = mode;
+    if (mode === SplitMode.NORMAL) {
+      this.#hideOutline();
+      return;
+    }
+    this.#showOutline();
+    this.#updateSplitClip();
+  }
+
+  #showOutline(): void {
+    if (this.#outline || !this.doc) return;
+    const dom = this.canvas.svg.ownerDocument;
+    const drawing = new SvgDrawing(dom);
+    drawing.setRenderMode(RenderMode.OUTLINE);
+    const key = SPItem.displayKeyNew(1);
+    const ai = this.doc.getRoot().invokeShow(drawing, key, SP_ITEM_SHOW_DISPLAY);
+    if (ai) drawing.root.appendChild(ai);
+    drawing.root.setTransform(this.doc2dt());
+    const group = dom.createElementNS('http://www.w3.org/2000/svg', 'g') as SVGGElement;
+    // The outline view hides the normal one below it: it needs the page color behind its lines.
+    const clipPath = dom.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    const clip = dom.createElementNS('http://www.w3.org/2000/svg', 'path') as SVGPathElement;
+    const id = drawing.uniqueId('split');
+    clipPath.setAttribute('id', id);
+    clipPath.append(clip);
+    group.setAttribute('clip-path', `url(#${id})`);
+    const backdrop = dom.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    backdrop.setAttribute('x', '-1e6');
+    backdrop.setAttribute('y', '-1e6');
+    backdrop.setAttribute('width', '2e6');
+    backdrop.setAttribute('height', '2e6');
+    backdrop.setAttribute('fill', '#fff');
+    group.append(clipPath, drawing.defs, backdrop, drawing.root.element);
+    this._canvas_group_drawing.after(group);
+    this.#outline = { drawing, key, group, clip };
+    this.#disconnectSplit = [
+      this.canvas.connectAffine(() => this.#updateSplitClip()),
+      this.canvas.connectPos(() => this.#updateSplitClip()),
+      this.canvas.connectResize(() => this.#updateSplitClip()),
+    ];
+    const move = () => this.#updateSplitClip();
+    this.canvas.svg.addEventListener('pointermove', move);
+    this.#disconnectSplit.push(() => this.canvas.svg.removeEventListener('pointermove', move));
+  }
+
+  #hideOutline(): void {
+    for (const f of this.#disconnectSplit) f();
+    this.#disconnectSplit = [];
+    const outline = this.#outline;
+    if (!outline) return;
+    this.doc?.getRoot().invokeHide(outline.key);
+    outline.group.remove();
+    this.#outline = null;
+  }
+
+  /** The clip of the outline view in desktop coordinates: the window area for the mode mapped by w2d. */
+  #updateSplitClip(): void {
+    const outline = this.#outline;
+    if (!outline) return;
+    const size = this.canvas.get_dimensions();
+    const toDesktop = (p: Point) => this.w2d(this.canvas.canvas_to_world(p));
+    const poly = (pts: Point[]) => `M ${pts.map((p) => `${toDesktop(p).x},${toDesktop(p).y}`).join(' L ')} Z`;
+    if (this.#splitMode === SplitMode.SPLIT) {
+      outline.clip.setAttribute(
+        'd',
+        poly([
+          new Point(size.x / 2, 0),
+          new Point(size.x, 0),
+          new Point(size.x, size.y),
+          new Point(size.x / 2, size.y),
+        ]),
+      );
+    } else {
+      const radius = Preferences.get().getDouble('/options/rendering/xray-radius', 100);
+      const c = this.canvas.get_last_mouse() ?? size.div(2);
+      const n = 48;
+      outline.clip.setAttribute(
+        'd',
+        poly(
+          Array.from({ length: n }, (_, i) =>
+            c.add(new Point(Math.cos((2 * Math.PI * i) / n), Math.sin((2 * Math.PI * i) / n)).mul(radius)),
+          ),
+        ),
+      );
+    }
+  }
+
+  /** The rotation of the canvas in radians. */
+  current_rotation(): number {
+    return this._current_affine.getRotation();
+  }
+
+  /** Whether the rotation is locked (upstream set_rotation_lock; /options/rotationlock). */
+  rotation_lock = Preferences.get().getBool('/options/rotationlock', false);
+
+  /** Set the rotation (radians), keeping desktop point c fixed in the window. */
+  rotate_absolute_keep_point(c: Point, rotate: number): void {
+    const w = this.d2w(c); // Must be before rotate changed.
+    this._current_affine.setRotate(rotate);
+    this.set_display_area(c, w);
+  }
+  rotate_relative_keep_point(c: Point, rotate: number): void {
+    const w = this.d2w(c);
+    this._current_affine.addRotate(rotate);
+    this.set_display_area(c, w);
+  }
+  /** Set the rotation (radians), aligning desktop point c to the center of the window. */
+  rotate_absolute_center_point(c: Point, rotate: number): void {
+    this._current_affine.setRotate(rotate);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+  rotate_relative_center_point(c: Point, rotate: number): void {
+    this._current_affine.addRotate(rotate);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+
+  flip_absolute_keep_point(c: Point, flip: CanvasFlip): void {
+    const w = this.d2w(c);
+    this._current_affine.setFlip(flip);
+    this.set_display_area(c, w);
+  }
+  flip_relative_keep_point(c: Point, flip: CanvasFlip): void {
+    const w = this.d2w(c);
+    this._current_affine.addFlip(flip);
+    this.set_display_area(c, w);
+  }
+  flip_absolute_center_point(c: Point, flip: CanvasFlip): void {
+    this._current_affine.setFlip(flip);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+  flip_relative_center_point(c: Point, flip: CanvasFlip): void {
+    this._current_affine.addFlip(flip);
+    this.set_display_area(c, this.canvas.get_area_world().midpoint());
+  }
+  is_flipped(flip: CanvasFlip): boolean {
+    return this._current_affine.isFlipped(flip);
+  }
+
+  #setDisplayAreaRect(r: Rect, border: number, log: boolean): void {
     // A rectangle the size of the window aligned with origin, shrunk by the border.
     const w = new Rect(new Point(0, 0), this.canvas.get_dimensions()).expandBy(-border);
     // Determine which direction limits scale.
@@ -765,7 +1044,7 @@ export class SPDesktop {
     this._current_affine.setScale(Scale(zoom, this.yaxisdir() * zoom));
     // Zero offset, actual offset calculated later.
     this._current_affine.setOffset(new Point(0, 0));
-    this.set_display_area(r.midpoint(), w.midpoint());
+    this.set_display_area(r.midpoint(), w.midpoint(), log);
   }
 
   /**

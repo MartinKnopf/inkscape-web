@@ -21,6 +21,7 @@ import { SPMarkerUnits } from '../enums.ts';
 import { SPMarkerReference } from '../style-internal.ts';
 import { cssNumber } from '../svg/css-ostringstream.ts';
 import { svgNumber } from '../svg/stringstream.ts';
+import { sp_svg_transform_read } from '../svg/svg-affine.ts';
 import { SVGAngle } from '../svg/svg-angle.ts';
 import { SVGLength, SVGLengthUnit } from '../svg/svg-length.ts';
 import type { XmlDocument } from '../xml/document.ts';
@@ -400,4 +401,42 @@ export function sp_validate_marker(sp_marker: SPMarker, doc: SPDocument | null):
     // uniform scaling is the default
     sp_marker.setAttribute('preserveAspectRatio', 'xMidYMid');
   }
+}
+
+/**
+ * Put copies of the objects (reprs) in a new marker in the defs; bounds is the bounding box of the
+ * objects, center the reference point and move the transform applied to each one. Returns the id of
+ * the marker (upstream generate_marker).
+ */
+export function generate_marker(
+  reprs: readonly Node[],
+  bounds: Rect,
+  document: SPDocument,
+  center: Point,
+  move: Affine,
+): string | null {
+  const defsrepr = document.getDefs()?.getRepr();
+  if (!defsrepr) return null;
+  const repr = document.getReprDoc().createElement('svg:marker');
+
+  // Uncommenting markerUnits would make the marker fixed-size independent of stroke width; it
+  // stays out for consistency with standard markers which scale when you change the stroke width.
+  repr.setAttributeSvgDouble('markerWidth', bounds.width());
+  repr.setAttributeSvgDouble('markerHeight', bounds.height());
+  repr.setAttributeSvgDouble('refX', center.x);
+  repr.setAttributeSvgDouble('refY', center.y);
+  repr.setAttribute('orient', 'auto');
+
+  defsrepr.appendChild(repr);
+  const mark_id = repr.attribute('id');
+  const mark_object = mark_id ? document.getObjectById(mark_id) : null;
+  if (!mark_object) return null;
+
+  for (const node of reprs) {
+    const copy = mark_object.appendChildRepr(node);
+    const attr = node.attribute('transform');
+    const dup_transform = (attr ? sp_svg_transform_read(attr) : null) ?? Affine.identity();
+    if (copy instanceof SPItem) copy.doWriteTransform(dup_transform.multiply(move));
+  }
+  return mark_id;
 }

@@ -20,10 +20,15 @@ import {
   NC_,
   ObjectSet,
   Preferences,
+  removeoverlap,
+  SPCloneCompensation,
   type SPItem,
+  sp_repr_compare_position,
+  unclump,
 } from '@inkscape-web/core';
 import { are_near, type OptRect, Point, type Rect, Translate } from '@inkscape-web/geom';
 import type { InkscapeApplication } from '../inkscape-application.ts';
+import { show_output } from './actions-helper.ts';
 
 enum ObjectAlignTarget {
   LAST,
@@ -274,6 +279,111 @@ export function object_distribute(selection: ObjectSet, value: string): void {
   if (changed) DocumentUndo.done(document, C_('Undo', 'Distribute'), 'dialog-align-and-distribute');
 }
 
+/* --------------- Rearrange ----------------- */
+
+type SortOrder = 'selection' | 'z-order' | 'rotate';
+
+/** Move each item to the place of the next one, the last to the place of the first (upstream exchange). */
+function exchange(selection: ObjectSet, order: SortOrder): void {
+  const items = selection.items();
+  // Reorder items.
+  if (order === 'z-order') {
+    items.sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+  } else if (order === 'rotate') {
+    const center = selection.center();
+    if (center) {
+      const angle = (item: SPItem) =>
+        Math.atan2(item.getCenter().y - center.y, item.getCenter().x - center.x);
+      items.sort(
+        (a, b) =>
+          angle(a) - angle(b) ||
+          Math.hypot(a.getCenter().x - center.x, a.getCenter().y - center.y) -
+            Math.hypot(b.getCenter().x - center.x, b.getCenter().y - center.y),
+      );
+    }
+  }
+  // Move items.
+  let p1 = (items.at(-1) as SPItem).getCenter();
+  for (const item of items) {
+    const p2 = item.getCenter();
+    item.move_rel(Translate(p1.sub(p2)));
+    p1 = p2;
+  }
+}
+
+/**
+ * Give the centers of the items random places in the box of their centers (upstream randomize). The
+ * box keeps its size, so repeated randomizing causes no growth, shrinking or drift.
+ */
+function randomize(selection: ObjectSet): void {
+  const items = selection.items();
+  // Do 'x' and 'y' independently.
+  for (const axis of ['x', 'y'] as const) {
+    // First, find maximum and minimum centers.
+    const centers = items.map((item) => item.getCenter()[axis]);
+    const min = Math.min(...centers);
+    const max = Math.max(...centers);
+    // Second, assign minimum/maximum values to two different items randomly.
+    const imin = Math.floor(Math.random() * items.length);
+    let imax = Math.floor(Math.random() * items.length);
+    while (imin === imax) imax = Math.floor(Math.random() * items.length);
+    // Third, find new positions of item centers.
+    items.forEach((item, index) => {
+      const z = index === imin ? min : index === imax ? max : min + Math.random() * (max - min);
+      const delta = z - item.getCenter()[axis];
+      item.move_rel(axis === 'x' ? Translate(delta, 0) : Translate(0, delta));
+    });
+  }
+}
+
+/** Run with the clone compensation set to unmoved, so that clones stay in place with their originals. */
+function with_unmoved_clones(run: () => void): void {
+  const prefs = Preferences.get();
+  const saved_compensation = prefs.getInt(
+    '/options/clonecompensation/value',
+    SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED,
+  );
+  prefs.setInt('/options/clonecompensation/value', SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED);
+  try {
+    run();
+  } finally {
+    prefs.setInt('/options/clonecompensation/value', saved_compensation);
+  }
+}
+
+/**
+ * app.object-rearrange: exchange, exchangez, rotate, randomize or unclump. TODO: graph (a graph
+ * layout with libcola).
+ */
+function object_rearrange(selection: ObjectSet, token: string): void {
+  const document = selection.document();
+  const items = selection.items();
+  if (!document || items.length < 2) return;
+  with_unmoved_clones(() => {
+    if (token === 'exchange') exchange(selection, 'selection');
+    else if (token === 'exchangez') exchange(selection, 'z-order');
+    else if (token === 'rotate') exchange(selection, 'rotate');
+    else if (token === 'randomize') randomize(selection);
+    else if (token === 'unclump') unclump(items);
+    else show_output(`object_rearrange: unhandled argument: ${token}`);
+  });
+  DocumentUndo.done(document, C_('Undo', 'Rearrange'), 'dialog-align-and-distribute');
+}
+
+/** app.object-remove-overlaps: the value is the horizontal and the vertical gap, "h,v". */
+function object_remove_overlaps(selection: ObjectSet, value: string): void {
+  const document = selection.document();
+  const items = selection.items();
+  if (!document || items.length < 2) return;
+  const [hgap, vgap] = value.split(',').map(Number);
+  if (hgap === undefined || vgap === undefined || Number.isNaN(hgap) || Number.isNaN(vgap)) {
+    show_output(`object_remove_overlaps: wrong value: ${value} (should be 'h,v')`);
+    return;
+  }
+  with_unmoved_clones(() => removeoverlap(items, hgap, vgap));
+  DocumentUndo.done(document, C_('Undo', 'Remove overlaps'), 'dialog-align-and-distribute');
+}
+
 /**
  * The actions of this file by name, without the "app." prefix, for detailed
  * action names like app.object-align('left pref').
@@ -281,6 +391,8 @@ export function object_distribute(selection: ObjectSet, value: string): void {
 export const object_align_actions: Readonly<Record<string, (selection: ObjectSet, value: string) => void>> = {
   'object-align': object_align,
   'object-distribute': object_distribute,
+  'object-rearrange': object_rearrange,
+  'object-remove-overlaps': object_remove_overlaps,
 };
 
 const SECTION = NC_('Action Section', 'Object');
@@ -300,6 +412,20 @@ export const raw_data_object_align: readonly (readonly [string, string, string, 
     N_('Distribute objects'),
     SECTION,
     N_('Distribute selected objects; usage: [hgap | left | hcenter | right | vgap | top | vcenter | bottom]'),
+  ],
+  [
+    'app.object-rearrange',
+    N_('Rearrange objects'),
+    SECTION,
+    N_('Rearrange selected objects; usage: [graph | exchange | exchangez | rotate | randomize | unclump]'),
+  ],
+  [
+    'app.object-remove-overlaps',
+    N_('Remove overlaps'),
+    SECTION,
+    N_(
+      'Remove overlaps between objects: requires two comma separated numbers (horizontal and vertical gaps)',
+    ),
   ],
 ];
 

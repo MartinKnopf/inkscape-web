@@ -35,6 +35,7 @@ import type { Node } from '../xml/node.ts';
 import { type SPClipPath, SPClipPathReference } from './sp-clippath.ts';
 import type { SPFilter } from './sp-filter.ts';
 import { SPFilterUnits } from './sp-filter-units.ts';
+import { sp_guide_pt_pairs_to_guides } from './sp-guide.ts';
 import { type SPMask, SPMaskReference } from './sp-mask.ts';
 import {
   SP_OBJECT_CHILD_MODIFIED_FLAG,
@@ -512,6 +513,64 @@ export class SPItem extends SPObject {
 
   desktopVisualBounds(): OptRect {
     return this.documentVisualBounds()?.transformed(this.document.doc2dt()) ?? null;
+  }
+
+  /**
+   * Remove the transforms of the ancestors up to root and keep the item as it is on the canvas
+   * (upstream removeTransformsRecursively). The default moves the transform of the ancestors into
+   * the item; groups remove theirs, and paths apply it to their curve.
+   */
+  removeTransformsRecursively(root: SPObject): void {
+    this.setAttribute('transform', sp_svg_transform_write(i2i_affine(this, root)) || null);
+  }
+
+  /** Move the item above its next sibling item; false if it is already the topmost (upstream raiseOne). */
+  raiseOne(): boolean {
+    const parent = this.parent;
+    if (!parent) return false;
+    const siblings = parent.children;
+    const next_higher = siblings.slice(siblings.indexOf(this) + 1).find((c) => c instanceof SPItem);
+    if (!next_higher) return false;
+    this.getRepr().parent()?.changeOrder(this.getRepr(), next_higher.getRepr());
+    return true;
+  }
+
+  /** Move the item below its previous sibling item; false if it is already the bottommost (upstream lowerOne). */
+  lowerOne(): boolean {
+    const parent = this.parent;
+    if (!parent) return false;
+    const siblings = parent.children;
+    const before = siblings.slice(0, siblings.indexOf(this));
+    const index = before.findLastIndex((c) => c instanceof SPItem);
+    if (index < 0) return false;
+    const ref = index === 0 ? null : (before[index - 1] as SPObject).getRepr();
+    this.getRepr().parent()?.changeOrder(this.getRepr(), ref);
+    return true;
+  }
+
+  /**
+   * Create guides from the item: along the sides of its bounding box (the visual one by default,
+   * as set in "/tools/bounding_box"); shapes override it with their own edges.
+   */
+  convert_to_guides(): void {
+    const bbox =
+      Preferences.get().getInt('/tools/bounding_box', 0) === 0
+        ? this.desktopVisualBounds()
+        : this.desktopGeometricBounds();
+    if (!bbox) {
+      console.warn("Cannot determine item's bounding box during conversion to guides.");
+      return;
+    }
+    const a = bbox.min();
+    const c = bbox.max();
+    const b = new Point(a.x, c.y);
+    const d = new Point(c.x, a.y);
+    sp_guide_pt_pairs_to_guides(this.document, [
+      [a, b],
+      [b, c],
+      [c, d],
+      [d, a],
+    ]);
   }
 
   desktopPreferredBounds(): OptRect {

@@ -22,7 +22,7 @@ import { fit_canvas_to_drawing } from '../selection-chemistry.ts';
 
 const SECTION = NC_('Action Section', 'Edit Document');
 
-/** Action id, label, section and tooltip (untranslated). TODO: set-display-unit, clip-to-page. */
+/** Action id, label, section and tooltip (untranslated). TODO: set-display-unit. */
 export const raw_data_edit_document: readonly (readonly [string, string, string, string])[] = [
   [
     'doc.create-guides-around-page',
@@ -38,6 +38,12 @@ export const raw_data_edit_document: readonly (readonly [string, string, string,
     N_('Toggle visibility of all guides in the document'),
   ],
   ['doc.delete-all-guides', N_('Delete All Guides'), SECTION, N_('Delete all the guides in the document')],
+  [
+    'doc.clip-to-page',
+    N_('Toggle Clip to Page'),
+    SECTION,
+    N_('Toggle between clipped to page and complete rendering'),
+  ],
   ['doc.show-grids', N_('Show Grids'), SECTION, N_('Toggle the visibility of grids')],
   ['doc.fit-canvas-to-drawing', N_('Fit Page to Drawing'), SECTION, N_('Fit the page to the drawing')],
 ];
@@ -61,6 +67,15 @@ export function add_actions_edit_document(app: InkscapeApplication): void {
   map.add_action('create-guides-around-page', run(sp_guide_create_guides_around_page));
   map.add_action('delete-all-guides', run(sp_guide_delete_all_guides));
   map.add_action('fit-canvas-to-drawing', run(fit_canvas_drawing));
+  map.add_action(
+    'clip-to-page',
+    run((doc) => {
+      const nv = doc.getNamedView();
+      nv.getRepr().setAttribute('inkscape:clip-to-page', nv.clip_to_page.value ? 'false' : 'true');
+      doc.setModifiedSinceSave();
+      DocumentUndo.done(doc, C_('Undo', 'Clip to page'), '');
+    }),
+  );
   const lock = map.add_action_bool(
     'lock-all-guides',
     run((doc) => doc.getNamedView().toggleLockGuides()),

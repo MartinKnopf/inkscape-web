@@ -85,6 +85,11 @@ interface EmbindModule {
   interpolatePath(_0: EmbindString, _1: EmbindString, _2: number, _3: boolean): string;
   sketchPath(_0: EmbindString, _1: any, _2: any, _3: number, _4: number, _5: number, _6: number, _7: number, _8: number, _9: number): string;
   powerstrokePath(_0: EmbindString, _1: any, _2: boolean, _3: boolean, _4: number, _5: number, _6: number, _7: number, _8: number, _9: number): string;
+  removeOverlaps(_0: any): any;
+  normalizeShape(_0: EmbindString, _1: number): string;
+  offsetShape(_0: EmbindString, _1: number, _2: number, _3: number, _4: number): string;
+  offsetOriginal(_0: EmbindString, _1: number, _2: number): string;
+  strokeToPath(_0: EmbindString, _1: number, _2: number, _3: number, _4: number, _5: any, _6: number, _7: number): string;
   AvoidRouter: {
     new(): AvoidRouter;
   };

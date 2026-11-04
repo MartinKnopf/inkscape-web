@@ -8,6 +8,7 @@
 import { type Selection, Signal, type SPDocument } from '@inkscape-web/core';
 import { ActionRegistry } from './actions/action-map.ts';
 import { add_actions_base } from './actions/actions-base.ts';
+import { add_actions_canvas_mode } from './actions/actions-canvas-mode.ts';
 import { add_actions_canvas_snapping } from './actions/actions-canvas-snapping.ts';
 import { add_actions_canvas_transform } from './actions/actions-canvas-transform.ts';
 import { add_actions_edit } from './actions/actions-edit.ts';
@@ -72,6 +73,7 @@ export class InkscapeApplication {
     add_actions_text(this); // actions for text
     add_actions_transform(this); // actions for transforming selected objects
     // Window actions (upstream InkscapeWindow)
+    add_actions_canvas_mode(this); // Actions for the display mode.
     add_actions_canvas_snapping(this); // Actions to toggle snapping.
     add_actions_canvas_transform(this); // Actions to transform canvas view.
     add_actions_edit_window(this); // Actions to edit.

@@ -94,6 +94,8 @@ body,
 
 .statusbar {
   display: flex;
+  gap: 12px;
+  align-items: center;
   justify-content: flex-end;
   padding: 2px 8px;
   border-top: 1px solid #ccc;
@@ -164,4 +166,8 @@ body,
   margin: 0;
   max-width: 420px;
   white-space: pre-line;
+}
+
+.statusbar .rotation input {
+  width: 4.5em;
 }

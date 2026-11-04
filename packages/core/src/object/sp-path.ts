@@ -14,9 +14,10 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * Copyright (C) 1999-2012 Authors
  */
-import { Affine, PathVector } from '@inkscape-web/geom';
+import { Affine, PathVector, type Point } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
+import { is_straight_curve } from '../helper/geom.ts';
 import { _, ngettext } from '../i18n.ts';
 import { node_count } from '../path/path-curve.ts';
 import { SPStyleSrc } from '../style-internal.ts';
@@ -25,6 +26,8 @@ import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { spReprCssAttr, spReprCssSet, spReprCssUnsetProperty } from '../xml/repr-css.ts';
 import { SPConnEndPair, sp_conn_end_pair_build } from './sp-conn-end-pair.ts';
+import { sp_guide_pt_pairs_to_guides } from './sp-guide.ts';
+import { i2i_affine } from './sp-item.ts';
 import { lpeItemClasses, sp_lpe_item_update_patheffect } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
@@ -34,13 +37,14 @@ import {
   SP_OBJECT_WRITE_BUILD,
   SP_OBJECT_WRITE_EXT,
   type SPCtx,
+  type SPObject,
 } from './sp-object.ts';
 import { SPShape } from './sp-shape.ts';
 
 /**
  * svg:path (upstream SPPath).
  * With a path effect, inkscape:original-d is the path before the effects (curveBeforeLPE()).
- * TODO: markers, convert_to_guides, removeTransformsRecursively.
+ * TODO: markers, removeTransformsRecursively.
  */
 export class SPPath extends SPShape {
   /** The connector ends and routing (inkscape:connector-type, inkscape:connection-start/-end). */
@@ -48,6 +52,40 @@ export class SPPath extends SPShape {
 
   nodesInPath(): number {
     return this._curve ? node_count(this._curve) : 0;
+  }
+
+  /**
+   * Apply the transform of the path and of its ancestors up to root to the curve and remove the
+   * transform attribute. TODO: the gradients and the clip path of the path (adjust_gradient,
+   * adjust_clip, remove_clip_transforms).
+   */
+  override removeTransformsRecursively(root: SPObject): void {
+    if (!this._curve) return;
+    const transform = i2i_affine(this, root);
+    if (this.hasPathEffectRecursive() && this.pathEffectsEnabled() && this._curve_before_lpe) {
+      this.setCurveBeforeLPE(PathVector.transformed(this._curve_before_lpe, transform));
+      sp_lpe_item_update_patheffect(this, false, false);
+    } else {
+      this.setCurve(PathVector.transformed(this._curve, transform));
+    }
+    this.setAttribute('d', sp_svg_write_path(this._curve));
+    this.adjustStroke(transform.descrim());
+    this.adjust_pattern(transform);
+    this.removeAttribute('transform');
+  }
+
+  override convert_to_guides(): void {
+    if (!this._curve) return;
+    const i2dt = this.i2dtAffine();
+    const pts: [Point, Point][] = [];
+    for (const path of this._curve) {
+      for (const curve of path.curves()) {
+        // only add curves for straight line segments
+        if (is_straight_curve(curve))
+          pts.push([curve.initialPoint().transformed(i2dt), curve.finalPoint().transformed(i2dt)]);
+      }
+    }
+    sp_guide_pt_pairs_to_guides(this.document, pts);
   }
 
   override typeName(): string {

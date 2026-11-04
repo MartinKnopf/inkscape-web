@@ -90,6 +90,61 @@ export class LayerManager implements ObjectSetLayerManager {
     }
   }
 
+  /** All layers under the root in document order, with their depth (the sublayers follow their layer). */
+  allLayers(): { layer: SPGroup; depth: number }[] {
+    const root = this.currentRoot();
+    const result: { layer: SPGroup; depth: number }[] = [];
+    const visit = (parent: SPObject, depth: number): void => {
+      for (const child of parent.children) {
+        if (child instanceof SPGroup && child.layerMode() === LayerMode.LAYER) {
+          result.push({ layer: child, depth });
+          visit(child, depth + 1);
+        } else if (child instanceof SPGroup) visit(child, depth);
+      }
+    };
+    if (root) visit(root, 0);
+    return result;
+  }
+
+  /**
+   * A name for a new layer, from label (default "Layer 1"), that no other layer than obj has: a
+   * number is counted up until the name is free (upstream getNextLayerName).
+   */
+  getNextLayerName(obj: SPObject | null, label: string | null): string {
+    const incoming = label ?? 'Layer 1';
+    let result = incoming;
+    let base = incoming;
+    let split = ' ';
+    let start_num = 1;
+
+    let pos = base.length - 1;
+    while (pos >= 0 && /[0-9]/.test(base.charAt(pos))) pos--;
+    const numpart = base.slice(pos + 1);
+    const val = Number.parseInt(numpart, 10);
+    if (numpart !== '' && val < 65536) {
+      base = base.slice(0, pos + 1);
+      result = incoming;
+      start_num = val;
+      split = '';
+    }
+
+    const current_names = new Set(
+      this.allLayers()
+        .filter(({ layer }) => layer !== obj)
+        .map(({ layer }) => layer.label() ?? ''),
+    );
+    // Not sure if we need to cap it, but we'll just be paranoid for the moment
+    for (let i = start_num; i < start_num + 3000 && current_names.has(result); i++) {
+      result = `${base}${split}${i}`;
+    }
+    return result;
+  }
+
+  /** Name the layer label, or with uniquify the next free name for it (upstream renameLayer). */
+  renameLayer(obj: SPObject, label: string, uniquify: boolean): void {
+    obj.setAttribute('inkscape:label', uniquify ? this.getNextLayerName(obj, label) : label);
+  }
+
   /** The layer that contains object: itself if it is a layer, else its nearest layer ancestor (or the root). Null in defs. */
   layerForObject(object: SPObject): SPObject | null {
     if (this.isLayer(object)) return object;

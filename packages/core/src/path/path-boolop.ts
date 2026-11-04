@@ -136,6 +136,41 @@ export interface PathBoolopBackend {
       fuse_tolerance: number;
     },
   ): string;
+  /**
+   * The livarot outline of the stroke of `d` as an intersection free path (path-outline.cpp
+   * item_find_paths without bbox_only). `join` and `butt` are livarot JoinType and ButtType; the
+   * miter is multiplied by the width already; dashes are the computed dash array (empty: none).
+   */
+  strokeToPath(
+    d: string,
+    width: number,
+    join: number,
+    butt: number,
+    miter: number,
+    dashes: readonly number[],
+    dashOffset: number,
+    scale: number,
+  ): string;
+  /**
+   * Inset (negative width) or outset (positive) the filled path with livarot's MakeOffset
+   * (path-offset.cpp sp_selected_path_do_offset); fillRule is a FillRule. Empty if nothing is left.
+   */
+  /**
+   * The contour of the filled path without self-intersections (the original of an offset object,
+   * path-offset.cpp sp_selected_path_create_offset_object); fillRule is a FillRule. Empty if nothing is left.
+   */
+  normalizeShape(d: string, fillRule: number): string;
+  offsetShape(d: string, width: number, join: number, miter: number, fillRule: number): string;
+  /**
+   * The offset of the original path of an offset object by `rad` with round joins (sp-offset.cpp
+   * SPOffset::set_shape); size is the diagonal of its bounding box divided by the scale (0: none).
+   */
+  offsetOriginal(d: string, rad: number, size: number): string;
+  /**
+   * Move boxes [minx, maxx, miny, maxy, ...] as little as possible so that they do not overlap
+   * (libvpsc removeoverlaps); returns the centre [x, y, ...] of each box.
+   */
+  removeOverlaps(boxes: readonly number[]): number[];
   /** The livarot outline of the stroke of d (path-outline.cpp item_find_paths with bbox_only). */
   strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** do_offset() of helper/geom-pathstroke.cpp (Offset LPE). join is an Inkscape::LineJoinType. */

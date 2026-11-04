@@ -21,7 +21,7 @@
  * Copyright (C) 1999-2016 authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { Affine, type OptRect, type Point, Rotate, Scale, Translate, unify } from '@inkscape-web/geom';
+import { Affine, type OptRect, Point, Rotate, Scale, Translate, unify } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import { SPDocument } from '../document.ts';
 import { DocumentUndo } from '../document-undo.ts';
@@ -44,6 +44,8 @@ import { sp_repr_is_def } from '../xml/repr-util.ts';
 import { SPClipPath } from './sp-clippath.ts';
 import { BBoxType, SPItem } from './sp-item.ts';
 import { LayerMode, SPGroup, sp_item_group_ungroup } from './sp-item-group.ts';
+import { SPLPEItem } from './sp-lpe-item.ts';
+import { generate_marker } from './sp-marker.ts';
 import { SPMask } from './sp-mask.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './sp-object.ts';
 import { SPPath } from './sp-path.ts';
@@ -455,6 +457,257 @@ export class ObjectSet {
     }
     DocumentUndo.done(doc, C_('Undo', 'Objects to pattern'), '');
     return true;
+  }
+
+  /**
+   * Objects to Marker (upstream toMarker): move copies of the selected objects into a new marker
+   * in the defs; with apply the originals are removed.
+   */
+  toMarker(apply = true): void {
+    // tile() has similar code
+    const doc = this.document();
+    // TODO: flash "Select <b>object(s)</b> to convert to marker."
+    if (!doc || this.isEmpty()) return;
+    doc.ensureUpToDate();
+    const r = this.visualBounds();
+    if (!r) return;
+    const items_vec = [...this.items()].sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+    // bottommost object, after sorting
+    const parent = (items_vec[0] as SPItem).parent;
+    if (!(parent instanceof SPItem)) return;
+    const parent_transform = parent.i2docAffine();
+
+    // Create a list of duplicates, to be pasted inside the marker element.
+    const xml_doc = doc.getReprDoc();
+    const repr_copies = items_vec.map((item) => item.getRepr().duplicate(xml_doc));
+    const bbox = r.transformed(doc.dt2doc());
+    // calculate the transform to be applied to objects to move them to 0,0
+    const move = Translate(bbox.min().neg());
+    const center = new Point(bbox.width() / 2, bbox.height() / 2);
+
+    // Delete objects so that their clones don't get alerted; the objects will be restored inside the marker.
+    if (apply) for (const item of items_vec) item.deleteObject(false);
+
+    // Hack: Temporarily set clone compensation to unmoved, so that we can move clone-originals
+    // without disturbing clones.
+    const prefs = Preferences.get();
+    const saved_compensation = prefs.getInt(
+      '/options/clonecompensation/value',
+      SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED,
+    );
+    prefs.setInt('/options/clonecompensation/value', SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED);
+    generate_marker(repr_copies, bbox, doc, center, parent_transform.multiply(move));
+    prefs.setInt('/options/clonecompensation/value', saved_compensation);
+
+    DocumentUndo.done(doc, C_('Undo', 'Objects to marker'), '');
+  }
+
+  /**
+   * Move the selected items one step up in the stack order (upstream stackUp); the undo step is
+   * "stack up". Nothing changes if one of them is on top already.
+   */
+  stackUp(skip_undo = false): void {
+    // TODO: flash "Select <b>object(s)</b> to stack up." and "We hit top."
+    if (this.isEmpty()) return;
+    const selection = this.items().sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+    for (const item of selection.reverse()) {
+      if (!item.raiseOne()) {
+        // stop if top was reached
+        const document = this.document();
+        if (document && !skip_undo) DocumentUndo.cancel(document);
+        return;
+      }
+    }
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'stack up'), 'layer-raise');
+  }
+
+  /** Move the selected items one step down in the stack order; the undo step is "stack down". */
+  stackDown(skip_undo = false): void {
+    // TODO: flash "Select <b>object(s)</b> to stack down." and "We hit bottom."
+    if (this.isEmpty()) return;
+    const selection = this.items().sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+    for (const item of selection) {
+      if (!item.lowerOne()) {
+        // stop if bottom was reached
+        const document = this.document();
+        if (document && !skip_undo) DocumentUndo.cancel(document);
+        return;
+      }
+    }
+    const document = this.document();
+    if (document && !skip_undo) DocumentUndo.done(document, C_('Undo', 'stack down'), 'layer-lower');
+  }
+
+  /**
+   * Move the selection to the group moveto, after the child repr `after` (default: the last
+   * child), and select the moved items (upstream toLayer). The caller adds the undo step.
+   * TODO: keep the clones of the moved items in place (sp_selection_change_layer_maintain_clones).
+   */
+  toLayer(moveto: SPObject, after: Node | null = moveto.getRepr().lastChild()): void {
+    const document = this.document();
+    // TODO: flash "Select <b>object(s)</b> to move."
+    if (!document || this.isEmpty()) return;
+
+    // Make sure after is not in the selected group: iterate after's siblings backwards, finding
+    // the nearest that isn't selected. This is important for positioning in the layer.
+    const selected = this.items();
+    while (after && selected.some((item) => item.getRepr() === after)) after = after.prev();
+
+    this.clear();
+    const temp_clip: Node[] = [];
+    const xml_doc = document.getReprDoc();
+    const sorted = [...selected].sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+    for (const item of sorted) sp_selection_copy_one(item.getRepr(), item.i2docAffine(), temp_clip, xml_doc);
+    temp_clip.reverse();
+    for (const item of selected) item.deleteObject(false);
+    const copied = sp_selection_paste_impl(document, moveto, temp_clip, after);
+    this.setReprList(copied);
+    this._desktop?.layerManager().setCurrentLayer(moveto);
+  }
+
+  /**
+   * Pop the selected items out of their group into its parent (upstream popFromGroup); the undo
+   * step is "Pop selection from group".
+   */
+  popFromGroup(): void {
+    // TODO: flash the warnings.
+    if (this.isEmpty()) return;
+    const grandparents = new Set<SPObject>();
+    for (const obj of this.items()) {
+      const parent_group = obj.parent;
+      if (!(parent_group instanceof SPGroup) || !parent_group.parent || parent_group.isLayer()) return;
+      grandparents.add(parent_group.parent);
+    }
+    // Objects in the selection must have the same grandparents.
+    if (grandparents.size !== 1) return;
+    this.toLayer([...grandparents][0] as SPObject);
+    const document = this.document();
+    if (document)
+      DocumentUndo.done(document, C_('Undo', 'Pop selection from group'), 'object-ungroup-pop-selection');
+  }
+
+  /**
+   * Convert the selected objects to guides (upstream toGuides): along the edges of paths and
+   * rectangles, else the bounding box; the objects are deleted unless "/tools/cvg_keep_objects".
+   */
+  toGuides(): void {
+    const doc = this.document();
+    // TODO: flash "Select <b>object(s)</b> to convert to guides."
+    if (!doc || this.isEmpty()) return;
+    // we need to copy the list because it gets reset when objects are deleted
+    const items = this.items();
+    const prefs = Preferences.get();
+    const deleteitems = !prefs.getBool('/tools/cvg_keep_objects', false);
+    const wholegroups = prefs.getBool('/tools/cvg_convert_whole_groups', false);
+
+    const recursive = (item: SPItem): void => {
+      if (item instanceof SPGroup && !wholegroups) {
+        for (const child of item.item_list()) recursive(child);
+      } else item.convert_to_guides();
+    };
+    // If an object is earlier in the selection list than its clone, and it is deleted, then the clone
+    // will have changed and its entry in the selection list is invalid. Therefore: first convert all,
+    // then delete all.
+    for (const item of items) recursive(item);
+    if (deleteitems) {
+      this.clear();
+      for (const item of items) item.deleteObject(true);
+    }
+    DocumentUndo.done(doc, C_('Undo', 'Objects to guides'), '');
+  }
+
+  /** Remove all path effects of the selected items (upstream removeLPE); the undo step is "Remove live path effect". */
+  removeLPE(): void {
+    // TODO: flash "Select <b>object(s)</b> to remove live path effects from."
+    if (this.isEmpty()) return;
+    for (const item of this.items()) {
+      if (item instanceof SPLPEItem && item.hasPathEffect()) item.removeAllPathEffects(false);
+    }
+    const document = this.document();
+    if (document) DocumentUndo.done(document, C_('Undo', 'Remove live path effect'), '');
+  }
+
+  /**
+   * Resize the page to the visual bounding box of the selection (upstream fitCanvas); returns
+   * true if an undoable change was recorded.
+   */
+  fitCanvas(with_margins: boolean, skip_undo = false): boolean {
+    const document = this.document();
+    // TODO: flash "Select <b>object(s)</b> to fit canvas to."
+    if (!document || this.isEmpty()) return false;
+    const bbox = this.documentBounds(BBoxType.VISUAL_BBOX);
+    if (!bbox) return false;
+    document.fitToRect(bbox, with_margins);
+    if (!skip_undo) DocumentUndo.done(document, C_('Undo', 'Fit Page to Selection'), '');
+    return true;
+  }
+
+  /**
+   * Create a self-clipping group (upstream setClipGroup): the selected objects are put in a group
+   * "Clip" that a clone of it clips, so that more objects can be added to the group later.
+   */
+  setClipGroup(): void {
+    const doc = this.document();
+    // TODO: flash "Select <b>object(s)</b> to create clippath or mask from."
+    if (!doc || this.isEmpty()) return;
+    const xml_doc = doc.getReprDoc();
+
+    const p = this.xmlNodes().sort(sp_repr_compare_position);
+    this.clear();
+
+    let topmost = (p.at(-1) as Node).position();
+    const topmost_parent = (p.at(-1) as Node).parent();
+    if (!topmost_parent) return;
+
+    const inner = xml_doc.createElement('svg:g');
+    inner.setAttribute('inkscape:label', 'Clip');
+
+    for (const current of p) {
+      if (current.parent() === topmost_parent) {
+        const spnew = current.duplicate(xml_doc);
+        current.parent()?.removeChild(current);
+        inner.appendChild(spnew);
+        topmost--; // only reduce count for those items deleted from topmost_parent
+      } else {
+        // move it to topmost_parent first
+        const t_str = current.attribute('transform');
+        let item_t = (t_str && sp_svg_transform_read(t_str)) || Affine.identity();
+        const parent_item = doc.getObjectByRepr(current.parent());
+        if (parent_item instanceof SPItem) item_t = item_t.multiply(parent_item.i2docAffine());
+        const temp_clip: Node[] = [];
+        sp_selection_copy_one(current, item_t, temp_clip, xml_doc);
+        current.parent()?.removeChild(current);
+
+        // paste into topmost_parent (temporarily), then take a copy into the group
+        const parent_obj = doc.getObjectByRepr(topmost_parent);
+        const copied = parent_obj ? sp_selection_paste_impl(doc, parent_obj, temp_clip) : [];
+        const in_topmost = copied.at(-1);
+        if (in_topmost) {
+          const spnew = in_topmost.duplicate(xml_doc);
+          in_topmost.parent()?.removeChild(in_topmost);
+          inner.appendChild(spnew);
+        }
+      }
+    }
+
+    const outer = xml_doc.createElement('svg:g');
+    outer.appendChild(inner);
+    topmost_parent.addChildAtPos(outer, topmost + 1);
+
+    const clone = xml_doc.createElement('svg:use');
+    clone.setAttribute('x', '0');
+    clone.setAttribute('y', '0');
+    clone.setAttribute('xlink:href', `#${inner.attribute('id')}`);
+    clone.setAttribute('inkscape:transform-center-x', inner.attribute('inkscape:transform-center-x'));
+    clone.setAttribute('inkscape:transform-center-y', inner.attribute('inkscape:transform-center-y'));
+
+    const mask_id = SPClipPath.create([clone], doc);
+    outer.setAttribute('clip-path', `url(#${mask_id})`);
+
+    const object = doc.getObjectByRepr(outer);
+    if (object) this.set(object);
+    DocumentUndo.done(doc, C_('Undo', 'Create Clip Group'), '');
   }
 
   /**
@@ -953,6 +1206,40 @@ export class ObjectSet {
         'edit-clone-link-lpe',
       );
     }
+  }
+
+  /**
+   * Path > Fill between paths: add a path with the Fill between many effect, linked to the
+   * selected items, below the bottom one, and select it.
+   */
+  fillBetweenMany(): void {
+    // TODO: flash "Select path(s) to create fill between." when empty.
+    const doc = this.document();
+    const items = this.items();
+    if (!doc || items.length === 0) return;
+    const xml_doc = doc.getReprDoc();
+
+    const effectRepr = xml_doc.createElement('inkscape:path-effect');
+    effectRepr.setAttribute('effect', 'fill_between_many');
+    effectRepr.setAttribute('method', 'originald');
+    effectRepr.setAttribute('linkedpaths', items.map((item) => `#${item.getId()},0,1|`).join(''));
+    doc.getDefs()?.getRepr().appendChild(effectRepr); // assigns the 'id' attribute
+
+    const fillRepr = xml_doc.createElement('svg:path');
+    fillRepr.setAttribute('inkscape:original-d', 'M 0,0');
+    fillRepr.setAttribute('inkscape:path-effect', `#${effectRepr.attribute('id')}`);
+    fillRepr.setAttribute('d', 'M 0,0');
+
+    // Get the bottommost element in the selection to create the fill underneath
+    const first = [...items].sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()))[0] as SPItem;
+    const prev = first.getRepr().prev();
+    first.getRepr().parent()?.addChild(fillRepr, prev);
+
+    doc.ensureUpToDate();
+    this.clear();
+    const fill = doc.getObjectByRepr(fillRepr);
+    if (fill) this.add(fill);
+    DocumentUndo.done(doc, C_('Undo', 'Create linked fill object between paths'), '');
   }
 
   /** Apply the last affine again. */

@@ -299,7 +299,15 @@ export class ToolBase {
     const wheelscroll = Preferences.get().getInt('/options/wheelscroll/value', 40);
     const scroll_inc = (wheelscroll >= 0 && wheelscroll <= 1000 ? wheelscroll : 40) * 2;
 
-    if (event.ctrlKey || event.metaKey) {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+      // CANVAS_ROTATE: rotate by the rotate increment (/options/rotateincrement) for each click.
+      if (delta.y === 0 || this._desktop.rotation_lock) return;
+      const rotate_inc = (getDoubleLimited('/options/rotateincrement/value', 15, 1, 90) * Math.PI) / 180;
+      this._desktop.rotate_relative_keep_point(
+        this._desktopPoint(this._windowPoint(event)),
+        Math.sign(delta.y) * rotate_inc,
+      );
+    } else if (event.ctrlKey || event.metaKey) {
       // CANVAS_ZOOM: zoom by the amount vertically scrolled. Touchpad pinch also arrives here.
       if (delta.y === 0) return;
       const zoom_inc = getDoubleLimited('/options/zoomincrement/value', Math.SQRT2, 1.01, 10);

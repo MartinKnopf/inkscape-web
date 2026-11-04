@@ -22,11 +22,15 @@
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
 import {
+  BBoxType,
   C_,
   DocumentUndo,
-  type ObjectSet,
+  getHrefAttribute,
+  ObjectSet,
   Preferences,
+  SP_OBJECT_MODIFIED_FLAG,
   SP_STYLE_FLAG_IFSET,
+  SPCloneCompensation,
   type SPCSSAttr,
   type SPDocument,
   SPFlowtext,
@@ -50,14 +54,19 @@ import {
   SPText,
   SPTSpan,
   SPUse,
+  setHrefAttribute,
+  sp_repr_compare_position,
+  sp_svg_transform_write,
   spCssAttrScale,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
   spReprCssAttrAddFromString,
   spReprCssAttrNew,
   spReprCssMerge,
+  spReprCssSetProperty,
   spReprCssUnsetProperty,
 } from '@inkscape-web/core';
+import { Rect, Translate } from '@inkscape-web/geom';
 import { get_active_tool, set_active_tool } from './actions/actions-tools.ts';
 import type { SPDesktop } from './desktop.ts';
 import {
@@ -65,6 +74,7 @@ import {
   sp_desktop_apply_css_recursive,
   sp_desktop_set_style,
 } from './desktop-style.ts';
+import { sp_export_canvas } from './helper/png-write.ts';
 import { NodeTool } from './ui/tools/node-tool.ts';
 
 /** Values of /options/kbselection/inlayer. */
@@ -492,4 +502,174 @@ export function sp_select_same_object_type(desktop: SPDesktop): void {
   for (const sel of selection.items()) matches = sp_get_same_object_type(sel, matches);
   selection.clear();
   selection.setList(matches);
+}
+
+/**
+ * Swap the fill and the stroke of the selected items (upstream ObjectSet::swapFillStroke), in the
+ * undo step "Swap fill and stroke of an object".
+ */
+export function swapFillStroke(set: ObjectSet, desktop: SPDesktop | null): void {
+  /** The paint of the property of the item as a value for the other property, or undefined to unset it. */
+  const swapped = (item: SPItem, stroke: boolean, target: string, css: SPCSSAttr): void => {
+    const paint = stroke ? item.style.stroke : item.style.fill;
+    const opacity = stroke ? item.style.stroke_opacity : item.style.fill_opacity;
+    if (paint.set && paint.isNone()) spReprCssSetProperty(css, target, 'none');
+    else if (paint.set && paint.isColor()) {
+      const color = paint.getColor().clone();
+      color.addOpacity(opacity.as_double());
+      spReprCssSetProperty(css, target, color.toString());
+    } else if (!paint.set) spReprCssUnsetProperty(css, target);
+    else if (paint.set && paint.isPaintserver()) {
+      const server = stroke ? item.style.getStrokePaintServer() : item.style.getFillPaintServer();
+      if (server) spReprCssSetProperty(css, target, `url(#${server.getRepr().attribute('id')})`);
+    }
+  };
+
+  for (const item of set.items()) {
+    const css = spReprCssAttrNew();
+    swapped(item, false, 'stroke', css);
+    swapped(item, true, 'fill', css);
+    if (desktop) {
+      const single = new ObjectSet();
+      single.add(item);
+      sp_desktop_set_style(desktop, css, true, true, false, single);
+    } else {
+      sp_desktop_apply_css_recursive(item, css, true);
+    }
+  }
+  const document = set.document();
+  if (document) DocumentUndo.done(document, C_('Undo', 'Swap fill and stroke of an object'), '');
+}
+
+/**
+ * Relink the selected clones to the first object on the clipboard (upstream ObjectSet::relink;
+ * Edit > Clone > Relink to Copied), in the undo step "Relink clone". The clones stay unmoved or move
+ * in parallel with the new original, as "/options/clonecompensation/value" says.
+ */
+export function relinkClones(set: ObjectSet, clipboardFirstObjectId: string): boolean {
+  // TODO: flash "Select <b>clones</b> to relink." and "Copy an <b>object</b> to clipboard to relink clones to."
+  const document = set.document();
+  if (set.isEmpty() || !document || clipboardFirstObjectId === '') return false;
+  const newrefAttribute = `#${clipboardFirstObjectId}`;
+
+  let relinked = false;
+  for (const item of set.items()) {
+    if (!(item instanceof SPUse)) continue;
+    // Get original referenced item, relink, then get new reference
+    const ref = item.get_original();
+    item.setAttribute(getHrefAttribute(item.getRepr())[0], newrefAttribute);
+    const newref = item.get_original();
+
+    if (ref && newref) {
+      // Compensate for position of new reference if requested.
+      const compensation = Preferences.get().getInt(
+        '/options/clonecompensation/value',
+        SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED,
+      );
+      if (
+        compensation === SPCloneCompensation.SP_CLONE_COMPENSATION_UNMOVED ||
+        compensation === SPCloneCompensation.SP_CLONE_COMPENSATION_PARALLEL
+      ) {
+        const translation = Translate(newref.getCenter().sub(ref.getCenter()));
+        // Transform of clone. Necessary to apply the offset translation from the reference prior to
+        // applying clone-specific transformations.
+        const t = item.transform;
+        // To make the clone appear unmoved, simply invert the translation. To make the clone move in
+        // parallel, add the translation back in, but make sure that the translation is applied to a
+        // shape that isn't transformed in any other way
+        let m = t.inverse().multiply(translation.inverse()).multiply(t);
+        if (compensation === SPCloneCompensation.SP_CLONE_COMPENSATION_PARALLEL) {
+          const linear = m.withoutTranslation();
+          m = m.multiply(linear.inverse()).multiply(translation).multiply(linear);
+        }
+        // Compensation must be applied for each clone individually in case we are re-linking many
+        // clones that originally had different references.
+        const single = new ObjectSet(document);
+        single.add(item);
+        single.applyAffine(m);
+      }
+    }
+    item.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+    relinked = true;
+  }
+
+  // TODO: flash "<b>No clones to relink</b> in the selection."
+  if (relinked) DocumentUndo.done(document, C_('Undo', 'Relink clone'), 'edit-clone-unlink');
+  return relinked;
+}
+
+/** The export resolution of the item in dpi (inkscape:export-xdpi), or 0 (upstream SPItem::getExportDpi). */
+function export_dpi(item: SPObject): number {
+  return Number.parseFloat(item.getRepr().attribute('inkscape:export-xdpi') ?? '') || 0;
+}
+
+/**
+ * Object > Make a Bitmap Copy (upstream ObjectSet::createBitmapCopy): render the selected objects
+ * to a PNG, embed it in an image above the topmost one and select the image. The resolution is
+ * "/options/createbitmap/resolution", else from "/options/createbitmap/minsize", else the export
+ * dpi of the objects (96 by default). The undo step is "Create bitmap".
+ */
+export async function createBitmapCopy(set: ObjectSet): Promise<void> {
+  const doc = set.document();
+  // TODO: flash "Select <b>object(s)</b> to make a bitmap copy."
+  if (!doc || set.isEmpty()) return;
+
+  doc.ensureUpToDate();
+  let bbox = set.documentBounds(BBoxType.VISUAL_BBOX);
+  if (!bbox) return;
+
+  // Sort items so that the topmost comes last
+  const items = set.items().sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()));
+  // Remember parent and z-order of the topmost one
+  const topmost = items.at(-1) as SPItem;
+  const pos = topmost.getRepr().position();
+  const parent_object = topmost.parent;
+  const parent = parent_object?.getRepr();
+  if (!(parent_object instanceof SPItem) || !parent) return;
+
+  // Calculate resolution
+  const prefs = Preferences.get();
+  const prefs_res = prefs.getInt('/options/createbitmap/resolution', 0);
+  const prefs_min = prefs.getInt('/options/createbitmap/minsize', 0);
+  let res: number;
+  if (prefs_res > 0) {
+    // If it's given explicitly in prefs, take it
+    res = prefs_res;
+  } else if (prefs_min > 0) {
+    // If minsize is given, look up minimum bitmap size (default 250 pixels) and calculate resolution from it
+    res = (prefs_min * 96) / Math.min(bbox.width(), bbox.height());
+  } else {
+    // Get export DPI from the first item available, else the root, else the default 96 dpi
+    res = items.map(export_dpi).find((dpi) => dpi > 0) ?? (export_dpi(doc.getRoot()) || 96);
+  }
+  if (res === 96) {
+    // for default 96 dpi, snap it to pixel grid
+    bbox = new Rect(
+      Math.floor(bbox.left()),
+      Math.floor(bbox.top()),
+      Math.ceil(bbox.right()),
+      Math.ceil(bbox.bottom()),
+    );
+  }
+
+  const width = Math.ceil((bbox.width() * res) / 96);
+  const height = Math.ceil((bbox.height() * res) / 96);
+  const canvas = await sp_export_canvas(doc, bbox, width, height, { only: items });
+
+  // Create the repr for the image
+  const repr = doc.getReprDoc().createElement('svg:image');
+  setHrefAttribute(repr, canvas.toDataURL('image/png'));
+  repr.setAttributeSvgDouble('width', bbox.width());
+  repr.setAttributeSvgDouble('height', bbox.height());
+
+  // The matrix that makes the image exactly overlap the source objects
+  const affine = Translate(bbox.left(), bbox.top()).multiply(parent_object.i2docAffine().inverse());
+  repr.setAttribute('transform', sp_svg_transform_write(affine) || null);
+
+  // add the new repr to the parent, above the topmost object, and select it
+  parent.addChildAtPos(repr, pos + 1);
+  set.clear();
+  const image = doc.getObjectByRepr(repr);
+  if (image) set.add(image);
+  DocumentUndo.done(doc, C_('Undo', 'Create bitmap'), 'selection-make-bitmap-copy');
 }
