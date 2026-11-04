@@ -9,33 +9,24 @@ import { BUNDLED_FONTS, loadGeom, loadText } from '@inkscape-web/wasm';
 import { FontFactory, type PangoStretch } from './font-factory.ts';
 import { setTextLayoutBackend } from './Layout-TNG-Scanline-Makers.ts';
 
-/** Set up real text layout (HarfBuzz and livarot) with the bundled fonts, loaded before it returns. */
+/** Set up real text layout (HarfBuzz and livarot) with the bundled fonts; DejaVu Sans is loaded when it returns. */
 export async function setupTextLayout(): Promise<void> {
   const [text, geom] = await Promise.all([loadText(), loadGeom()]);
   const factory = FontFactory.get();
   factory.setBackend(text);
   setTextLayoutBackend(geom);
   for (const f of BUNDLED_FONTS) {
-    const bytes = new Uint8Array(await readFile(fileURLToPath(f.url)));
     factory.addFontSource({
       family: f.family,
       style: f.style,
       weight: f.weight,
       stretch: 4 as PangoStretch,
       display_name: f.display_name,
-      load: async () => bytes,
+      load: async () => new Uint8Array(await readFile(fileURLToPath(f.url))),
     });
   }
-  for (const f of BUNDLED_FONTS) {
-    await factory.preload({
-      family: f.family,
-      style: f.style,
-      weight: f.weight,
-      stretch: 4,
-      variant: 0,
-      variations: '',
-    });
-  }
+  // The tests use DejaVu Sans; other faces load when a test asks for them.
+  await factory.preload({ family: 'DejaVu Sans', style: 0, weight: 400, stretch: 4, variant: 0, variations: '' });
   await factory.whenLoaded();
 }
 
