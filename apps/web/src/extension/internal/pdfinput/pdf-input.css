@@ -1,0 +1,58 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* The PDF import dialog: the settings on the left, the page preview on the right. */
+.pdfin-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+}
+
+.pdfin-content {
+  display: flex;
+  gap: 16px;
+  overflow: auto;
+}
+
+.pdfin-settings {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pdfin-note {
+  margin: 4px 0;
+  font-style: italic;
+}
+
+.pdfin-preview-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pdfin-preview {
+  border: 1px solid #bbb;
+  max-width: 200px;
+  max-height: 300px;
+}
+
+.pdfin-fonts {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.pdfin-fonts th,
+.pdfin-fonts td {
+  border-bottom: 1px solid #ddd;
+  padding: 2px 4px;
+  text-align: left;
+}
+
+/* The font was not found locally (upstream icon off-outline). */
+.pdfin-font-off-outline {
+  color: #a00;
+}
+
+.pdfin-settings input.error {
+  outline: 1px solid #c00;
+}

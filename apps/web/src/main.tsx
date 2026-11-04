@@ -6,7 +6,13 @@ import {
   setTextLayoutBackend,
   setTraceBackend,
 } from '@inkscape-web/core';
-import { browser_cairo_renderer_hooks, cairo_renderer_hooks, load_image_pixels } from '@inkscape-web/editor';
+import {
+  browser_cairo_renderer_hooks,
+  cairo_renderer_hooks,
+  load_image_pixels,
+  local_font_list,
+  PdfInput,
+} from '@inkscape-web/editor';
 import { loadGeom } from '@inkscape-web/wasm';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -32,6 +38,8 @@ setCairoBackendLoader(() => import('@inkscape-web/wasm/cairo').then((m) => m.loa
 cairo_renderer_hooks.current = browser_cairo_renderer_hooks;
 // Text layout: wrap shapes, the scanline maker and text on path use livarot.
 setTextLayoutBackend(geom);
+// PDF import: the same module; the font matching knows the local fonts.
+PdfInput.local_fonts = local_font_list;
 add_actions_web();
 await Promise.all([loadShortcuts(), loadMenu()]);
 createRoot(document.getElementById('root')!).render(

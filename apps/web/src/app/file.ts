@@ -230,14 +230,21 @@ async function pickFile(
 
 /**
  * win.document-import (upstream document_import and file_import): ask for an
- * SVG or bitmap file and import it at the pointer. An SVG file becomes a
- * group; a bitmap an embedded image.
+ * SVG, bitmap or input extension file (PDF, ...) and import it at the pointer.
+ * An SVG file becomes a group; a bitmap an embedded image.
  */
 export async function sp_file_import(desktop: SPDesktop): Promise<void> {
-  const picked = await pickFile([IMPORT_TYPE()]);
+  const picked = await pickFile([IMPORT_TYPE(), ...INPUT_TYPES()]);
   if (!picked) return;
   const { file } = picked;
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const input = moduleFor(db.get_input_list(), file.name);
+  if (input) {
+    // An input extension (PDF, ...) converts the file to a document that is imported as a group.
+    const doc = await input.open(file.name, bytes);
+    if (doc) file_import(desktop.getDocument(), doc, true, desktop);
+    return;
+  }
   const image = gdkpixbuf_input_open(bytes);
   const doc = image ?? SPDocument.createNewDocFromMem(await decodeSvgBytes(bytes), file.name);
   if (!doc) {
