@@ -49,9 +49,11 @@ import {
 import {
   FontLister,
   fontSizeUnit,
+  InkscapeApplication,
   isTextObject,
   type SPDesktop,
   sp_desktop_set_style,
+  text_decoration_line_set,
 } from '@inkscape-web/editor';
 import { Point } from '@inkscape-web/geom';
 import { useEffect, useReducer } from 'react';
@@ -257,8 +259,9 @@ const ALIGN_MODES: readonly [string, string][] = [
 /**
  * Controls of the text tool: font family (the families of the document, web
  * fonts and, with permission, the system fonts), style, size and its unit,
- * line spacing and alignment, of the selected texts or of new text.
- * TODO: the text subselection (style of selected characters), font collections,
+ * line spacing, alignment and decoration (the win.text-decoration-line-*
+ * actions), of the selected texts or of new text, and the font collections.
+ * TODO: the text subselection (style of selected characters),
  * superscript/subscript, letter/word spacing, kerning, rotation, writing mode,
  * orientation, direction, line height units.
  */
@@ -285,6 +288,10 @@ export function TextToolbar({ desktop }: { desktop: SPDesktop }) {
           ? 3
           : 0;
   const styles = lister.styles(family);
+  const app = InkscapeApplication.instance();
+  const line = style.text_decoration_line;
+  // The decoration actions show the state of the selection (upstream _selectionChanged).
+  useEffect(() => text_decoration_line_set(app, style));
 
   return (
     <>
@@ -370,6 +377,21 @@ export function TextToolbar({ desktop }: { desktop: SPDesktop }) {
           tooltip={_(tooltip)}
           active={align_mode === mode}
           onClick={() => align_mode_changed(desktop, mode)}
+        />
+      ))}
+      {(
+        [
+          ['underline', 'format-text-underline', 'Text Underline', line.underline],
+          ['line-through', 'format-text-strikethrough', 'Text Strikethrough', line.line_through],
+          ['overline', 'format-text-overline', 'Text Overline', line.overline],
+        ] as const
+      ).map(([value, icon, tooltip, active]) => (
+        <IconButton
+          key={value}
+          icon={icon}
+          tooltip={_(tooltip)}
+          active={active}
+          onClick={() => app.activate_action(`win.text-decoration-line-${value}`)}
         />
       ))}
     </>

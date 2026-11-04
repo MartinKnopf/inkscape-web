@@ -29,6 +29,7 @@ import { add_actions_selection_object } from './actions/actions-selection-object
 import { add_actions_select_window } from './actions/actions-selection-window.ts';
 import { add_actions_processing } from './actions/actions-svg-processing.ts';
 import { add_actions_text } from './actions/actions-text.ts';
+import { add_actions_text_attributes } from './actions/actions-text-attributes.ts';
 import { add_actions_tools } from './actions/actions-tools.ts';
 import { add_actions_transform } from './actions/actions-transform.ts';
 import { add_actions_undo_document } from './actions/actions-undo-document.ts';
@@ -81,6 +82,7 @@ export class InkscapeApplication {
     add_actions_layer(this); // Actions for layers.
     add_actions_node_tool(this); // Actions to add, delete, etc. nodes (requiring Node tool).
     add_actions_select_window(this); // Actions with desktop selection
+    add_actions_text_attributes(this); // Actions for text attributes (decoration).
     add_actions_tools(this, toolIsPorted); // Actions to switch between tools.
     // Document actions (upstream SPDocument)
     add_actions_edit_document(this); // Guides and grids.
