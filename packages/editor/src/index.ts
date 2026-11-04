@@ -13,6 +13,7 @@ export * from './actions/actions-extra-data.ts';
 export * from './actions/actions-help-url.ts';
 export * from './actions/actions-helper.ts';
 export * from './actions/actions-hide-lock.ts';
+export * from './actions/actions-layer.ts';
 export * from './actions/actions-node-tool.ts';
 export * from './actions/actions-object.ts';
 export * from './actions/actions-object-align.ts';

@@ -123,3 +123,102 @@ export class LayerManager implements ObjectSetLayerManager {
     this.signal_layer_changed.emit();
   }
 }
+
+/** Finds the next sibling layer of layer; null if there are no further layers under its parent. */
+function next_sibling_layer(layer: SPObject): SPObject | null {
+  const list = layer.parent?.children ?? [];
+  return list.slice(list.indexOf(layer) + 1).find(is_layer) ?? null;
+}
+
+/** Finds the previous sibling layer of layer; null if there are none before it under its parent. */
+function previous_sibling_layer(layer: SPObject): SPObject | null {
+  const list = layer.parent?.children ?? [];
+  return list.slice(0, list.indexOf(layer)).reverse().find(is_layer) ?? null;
+}
+
+function is_layer(object: SPObject): boolean {
+  return object instanceof SPGroup && object.layerMode() === LayerMode.LAYER;
+}
+
+/** The first (deepest) descendant layer of layer along the first sublayers; layer itself if it has no sublayers. */
+function first_descendant_layer(layer: SPObject): SPObject {
+  for (;;) {
+    const first = layer.children.find(is_layer);
+    if (!first) return layer;
+    layer = first;
+  }
+}
+
+/** The last (topmost) child layer of layer; null if layer has no sublayers. */
+function last_child_layer(layer: SPObject): SPObject | null {
+  return [...layer.children].reverse().find(is_layer) ?? null;
+}
+
+function last_elder_layer(root: SPObject, layer: SPObject): SPObject | null {
+  for (let l: SPObject | null = layer; l && l !== root; l = l.parent) {
+    const sibling = previous_sibling_layer(l);
+    if (sibling) return sibling;
+  }
+  return null;
+}
+
+/** Finds the next layer under root, relative to layer in depth-first order; null if there are no further layers. */
+export function next_layer(root: SPObject, layer: SPObject): SPObject | null {
+  const sibling = next_sibling_layer(layer);
+  if (sibling) return first_descendant_layer(sibling);
+  return layer.parent && layer.parent !== root ? layer.parent : null;
+}
+
+/** Finds the previous layer under root, relative to layer in depth-first order; null if there are no prior layers. */
+export function previous_layer(root: SPObject, layer: SPObject): SPObject | null {
+  const child = last_child_layer(layer);
+  if (child) return child;
+  if (layer === root) return null;
+  return previous_sibling_layer(layer) ?? (layer.parent ? last_elder_layer(root, layer.parent) : null);
+}
+
+/** Where create_layer() puts the new layer. */
+export enum LayerRelativePosition {
+  LPOS_ABOVE,
+  LPOS_BELOW,
+  LPOS_CHILD,
+}
+
+let layer_suffix = 1;
+
+/**
+ * Creates a new layer with the next free id "layerNN" and appends it to root after layer (root is
+ * layer or an ancestor of it).
+ */
+export function create_layer(
+  root: SPObject,
+  layer: SPObject,
+  position: LayerRelativePosition,
+): SPObject | null {
+  const document = root.document;
+  let id: string;
+  do id = `layer${layer_suffix++}`;
+  while (document.getObjectById(id));
+
+  const repr = document.getReprDoc().createElement('svg:g');
+  repr.setAttribute('inkscape:groupmode', 'layer');
+  repr.setAttribute('id', id);
+
+  if (position === LayerRelativePosition.LPOS_CHILD) {
+    root = layer;
+    const child_layer = last_child_layer(layer);
+    if (child_layer) layer = child_layer;
+  }
+  if (root === layer) {
+    root.getRepr().appendChild(repr);
+  } else {
+    const layer_repr = layer.getRepr();
+    layer_repr.parent()?.addChild(repr, layer_repr);
+    if (position === LayerRelativePosition.LPOS_BELOW) {
+      // lowerOne(): before the previous sibling
+      const prev = repr.prev();
+      if (prev) prev.parent()?.changeOrder(repr, prev.prev());
+    }
+  }
+  return document.getObjectByRepr(repr);
+}
