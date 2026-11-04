@@ -116,6 +116,19 @@ describe('CairoRenderContext', () => {
     const content = pdfText(finish(ctx));
     expect(content).toMatch(/\/ShadingType 2/);
   });
+
+  it('renders a pattern as a tiling pattern', async () => {
+    const it = item(
+      `<defs><pattern id="p" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" style="fill:#aa00aa"/></pattern></defs>
+       <rect id="r" width="40" height="40" style="fill:url(#p)"/>`,
+      'r',
+    );
+    const ctx = pdfContext();
+    await ctx.renderPathVector([Path.fromRect(new Rect(0, 0, 40, 40))], it.style, it.geometricBounds());
+    const content = pdfText(finish(ctx));
+    expect(content).toMatch(/\/PatternType 1/);
+    expect(content).toContain('0.666667 0 0.666667 rg'); // the circle of the tile
+  });
 });
 
 describe('compute_final_page_dimensions', () => {

@@ -29,9 +29,12 @@ import {
 } from '../xml/repr-css.ts';
 import { SPItem } from './sp-item.ts';
 import {
+  cascadeFlags,
+  SP_OBJECT_CHILD_MODIFIED_FLAG,
   SP_OBJECT_MODIFIED_FLAG,
   SP_OBJECT_VIEWPORT_MODIFIED_FLAG,
   SP_OBJECT_WRITE_BUILD,
+  type SPCtx,
   type SPObject,
 } from './sp-object.ts';
 import { SPPaintServer } from './sp-paint-server.ts';
@@ -103,6 +106,19 @@ export class SPPattern extends SPPaintServer {
       }
       this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
     });
+  }
+
+  /**
+   * Update the children (upstream update), so that their geometry exists for the renderers
+   * that draw the pattern tile from the objects (PDF export). TODO: the views.
+   */
+  protected override update(ctx: SPCtx, flags: number): void {
+    const cflags = cascadeFlags(flags);
+    for (const c of this.childList()) {
+      if (cflags || c.uflags & (SP_OBJECT_MODIFIED_FLAG | SP_OBJECT_CHILD_MODIFIED_FLAG)) {
+        c.updateDisplay(ctx, cflags);
+      }
+    }
   }
 
   protected override build(doc: SPDocument, repr: Node): void {
