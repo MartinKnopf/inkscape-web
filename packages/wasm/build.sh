@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Build upstream lib2geom + livarot + path operations + libavoid + potrace and the trace filters to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/live_effects/lpe-dashed-stroke.cpp, src/live_effects/lpe-jointype.cpp, src/live_effects/lpe-sketch.cpp, src/live_effects/lpe-interpolate.cpp, src/live_effects/lpe-powerstroke.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp, src/libnrtype/Layout-TNG-Scanline-Makers.cpp
+# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/3rdparty/adaptagrams/libvpsc/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/live_effects/lpe-dashed-stroke.cpp, src/live_effects/lpe-jointype.cpp, src/live_effects/lpe-sketch.cpp, src/live_effects/lpe-interpolate.cpp, src/live_effects/lpe-powerstroke.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp, src/libnrtype/Layout-TNG-Scanline-Makers.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -80,6 +80,10 @@ SRCS="$SRCS $(ls "$INK"/src/livarot/*.cpp)"
 A=$INK/src/3rdparty/adaptagrams
 for f in $(sed -n '/target_sources(avoid_LIB PRIVATE/,/^)/p' "$A/libavoid/CMakeLists.txt" | grep -oE '[a-z0-9_]+\.cpp'); do
     SRCS="$SRCS $A/libavoid/$f"
+done
+# libvpsc (Remove Overlaps): same file list as its CMakeLists.txt.
+for f in $(sed -n '/target_sources(vpsc_LIB PRIVATE/,/^)/p' "$A/libvpsc/CMakeLists.txt" | grep -oE '[a-z0-9_A-Z]+\.cpp'); do
+    SRCS="$SRCS $A/libvpsc/$f"
 done
 SRCS="$SRCS $INK/src/path/path-boolop.cpp $INK/src/svg/stringstream.cpp $INK/src/svg/strip-trailing-zeros.cpp"
 # split_non_intersecting_paths() for Path > Break Apart.

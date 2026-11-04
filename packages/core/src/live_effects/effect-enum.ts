@@ -423,6 +423,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     false,
   ),
   entry(
+    EffectType.POWERMASK,
+    NC_('path effect', 'Power mask'),
+    'powermask',
+    'powermask',
+    N_('Invert or hide a mask, or use its negative'),
+    LPECategory.Generate,
+  ),
+  entry(
     EffectType.OFFSET,
     NC_('path effect', 'Offset'),
     'offset',

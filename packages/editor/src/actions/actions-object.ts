@@ -8,11 +8,16 @@
 import {
   C_,
   DocumentUndo,
+  Effect,
+  EffectType,
   N_,
   NC_,
   Preferences,
   type Selection,
   type SPDocument,
+  SPLPEItem,
+  sp_inverse_powermask,
+  sp_remove_powermask,
   spReprCssAttr,
   spReprCssProperty,
   spReprCssSet,
@@ -57,6 +62,19 @@ export const raw_data_object: readonly (readonly [string, string, string, string
     N_('Release Object Clipping'),
     SECTION,
     N_('Remove clipping path from selection'),
+  ],
+  ['app.object-add-corners-lpe', N_('Add Corners LPE'), SECTION, N_('Add Corners Live Path Effect to path')],
+  [
+    'app.object-set-clip-group',
+    N_('Set Object Clipping Group'),
+    SECTION,
+    N_('Create a self-clipping group to which objects (not contributing to the clip-path) can be added'),
+  ],
+  [
+    'app.object-set-inverse-mask',
+    N_('Set Object Inverse Mask'),
+    SECTION,
+    N_('Apply inverse mask to selection (Power Mask LPE)'),
   ],
   [
     'app.object-set-mask',
@@ -120,9 +138,33 @@ function object_mask(selection: Selection, clip: boolean, set: boolean): void {
     selection.setMask(clip, false, should_remove_original());
     DocumentUndo.done(doc, clip ? C_('Undo', 'Set clipping path') : C_('Undo', 'Set mask'), '');
   } else {
-    // TODO: sp_remove_powerclip / sp_remove_powermask (LPE).
+    // TODO: sp_remove_powerclip (LPE).
+    if (!clip) sp_remove_powermask(selection);
     selection.unsetMask(clip, true, should_remove_original());
     DocumentUndo.done(doc, clip ? C_('Undo', 'Release clipping path') : C_('Undo', 'Release mask'), '');
+  }
+}
+
+/** Add the Corners effect (fillet/chamfer) to the selected items, or remove it if they have it. */
+function object_add_corners_lpe(selection: Selection): void {
+  const document = selection.document();
+  if (!document) return;
+  const items = selection.items();
+  selection.clear();
+  for (const item of items) {
+    if (item instanceof SPLPEItem) {
+      const lpe = item.getFirstPathEffectOfType(EffectType.FILLET_CHAMFER);
+      if (lpe) {
+        item.removePathEffect(lpe, false);
+        DocumentUndo.done(document, C_('Undo', 'Remove Live Path Effect'), 'dialog-path-effects');
+      } else {
+        Effect.createAndApply('fillet_chamfer', document, item);
+        DocumentUndo.done(document, C_('Undo', 'Create and apply path effect'), 'dialog-path-effects');
+      }
+      const current = item.getCurrentLPE();
+      if (current) current.refresh_widgets = true;
+    }
+    selection.add(item);
   }
 }
 
@@ -160,6 +202,14 @@ export function add_actions_object(app: InkscapeApplication): void {
     object_flip(s, 1, -1, C_('Undo', 'Flip vertically'), 'object-flip-vertical'),
   );
   add('object-set-clip', (s) => object_mask(s, true, true));
+  add('object-set-clip-group', (s) => s.setClipGroup()); // the undo step is added by setClipGroup()
+  add('object-set-inverse-mask', (s) => {
+    const doc = s.document();
+    s.setMask(false, false, should_remove_original());
+    sp_inverse_powermask(s);
+    if (doc) DocumentUndo.done(doc, C_('Undo', 'Set Inverse Mask (LPE)'), '');
+  });
+  add('object-add-corners-lpe', (s) => object_add_corners_lpe(s));
   add('object-release-clip', (s) => object_mask(s, true, false));
   add('object-set-mask', (s) => object_mask(s, false, true));
   add('object-release-mask', (s) => object_mask(s, false, false));

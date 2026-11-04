@@ -22,6 +22,7 @@ import { LPEMirrorSymmetry } from './lpe-mirror_symmetry.ts';
 import { LPEOffset } from './lpe-offset.ts';
 import { LPEPatternAlongPath } from './lpe-patternalongpath.ts';
 import { LPEPerspectiveEnvelope } from './lpe-perspective-envelope.ts';
+import { LPEPowerMask } from './lpe-powermask.ts';
 import { LPEPowerStroke } from './lpe-powerstroke.ts';
 import { LPERoughen } from './lpe-roughen.ts';
 import { LPEShowHandles } from './lpe-show_handles.ts';
@@ -48,6 +49,8 @@ function newEffect(lpenr: EffectType, lpeobj: LivePathEffectObject): Effect | nu
       return new LPEPerspectiveEnvelope(lpeobj);
     case EffectType.SPIRO:
       return new LPESpiro(lpeobj);
+    case EffectType.POWERMASK:
+      return new LPEPowerMask(lpeobj);
     case EffectType.POWERSTROKE:
       return new LPEPowerStroke(lpeobj);
     case EffectType.CLONE_ORIGINAL:

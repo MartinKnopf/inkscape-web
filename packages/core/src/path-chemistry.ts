@@ -259,6 +259,20 @@ export function toCurves(set: ObjectSet, skip_undo = false): void {
   // TODO: else flash "<b>No objects</b> to convert to path in the selection."
 }
 
+/**
+ * Convert the selected objects that are not LPE items (rectangles, ellipses, ...) to paths, so
+ * that path effects can be applied to them (upstream toLPEItems).
+ */
+export function toLPEItems(set: ObjectSet): void {
+  if (set.isEmpty()) return;
+  set.unlinkRecursive(true);
+  const selected = set.items();
+  const to_select: Node[] = [];
+  set.clear();
+  sp_item_list_to_curves([...selected], selected, to_select, true);
+  set.setList([...objectsOfReprs(set, to_select), ...selected]);
+}
+
 function collect_object_items(object: SPObject, items: SPItem[]): void {
   for (const child of object.children) {
     if (child instanceof SPItem) items.push(child);
@@ -275,11 +289,14 @@ export function sp_item_list_to_curves(
   items: readonly SPItem[],
   selected: SPItem[],
   to_select: Node[],
+  skip_all_lpeitems = false,
 ): boolean {
   let did = false;
   for (let item of items) {
     // TODO: 3D boxes, connectors.
     const document = item.document;
+    // also convert objects in a group when skip_all_lpeitems is set
+    if (skip_all_lpeitems && item instanceof SPLPEItem && !(item instanceof SPGroup)) continue;
     // remember id
     const lpe_id = item.getRepr().attribute('id');
     if (item instanceof SPLPEItem && item.hasPathEffect()) {

@@ -166,6 +166,11 @@ export interface PathBoolopBackend {
    * SPOffset::set_shape); size is the diagonal of its bounding box divided by the scale (0: none).
    */
   offsetOriginal(d: string, rad: number, size: number): string;
+  /**
+   * Move boxes [minx, maxx, miny, maxy, ...] as little as possible so that they do not overlap
+   * (libvpsc removeoverlaps); returns the centre [x, y, ...] of each box.
+   */
+  removeOverlaps(boxes: readonly number[]): number[];
   /** The livarot outline of the stroke of d (path-outline.cpp item_find_paths with bbox_only). */
   strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** do_offset() of helper/geom-pathstroke.cpp (Offset LPE). join is an Inkscape::LineJoinType. */

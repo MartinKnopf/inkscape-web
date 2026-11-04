@@ -7,7 +7,8 @@
  */
 import { N_, NC_, Preferences } from '@inkscape-web/core';
 import { Point } from '@inkscape-web/geom';
-import { CanvasFlip, type SPDesktop } from '../desktop.ts';
+import { CanvasFlip } from '../canvas-flip.ts';
+import type { SPDesktop } from '../desktop.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 
 // Only the options that the desktop supports so far.

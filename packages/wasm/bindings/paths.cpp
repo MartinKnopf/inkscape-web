@@ -7,6 +7,7 @@
 #include <2geom/pathvector.h>
 #include <2geom/svg-path-parser.h>
 #include <2geom/svg-path-writer.h>
+#include <libvpsc/rectangle.h>
 #include "helper/geom.h"
 #include "livarot/Path.h"
 #include "livarot/Shape.h"
@@ -156,8 +157,31 @@ std::string offset_original(std::string const &d, double rad, double size)
     return orig.svg_dump_path();
 }
 
+// Upstream: src/object/algorithms/removeoverlap.cpp removeoverlap(), the vpsc part. `boxes` is
+// [minx, maxx, miny, maxy, ...] per box (already grown by half the gaps); the result is the
+// centre [x, y, ...] of each box after the overlaps are removed.
+emscripten::val remove_overlaps(emscripten::val const &boxes_js)
+{
+    auto const boxes = emscripten::convertJSArrayToNumberVector<double>(boxes_js);
+    std::vector<vpsc::Rectangle *> rs;
+    for (size_t i = 0; i + 3 < boxes.size(); i += 4) {
+        rs.push_back(new vpsc::Rectangle(boxes[i], boxes[i + 1], boxes[i + 2], boxes[i + 3]));
+    }
+    if (!rs.empty()) {
+        removeoverlaps(rs);
+    }
+    auto out = emscripten::val::array();
+    for (auto *r : rs) {
+        out.call<void>("push", r->getCentreX());
+        out.call<void>("push", r->getCentreY());
+        delete r;
+    }
+    return out;
+}
+
 EMSCRIPTEN_BINDINGS(paths)
 {
+    emscripten::function("removeOverlaps", &remove_overlaps);
     emscripten::function("normalizeShape", &normalize_shape);
     emscripten::function("offsetShape", &offset_shape);
     emscripten::function("offsetOriginal", &offset_original);

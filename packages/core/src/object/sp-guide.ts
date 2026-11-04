@@ -353,6 +353,14 @@ export class SPGuide extends SPObject {
   }
 }
 
+/** Create a guide through each pair of points (upstream sp_guide_pt_pairs_to_guides). */
+export function sp_guide_pt_pairs_to_guides(
+  doc: SPDocument,
+  pts: readonly (readonly [Point, Point])[],
+): void {
+  for (const [a, b] of pts) SPGuide.createSPGuide(doc, a, b);
+}
+
 /** Create guides along the borders of the page (upstream sp_guide_create_guides_around_page). */
 export function sp_guide_create_guides_around_page(doc: SPDocument): void {
   const bounds = doc.pageBounds();

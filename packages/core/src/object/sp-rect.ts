@@ -25,6 +25,7 @@ import {
 import { SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
 import { _ } from '../i18n.ts';
+import { Preferences } from '../preferences.ts';
 import { SnapCandidatePoint } from '../snap-candidate.ts';
 import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
 import type { SnapPreferences } from '../snap-preferences.ts';
@@ -32,6 +33,7 @@ import { SVGLength } from '../svg/svg-length.ts';
 import { sp_svg_write_path } from '../svg/svg-path.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
+import { sp_guide_pt_pairs_to_guides } from './sp-guide.ts';
 import type { SPItemCtx } from './sp-item.ts';
 import { lpeItemClasses } from './sp-lpe-item.ts';
 import {
@@ -442,6 +444,27 @@ export class SPRect extends SPShape {
    * The real corners of the rect as snap points, not the eight points of the
    * rounded rect path, plus the edge midpoints and the object midpoint.
    */
+  override convert_to_guides(): void {
+    if (!Preferences.get().getBool('/tools/shapes/rect/convertguides', true)) {
+      // Use bounding box instead of edges
+      super.convert_to_guides();
+      return;
+    }
+    const i2dt = this.i2dtAffine();
+    const [x, y] = [this.x.computed, this.y.computed];
+    const [w, h] = [this.width.computed, this.height.computed];
+    const a1 = new Point(x, y).transformed(i2dt);
+    const a2 = new Point(x, y + h).transformed(i2dt);
+    const a3 = new Point(x + w, y + h).transformed(i2dt);
+    const a4 = new Point(x + w, y).transformed(i2dt);
+    sp_guide_pt_pairs_to_guides(this.document, [
+      [a1, a2],
+      [a2, a3],
+      [a3, a4],
+      [a4, a1],
+    ]);
+  }
+
   override snappoints(p: SnapCandidatePoint[], snapprefs: SnapPreferences): void {
     const i2dt = this.i2dtAffine();
     const { x, y, width, height } = this;

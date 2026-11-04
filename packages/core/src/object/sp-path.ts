@@ -14,9 +14,10 @@
  * Copyright (C) 2000-2001 Ximian, Inc.
  * Copyright (C) 1999-2012 Authors
  */
-import { Affine, PathVector } from '@inkscape-web/geom';
+import { Affine, PathVector, type Point } from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import type { SPDocument } from '../document.ts';
+import { is_straight_curve } from '../helper/geom.ts';
 import { _, ngettext } from '../i18n.ts';
 import { node_count } from '../path/path-curve.ts';
 import { SPStyleSrc } from '../style-internal.ts';
@@ -25,6 +26,7 @@ import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
 import { spReprCssAttr, spReprCssSet, spReprCssUnsetProperty } from '../xml/repr-css.ts';
 import { SPConnEndPair, sp_conn_end_pair_build } from './sp-conn-end-pair.ts';
+import { sp_guide_pt_pairs_to_guides } from './sp-guide.ts';
 import { lpeItemClasses, sp_lpe_item_update_patheffect } from './sp-lpe-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
@@ -40,7 +42,7 @@ import { SPShape } from './sp-shape.ts';
 /**
  * svg:path (upstream SPPath).
  * With a path effect, inkscape:original-d is the path before the effects (curveBeforeLPE()).
- * TODO: markers, convert_to_guides, removeTransformsRecursively.
+ * TODO: markers, removeTransformsRecursively.
  */
 export class SPPath extends SPShape {
   /** The connector ends and routing (inkscape:connector-type, inkscape:connection-start/-end). */
@@ -48,6 +50,20 @@ export class SPPath extends SPShape {
 
   nodesInPath(): number {
     return this._curve ? node_count(this._curve) : 0;
+  }
+
+  override convert_to_guides(): void {
+    if (!this._curve) return;
+    const i2dt = this.i2dtAffine();
+    const pts: [Point, Point][] = [];
+    for (const path of this._curve) {
+      for (const curve of path.curves()) {
+        // only add curves for straight line segments
+        if (is_straight_curve(curve))
+          pts.push([curve.initialPoint().transformed(i2dt), curve.finalPoint().transformed(i2dt)]);
+      }
+    }
+    sp_guide_pt_pairs_to_guides(this.document, pts);
   }
 
   override typeName(): string {

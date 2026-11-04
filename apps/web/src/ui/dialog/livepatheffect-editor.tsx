@@ -4,6 +4,7 @@ import {
   _,
   type BoolParam,
   C_,
+  type ColorPickerParam,
   type Effect,
   type EnumParam,
   type LinkParam,
@@ -108,6 +109,29 @@ function ParamRow(props: {
           />
           {text}
         </label>
+      );
+    case 'color':
+      return (
+        <div className="lpe-param lpe-color" title={title}>
+          <span>{text}</span>
+          <input
+            type="color"
+            value={widget.color}
+            onChange={(e) =>
+              (param as ColorPickerParam).param_set_from_widget(e.target.value, widget.opacity)
+            }
+          />
+          <SpinButton
+            label={_('Opacity')}
+            tooltip=""
+            value={widget.opacity}
+            min={0}
+            max={1}
+            step={0.05}
+            digits={2}
+            onChange={(opacity) => (param as ColorPickerParam).param_set_from_widget(widget.color, opacity)}
+          />
+        </div>
       );
     case 'toggle':
       return (

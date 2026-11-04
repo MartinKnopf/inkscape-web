@@ -58,6 +58,8 @@ export type ParamWidget =
   /** A framed text (upstream MessageParam); message may hold Pango markup such as <b>. */
   | { kind: 'message'; legend: string; message: string }
   | { kind: 'text'; value: string }
+  /** A color (#rrggbb) and its opacity (ColorPickerParam). */
+  | { kind: 'color'; color: string; opacity: number }
   /**
    * A link to an item (the parameter is a LinkParam): link to the copied item, and with
    * select_original, select the linked item.

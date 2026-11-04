@@ -166,6 +166,11 @@ export interface Geom {
    * SPOffset::set_shape); size is the diagonal of its bounding box divided by the scale (0: none).
    */
   offsetOriginal(d: string, rad: number, size: number): string;
+  /**
+   * Move boxes [minx, maxx, miny, maxy, ...] as little as possible so that they do not overlap
+   * (libvpsc removeoverlaps); returns the centre [x, y, ...] of each box.
+   */
+  removeOverlaps(boxes: readonly number[]): number[];
   /** The livarot outline of the stroke of `d` (path-outline.cpp item_find_paths, bbox only). */
   strokeOutline(d: string, width: number, join: number, butt: number, miter: number): string;
   /** Upstream do_offset() of helper/geom-pathstroke.cpp (Offset LPE). `join` is a LineJoinType. */
@@ -520,6 +525,7 @@ export async function loadGeom(options?: {
     normalizeShape: (d, fillRule) => m.normalizeShape(d, fillRule),
     offsetShape: (d, width, join, miter, fillRule) => m.offsetShape(d, width, join, miter, fillRule),
     offsetOriginal: (d, rad, size) => m.offsetOriginal(d, rad, size),
+    removeOverlaps: (boxes) => m.removeOverlaps([...boxes]) as number[],
     simplifyPath: (d, threshold, steps, justCoalesce) => m.simplifyPath(d, threshold, steps, justCoalesce),
     offsetPath: (d, toOffset, tolerance, miterLimit, fillRule, join, [px, py]) =>
       m.offsetPath(d, toOffset, tolerance, miterLimit, fillRule, join, px, py) as {

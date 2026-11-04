@@ -47,6 +47,7 @@ import {
 } from '@inkscape-web/core';
 import { Affine, Point, Rect, Rotate, Scale } from '@inkscape-web/geom';
 import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
+import { CanvasFlip } from './canvas-flip.ts';
 import { sp_dt_guide_event, sp_dt_guide_key_event } from './desktop-events.ts';
 import { CanvasItemGroup } from './display/control/canvas-item.ts';
 import { CanvasItemGridXY } from './display/control/canvas-item-grid.ts';
@@ -61,6 +62,8 @@ import { createTool } from './ui/tool-factory.ts';
 import type { ToolBase } from './ui/tools/tool-base.ts';
 import type { Canvas } from './ui/widget/canvas.ts';
 
+export { CanvasFlip };
+
 export const SP_DESKTOP_ZOOM_MAX = 256.0;
 export const SP_DESKTOP_ZOOM_MIN = 0.01;
 
@@ -74,13 +77,6 @@ export enum SplitMode {
   SPLIT,
   /** A circle around the pointer in outline mode. */
   XRAY,
-}
-
-/** The flip of the canvas (upstream SPDesktop::CanvasFlip, a bit set). */
-export enum CanvasFlip {
-  FLIP_NONE = 0,
-  FLIP_HORIZONTAL = 1,
-  FLIP_VERTICAL = 2,
 }
 
 /**

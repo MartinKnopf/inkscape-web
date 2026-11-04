@@ -10,6 +10,7 @@
  */
 import { C_, DocumentUndo, N_, NC_, Preferences, type Selection } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
+import { relinkClones, swapFillStroke } from '../selection-chemistry.ts';
 import { ClipboardManager } from '../ui/clipboard.ts';
 import { NodeDeleteMode } from '../ui/tool/path-manipulator.ts';
 import { NodeTool } from '../ui/tools/node-tool.ts';
@@ -99,6 +100,44 @@ export const raw_data_edit: readonly (readonly [string, string, string, string])
     SECTION,
     N_('Select the object to which the selected clone is linked'),
   ],
+  ['app.object-to-marker', N_('Objects to Marker'), SECTION, N_('Convert selection to a line marker')],
+  [
+    'app.object-to-guides',
+    N_('Objects to Guides'),
+    SECTION,
+    N_('Convert selected objects to a collection of guidelines aligned with their edges'),
+  ],
+  [
+    'app.duplicate-transform',
+    N_('Duplicate and Transform'),
+    SECTION,
+    N_('Duplicate selected objects and reapply last transformation'),
+  ],
+  [
+    'app.clone-link',
+    N_('Relink to Copied'),
+    SECTION,
+    N_('Relink the selected clones to the object currently on the clipboard'),
+  ],
+  [
+    'app.paste-path-effect',
+    N_('Paste Path Effect'),
+    SECTION,
+    N_('Apply the path effect of the copied object to selection'),
+  ],
+  [
+    'app.remove-path-effect',
+    N_('Remove Path Effect'),
+    SECTION,
+    N_('Remove any path effects from selected objects'),
+  ],
+  ['app.swap-fill-and-stroke', N_('Swap fill and stroke'), SECTION, N_('Swap fill and stroke of an object')],
+  [
+    'app.fit-canvas-to-selection',
+    N_('Fit Page to Selection'),
+    SECTION,
+    N_('Fit the page to the current selection'),
+  ],
   ['app.delete', N_('Delete'), SECTION, N_('Delete selected items, nodes or text.')],
   ['app.delete-selection', N_('Delete Items'), SECTION, N_('Delete selected items')],
 ];
@@ -158,6 +197,14 @@ function paste_size(selection: Selection, separately: boolean, apply_x: boolean,
     });
 }
 
+/** Duplicate the selection and apply the last transformation to the copies (upstream duplicate_transform). */
+function duplicate_transform(selection: Selection): void {
+  selection.duplicate(true);
+  selection.reapplyAffine();
+  const document = selection.document();
+  if (document) DocumentUndo.done(document, C_('Undo', 'Duplicate and Transform'), 'edit-duplicate');
+}
+
 export function add_actions_edit(app: InkscapeApplication): void {
   const add = (name: string, run: (selection: Selection) => void) =>
     app.actions.app.add_action(name, () => {
@@ -181,6 +228,21 @@ export function add_actions_edit(app: InkscapeApplication): void {
   add('clone-unlink-recursively', (s) => s.unlinkRecursive(false, true));
   add('clone-link-lpe', (s) => s.cloneOriginalPathLPE());
   add('select-original', (s) => s.cloneOriginal());
+  add('object-to-marker', (s) => s.toMarker());
+  add('object-to-guides', (s) => s.toGuides());
+  add('duplicate-transform', duplicate_transform);
+  add('clone-link', (s) => void relinkClones(s, ClipboardManager.get().getFirstObjectID()));
+  add('paste-path-effect', (s) => {
+    void ClipboardManager.get()
+      .pastePathEffect(s)
+      .then((pasted) => {
+        const document = s.document();
+        if (pasted && document) DocumentUndo.done(document, C_('Undo', 'Paste live path effect'), '');
+      });
+  });
+  add('remove-path-effect', (s) => s.removeLPE());
+  add('swap-fill-and-stroke', (s) => swapFillStroke(s, app.get_active_desktop()));
+  add('fit-canvas-to-selection', (s) => void s.fitCanvas(true));
   add('delete', (s) => edit_delete(s, app));
   add('delete-selection', (s) => s.deleteItems());
   app.get_action_extra_data().add_data(raw_data_edit);

@@ -19,6 +19,7 @@ import { _ } from '../i18n.ts';
 import { SVGLength } from '../svg/svg-length.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
+import { SPGuide } from './sp-guide.ts';
 import type { SPItemCtx } from './sp-item.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
@@ -29,7 +30,7 @@ import {
 } from './sp-object.ts';
 import { SPShape } from './sp-shape.ts';
 
-/** svg:line (upstream SPLine). TODO: convert_to_guides. */
+/** svg:line (upstream SPLine). */
 export class SPLine extends SPShape {
   x1 = new SVGLength();
   y1 = new SVGLength();
@@ -109,6 +110,15 @@ export class SPLine extends SPShape {
   }
 
   /** Bake the transform into the end points. Nothing remains for the transform attribute. */
+  override convert_to_guides(): void {
+    const i2dt = this.i2dtAffine();
+    SPGuide.createSPGuide(
+      this.document,
+      new Point(this.x1.computed, this.y1.computed).transformed(i2dt),
+      new Point(this.x2.computed, this.y2.computed).transformed(i2dt),
+    );
+  }
+
   override setTransform(transform: Affine): Affine {
     const p1 = new Point(this.x1.computed, this.y1.computed).transformed(transform);
     const p2 = new Point(this.x2.computed, this.y2.computed).transformed(transform);
