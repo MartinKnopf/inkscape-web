@@ -24,6 +24,7 @@
  */
 
 import { parseDeclarationList } from './3rdparty/libcroco/cr-declaration.ts';
+import { cr_sel_eng_get_matched_properties } from './3rdparty/libcroco/cr-stylesheet.ts';
 import { attributeLookup, SPAttr } from './attributes.ts';
 import type { SPDocument } from './document.ts';
 import type { SPFilter } from './object/sp-filter.ts';
@@ -1081,8 +1082,6 @@ export class SPStyle {
     this.#mergeString(spReprCssWriteString(css));
   }
 
-  // TODO: mergeStatement(CRStatement) appends a statement of a stylesheet as STYLE_SHEET declarations.
-
   /** Mostly for unit testing. Upstream: operator==. */
   equals(rhs: SPStyle): boolean {
     for (let i = 0; i < this.#properties.length; ++i) {
@@ -1120,10 +1119,19 @@ export class SPStyle {
     }
   }
 
-  #mergeObjectStylesheet(_object: SPObject): void {
-    // TODO: Stylesheets (svg:style elements, selectors) are not ported. Upstream merges here the
-    // properties that match the object in the cascade of the document and of its parent and
-    // reference documents (as STYLE_SHEET), between the style attribute and the presentation attributes.
+  /**
+   * Merge the properties of the style sheets of the document (svg:style elements) that match
+   * object, as STYLE_SHEET (upstream _mergeObjectStylesheet).
+   * TODO: the style sheets of the parent and reference documents.
+   */
+  #mergeObjectStylesheet(object: SPObject): void {
+    const document = object.document;
+    if (!document) return;
+    const sheets = document.getStyleCascade();
+    if (!sheets.length) return;
+    const props = cr_sel_eng_get_matched_properties(sheets, object.getRepr());
+    // In reverse order, as later declarations to take precedence over earlier ones.
+    for (let i = props.length - 1; i >= 0; --i) this.#mergeDecl(props[i]!, SPStyleSrc.STYLE_SHEET);
   }
 
   /** Used for input into Pango. Must be computed value! */

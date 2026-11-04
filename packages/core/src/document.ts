@@ -16,6 +16,7 @@
  */
 
 import { Affine, Point, Rect, Translate } from '@inkscape-web/geom';
+import type { CRStyleSheet } from './3rdparty/libcroco/cr-stylesheet.ts';
 import { type AvoidRouter, getRouter, process_router_transaction } from './conn-avoid-ref.ts';
 import { DocumentUndo, type UndoStack } from './document-undo.ts';
 import { sp_file_fix_page_elements } from './document-update.ts';
@@ -158,6 +159,19 @@ export class SPDocument {
   }
   getRoot(): SPRoot {
     return this.root;
+  }
+
+  /**
+   * The svg:style elements of the document in document order (upstream: the author style
+   * sheets of the CRCascade). SPStyleElem adds and removes itself.
+   */
+  readonly styleElems: { is_css: boolean; style_sheet: CRStyleSheet | null; getRepr(): Node }[] = [];
+
+  /** The style sheets of the svg:style elements, in document order (upstream getStyleCascade). */
+  getStyleCascade(): CRStyleSheet[] {
+    const sheets: CRStyleSheet[] = [];
+    for (const e of this.styleElems) if (e.is_css && e.style_sheet) sheets.push(e.style_sheet);
+    return sheets;
   }
   /** The sodipodi:namedview object; the element is created if the document has none. */
   getNamedView(): SPNamedView {

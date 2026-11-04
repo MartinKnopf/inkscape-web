@@ -69,6 +69,7 @@ import { SPSpiral } from './sp-spiral.ts';
 import { SPStar } from './sp-star.ts';
 import { SPStop } from './sp-stop.ts';
 import { SPString } from './sp-string.ts';
+import { SPStyleElem } from './sp-style-elem.ts';
 import { SPSymbol } from './sp-symbol.ts';
 import { SPText } from './sp-text.ts';
 import { SPTextPath, SPTSpan } from './sp-tspan.ts';
@@ -117,6 +118,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:use', () => new SPUse()],
   ['svg:view', () => new SPPage()],
   ['svg:stop', () => new SPStop()],
+  ['svg:style', () => new SPStyleElem()],
   ['svg:symbol', () => new SPSymbol()],
   ['svg:text', () => new SPText()],
   ['svg:tspan', () => new SPTSpan()],
