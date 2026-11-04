@@ -12,6 +12,7 @@ import { ExportDialog } from './export.tsx';
 import { ExtensionsGalleryDialog, FilterGalleryDialog } from './extensions-gallery.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { FilterEffectsDialog } from './filter-effects-dialog.tsx';
+import { IconPreviewDialog } from './icon-preview.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
@@ -49,6 +50,7 @@ const DIALOGS: Record<string, DialogData> = {
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
   FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
+  IconPreview: { label: _('Icon Preview'), component: IconPreviewDialog },
   LivePathEffect: { label: _('Path E_ffects'), component: LivePathEffectDialog },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
   Objects: { label: _('Layers and Object_s'), component: ObjectsDialog },
