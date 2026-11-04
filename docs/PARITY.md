@@ -7,9 +7,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 24 | 26 | 92 |
 | Dialogs | 20 | 29 | 69 |
-| Actions | 139 | 409 | 34 |
+| Actions | 140 | 409 | 34 |
 | Live path effects | 23 | 56 | 41 |
-| Internal import/export modules | 2 | 35 | 6 |
+| Internal import/export modules | 6 | 35 | 17 |
 | Python extensions | 154 | 160 | 96 |
 
 <details><summary>Tools (24/26)</summary>
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (139/409)</summary>
+<details><summary>Actions (140/409)</summary>
 
 - [ ] `app.about`
 - [ ] `app.action-list`
@@ -367,7 +367,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `win.document-revert`
 - [x] `win.document-save`
 - [x] `win.document-save-as`
-- [ ] `win.document-save-copy`
+- [x] `win.document-save-copy`
 - [ ] `win.document-save-template`
 - [ ] `win.help-url-ask-question`
 - [ ] `win.help-url-beginners-guide`
@@ -552,13 +552,13 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Internal import/export modules (2/35)</summary>
+<details><summary>Internal import/export modules (6/35)</summary>
 
 - [ ] `bluredge.cpp`
-- [ ] `cairo-ps-out.cpp`
-- [ ] `cairo-render-context.cpp`
-- [ ] `cairo-renderer-pdf-out.cpp`
-- [ ] `cairo-renderer.cpp`
+- [x] `cairo-ps-out.cpp`
+- [x] `cairo-render-context.cpp`
+- [x] `cairo-renderer-pdf-out.cpp`
+- [x] `cairo-renderer.cpp`
 - [ ] `cdr-input.cpp`
 - [ ] `emf-inout.cpp`
 - [ ] `emf-print.cpp`
