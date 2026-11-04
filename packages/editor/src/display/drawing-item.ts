@@ -285,7 +285,11 @@ export abstract class SvgDrawingItem implements DrawingItem {
       if (colon < 0) continue;
       const name = declaration.slice(0, colon).trim();
       if (!STYLE_PROPERTIES.has(name)) continue;
-      let value = declaration.slice(colon + 1).trim();
+      // The cascade is already resolved: drop "!important" (from style sheets), which setProperty() rejects.
+      let value = declaration
+        .slice(colon + 1)
+        .replace(/\s*!important\s*$/, '')
+        .trim();
       if (name === 'fill' || name === 'stroke') value = this.#paintValue(style, name, value, contextStyle);
       element.style.setProperty(name, value);
       this.#appliedStyle.push(name);

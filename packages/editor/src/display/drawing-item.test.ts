@@ -25,6 +25,15 @@ function show(body: string) {
   return { doc, drawing, view, target };
 }
 
+describe('style', () => {
+  it('draws an !important style sheet value that wins over the style attribute', () => {
+    const { view } = show(
+      '<style>#a { fill: #c33 !important }</style><rect id="a" style="fill:blue" width="10" height="10"/>',
+    );
+    expect(view('a').element.style.getPropertyValue('fill')).toBe('#cc3333');
+  });
+});
+
 describe('clip and mask', () => {
   it('turns the clip view into an svg:clipPath in the defs and references it from the element', () => {
     const { doc, view, target } = show(
