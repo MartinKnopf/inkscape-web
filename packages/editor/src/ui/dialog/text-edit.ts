@@ -17,6 +17,9 @@
 import {
   C_,
   DocumentUndo,
+  FontFactory,
+  type FontInstance,
+  ink_font_from_style,
   Preferences,
   type SPCSSAttr,
   SPCSSUnit,
@@ -35,17 +38,31 @@ import {
 import type { SPDesktop } from '../../desktop.ts';
 import { sp_desktop_set_style } from '../../desktop-style.ts';
 import { FontLister, isTextObject } from '../../libnrtype/font-lister.ts';
+import {
+  type FontVariantsState,
+  font_variants_fill_css,
+  font_variants_from_style,
+} from '../widget/font-variants.ts';
 
 /** The font size unit of the user interface (/options/font/unitType, an SPCSSUnit). */
 export function fontSizeUnit(): number {
   return Preferences.get().getInt('/options/font/unitType', SPCSSUnit.SP_CSS_UNIT_PT);
 }
 
-/** The font of the dialog: family, style ("Bold Italic") and size in the unit of fontSizeUnit(). */
+/**
+ * The font of the dialog: family, style ("Bold Italic"), size in the unit of
+ * fontSizeUnit() and the settings of the Features tab.
+ */
 export interface TextEditFont {
   family: string;
   style: string;
   size: number;
+  variants: FontVariantsState;
+}
+
+/** The face of a family and style of the dialog (for its OpenType tables and variation axes). */
+export function textEditFace(font: Pick<TextEditFont, 'family' | 'style'>): FontInstance {
+  return FontFactory.get().FaceFromDescr(font.family, font.style);
 }
 
 /** The first text or flowed text of the selection (upstream getSelectedTextItem). */
@@ -81,15 +98,17 @@ export function onReadSelection(desktop: SPDesktop): { font: TextEditFont; text:
       family: lister.family_from_style(style),
       style: lister.style_from_style(style),
       size: spStyleCssSizePxToUnits(style.font_size.computed * scale, fontSizeUnit()),
+      variants: font_variants_from_style(style, ink_font_from_style(style)),
     },
     text: text && getSelectedTextCount(desktop) === 1 ? sp_te_get_string_multiline(text) : null,
   };
 }
 
-/** The css of font (upstream fillTextStyle). TODO: font features and variations. */
+/** The css of font (upstream fillTextStyle). */
 export function fillTextStyle(font: TextEditFont): SPCSSAttr {
   const css = spReprCssAttrNew();
   FontLister.get_instance().fill_css(css, font.family, font.style);
+  font_variants_fill_css(font.variants, css);
   // Set font size
   const unit = fontSizeUnit();
   const size = Preferences.get().getBool('/options/font/textOutputPx', true)

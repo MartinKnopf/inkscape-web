@@ -39,6 +39,11 @@ export async function loadFonts(): Promise<void> {
     variations: '',
   });
   factory.changedSignal.connect(relayoutAllText);
+  // The bundled fonts for the font list and the preview of the Text and Font dialog (FontFace API).
+  for (const f of BUNDLED_FONTS) {
+    const style = f.style === PangoStyle.PANGO_STYLE_ITALIC ? 'italic' : f.style ? 'oblique' : 'normal';
+    document.fonts.add(new FontFace(f.family, `url(${f.url})`, { weight: String(f.weight), style }));
+  }
 }
 
 /** Lay out the text of all open documents again (after fonts were loaded). */

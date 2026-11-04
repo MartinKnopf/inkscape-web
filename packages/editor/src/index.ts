@@ -161,6 +161,7 @@ export * from './ui/tools/zoom-tool.ts';
 export * from './ui/widget/canvas.ts';
 export * from './ui/widget/canvas-grid.ts';
 export * from './ui/widget/color-notebook.ts';
+export * from './ui/widget/font-variants.ts';
 export * from './ui/widget/ink-ruler.ts';
 export * from './ui/widget/memory.ts';
 export * from './ui/widget/messages.ts';
