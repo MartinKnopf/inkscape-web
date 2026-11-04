@@ -26,6 +26,7 @@ import { add_actions_path } from './actions/actions-paths.ts';
 import { add_actions_selection } from './actions/actions-selection.ts';
 import { add_actions_selection_object } from './actions/actions-selection-object.ts';
 import { add_actions_select_window } from './actions/actions-selection-window.ts';
+import { add_actions_processing } from './actions/actions-svg-processing.ts';
 import { add_actions_text } from './actions/actions-text.ts';
 import { add_actions_tools } from './actions/actions-tools.ts';
 import { add_actions_transform } from './actions/actions-transform.ts';
@@ -82,6 +83,7 @@ export class InkscapeApplication {
     // Document actions (upstream SPDocument)
     add_actions_edit_document(this); // Guides and grids.
     add_actions_undo_document(this);
+    add_actions_processing(this); // SVG processing, mostly for the command line.
     add_actions_pages(this); // Pages, and the win.page-* actions that center the view.
   }
 

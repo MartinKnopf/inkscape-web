@@ -22,6 +22,7 @@ export * from './actions/actions-paths.ts';
 export * from './actions/actions-selection.ts';
 export * from './actions/actions-selection-object.ts';
 export * from './actions/actions-selection-window.ts';
+export * from './actions/actions-svg-processing.ts';
 export * from './actions/actions-text.ts';
 export * from './actions/actions-tools.ts';
 export * from './actions/actions-transform.ts';
