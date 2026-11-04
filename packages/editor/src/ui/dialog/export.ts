@@ -12,9 +12,20 @@
  * Copyright (C) 1999-2007, 2021 Authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { C_, Colors, DocumentUndo, type SPDocument, type SPObject, type SPPage } from '@inkscape-web/core';
+import {
+  C_,
+  Colors,
+  DocumentUndo,
+  SPDocument,
+  SPItem,
+  type SPObject,
+  type SPPage,
+  SVG_NS_URI,
+  saveBuf,
+} from '@inkscape-web/core';
 import { type OptRect, Point, Rect } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
+import type { Output } from '../../extension/output.ts';
 import { type RenderOptions, sp_export_png_blob } from '../../helper/png-write.ts';
 
 /** The dialog key of the Export dialog. */
@@ -270,4 +281,95 @@ export function save_export_hints(desktop: SPDesktop, area: ExportArea, filename
   if (!target) return;
   set_export_hints(target, filename, dpi);
   DocumentUndo.done(desktop.getDocument(), C_('Undo', 'Set Export Options'), 'export');
+}
+
+/** A copy of the document for an export (upstream SPDocument::copy). */
+export function copy_document(doc: SPDocument): SPDocument {
+  const copy = SPDocument.createNewDocFromMem(saveBuf(doc.rdoc, SVG_NS_URI), doc.documentFilename);
+  if (!copy) throw new Error('document copy failed');
+  copy.ensureUpToDate();
+  return copy;
+}
+
+/**
+ * Remove everything but the objects with the ids, their ancestors and their descendants
+ * (upstream SPRoot::cropToObjects).
+ */
+function crop_to_objects(doc: SPDocument, ids: ReadonlySet<string>): void {
+  const keep = (obj: SPObject): boolean => {
+    const id = obj.getId();
+    if (id && ids.has(id)) return true;
+    return obj.children.some(keep);
+  };
+  const visit = (obj: SPObject) => {
+    for (const child of [...obj.children]) {
+      if (!(child instanceof SPItem)) continue;
+      const id = child.getId();
+      if (id && ids.has(id)) continue;
+      if (keep(child)) visit(child);
+      else child.deleteObject();
+    }
+  };
+  visit(doc.getRoot());
+  doc.ensureUpToDate();
+}
+
+/**
+ * Export to vector graphics (upstream Export::exportVector): the pages of copy_doc (a copy of
+ * the document) render with the output extension; the other pages are deleted. With items, only
+ * these objects are drawn. Returns the file data, or null if the output fails.
+ */
+export async function export_vector(
+  extension: Output,
+  copy_doc: SPDocument,
+  items: readonly SPItem[],
+  pages: readonly SPPage[],
+): Promise<Uint8Array | null> {
+  if (extension.raster) return null;
+  copy_doc.ensureUpToDate();
+
+  const obj_ids = new Set(items.map((i) => i.getId()).filter((id): id is string => !!id));
+  const page_ids = new Set(pages.map((p) => p.getId()).filter((id): id is string => !!id));
+
+  // Delete any pages not specified, delete all pages if none specified
+  const pm = copy_doc.getPageManager();
+  for (const page of [...pm.getPages()]) {
+    const id = page.getId();
+    if (id && !page_ids.has(id)) pm.deletePage(page, false);
+  }
+  if (obj_ids.size) crop_to_objects(copy_doc, obj_ids);
+
+  // Remove all unused definitions
+  copy_doc.vacuumDocument();
+
+  return extension.save(copy_doc, '');
+}
+
+/**
+ * Export the area (desktop px) or the given pages of the document with a vector output
+ * (upstream SingleExport::onExport for vector outputs): pages export as they are; any other
+ * area becomes the one page of the export. With items, only these objects are drawn.
+ */
+export function export_vector_area(
+  extension: Output,
+  desktop: SPDesktop,
+  g: ExportGeometry,
+  items: readonly SPItem[],
+  pages: readonly SPPage[] | null,
+): Promise<Uint8Array | null> {
+  const doc = desktop.getDocument();
+  const copy_doc = copy_document(doc);
+  const copy_items = items.flatMap((i) => {
+    const o = i.getId() ? copy_doc.getObjectById(i.getId()!) : null;
+    return o instanceof SPItem ? [o] : [];
+  });
+  if (pages) {
+    const all = doc.getPageManager().getPages();
+    const copy_pages = pages.flatMap((p) => copy_doc.getPageManager().getPage(all.indexOf(p)) ?? []);
+    return export_vector(extension, copy_doc, copy_items, copy_pages);
+  }
+  // To get the right kind of export, we're going to make a page
+  const area = new Rect(new Point(g.x0, g.y0), new Point(g.x1, g.y1)).transformed(desktop.dt2doc());
+  const page = copy_doc.getPageManager().newDocumentPage(area);
+  return export_vector(extension, copy_doc, copy_items, page ? [page] : []);
 }

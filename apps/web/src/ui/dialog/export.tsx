@@ -12,11 +12,12 @@
  * Copyright (C) 1999-2007, 2021 Authors
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { _, Colors, convertUnit, Preferences } from '@inkscape-web/core';
+import { _, Colors, convertUnit, Preferences, type SPPage } from '@inkscape-web/core';
 import {
   area_x_change,
   area_y_change,
   DPI_BASE,
+  db,
   dpi_change,
   EXPORT_AREA_PREF,
   EXPORT_AREAS,
@@ -28,7 +29,9 @@ import {
   export_filename,
   export_hint_dpi,
   export_raster,
+  export_vector_area,
   get_export_bg_color,
+  type Output,
   PAGE_UNITS,
   page_exports,
   type SPDesktop,
@@ -39,6 +42,7 @@ import {
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { sp_file_save_blob, sp_file_save_blobs } from '../../app/file.ts';
+import { ExtensionWidgets } from '../../extension/prefdialog/prefdialog.tsx';
 import { useSelectionUpdates } from '../toolbar/toolbar.tsx';
 import { SpinButton } from '../widget/spinbutton.tsx';
 import { objectKey, useReprVersion } from './use-repr.ts';
@@ -54,6 +58,18 @@ const AREA_LABELS = (): Record<ExportArea, string> => ({
   custom: _('Custom'),
 });
 
+/** The PNG export of the dialog (upstream: the raster output org.inkscape.output.png.inkscape). */
+const PNG = 'png';
+
+/**
+ * The vector outputs of the file type list (upstream ExtensionList::setup): the outputs with
+ * is_exported, or all with /dialogs/export/show_all_extensions.
+ */
+function vectorOutputs(): Output[] {
+  const all = Preferences.get().getBool('/dialogs/export/show_all_extensions', false);
+  return db.get_output_list().filter((o) => !o.raster && (all || o.is_exported()) && o.get_extension());
+}
+
 /** The area of the last export from the preferences (upstream setDefaultSelectionMode). */
 function areaFromPrefs(): ExportArea {
   const name = Preferences.get().getString(EXPORT_AREA_PREF);
@@ -66,7 +82,9 @@ function areaFromPrefs(): ExportArea {
  * rendered by the browser from the document; the user picks the file when exporting.
  * With several pages, the page area has a page list: export the chosen page, or all pages as
  * one PNG each (named by their export hints or labels) into a folder.
- * TODO: the preview, other formats, the batch export, the file format options of the PNG.
+ * The file type list also has the vector outputs (PDF): they export the page(s) or the area
+ * with the options of the output; all pages go into one file.
+ * TODO: the preview, the raster outputs, the batch export, the file format options of the PNG.
  */
 export function ExportDialog() {
   const desktop = useActiveDesktop();
@@ -93,6 +111,10 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
   const [filename, setFilename] = useState('');
   const [userFilename, setUserFilename] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [format, setFormat] = useState(PNG);
+  const outputs = vectorOutputs();
+  const output = outputs.find((o) => o.get_id() === format) ?? null;
+  const ext = output?.get_extension() ?? '.png';
 
   const selectionEmpty = desktop.getSelection().isEmpty();
   // An empty selection cannot be exported: use the document instead (upstream setDefaultSelectionMode).
@@ -111,10 +133,11 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
   // Suggest a filename and the saved dpi when the area changes, unless the user typed a filename.
   // biome-ignore lint/correctness/useExhaustiveDependencies: only the area and the document matter
   useEffect(() => {
-    if (!userFilename) setFilename(export_filename(desktop, shown, '.png'));
+    if (!userFilename) setFilename(export_filename(desktop, shown, ext));
+    else setFilename((f) => with_extension(f, ext));
     const hint = export_hint_dpi(desktop, shown);
     if (hint) setDpi(hint);
-  }, [shown, doc, selectedPage]);
+  }, [shown, doc, selectedPage, ext]);
 
   const chooseArea = (a: ExportArea) => {
     setArea(a);
@@ -140,13 +163,24 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     />
   );
 
+  /** Export with the vector output (upstream SingleExport::onExport with a vector output). */
+  const exportVector = async (o: Output, pages: readonly SPPage[] | null) => {
+    const items = selectedOnly ? [...desktop.getSelection().items()] : [];
+    const data = await export_vector_area(o, desktop, g, items, pages);
+    if (!data) throw new Error(_('Could not export to filename <b>%s</b>.\n').replace('%s', filename));
+    return new Blob([data as BlobPart], { type: o.mimetype ?? 'application/octet-stream' });
+  };
+
   const doExport = async () => {
     setBusy(true);
     try {
       const only = selectedOnly ? desktop.getSelection().items() : null;
-      const png = await export_raster(desktop, g, { background: bg, only: only ? [...only] : null });
-      const name = with_extension(filename.split(/[\\/]/).pop() || 'bitmap', '.png');
-      if (await sp_file_save_blob(png, name)) {
+      const page = selectedPage ?? pm.getFirstPage();
+      const blob = output
+        ? await exportVector(output, shown === 'page' && pm.hasPages() && page ? [page] : null)
+        : await export_raster(desktop, g, { background: bg, only: only ? [...only] : null });
+      const name = with_extension(filename.split(/[\\/]/).pop() || 'bitmap', ext);
+      if (await sp_file_save_blob(blob, name)) {
         setFilename(name);
         // Save the export hints back to the svg document.
         save_export_hints(desktop, shown, name, g.dpi);
@@ -160,10 +194,15 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     }
   };
 
-  /** Export each page as its own PNG (upstream: the pages of the batch export). */
+  /** Export each page as its own PNG (upstream: the pages of the batch export); vector: one file. */
   const exportPages = async () => {
     setBusy(true);
     try {
+      if (output) {
+        const name = with_extension(filename.split(/[\\/]/).pop() || 'drawing', ext);
+        await sp_file_save_blob(await exportVector(output, pm.getPages()), name);
+        return;
+      }
       const files = [];
       for (const e of page_exports(pm.getPages(), dpi, '.png')) {
         const { width, height } = export_bitmap_size(e.geometry);
@@ -239,73 +278,92 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
         </div>
       )}
 
-      <h4>{_('Image Size')}</h4>
-      <div className="export-grid">
-        <SpinButton
-          label={_('Width')}
-          tooltip={_('Width')}
-          value={size.width}
-          min={1}
-          max={16384}
-          step={1}
-          digits={0}
-          onChange={(v) => setDpi(dpi_change(g, 'bmwidth', v).dpi)}
-        />
-        <SpinButton
-          label={_('Height')}
-          tooltip={_('Height')}
-          value={size.height}
-          min={1}
-          max={16384}
-          step={1}
-          digits={0}
-          onChange={(v) => setDpi(dpi_change(g, 'bmheight', v).dpi)}
-        />
-        <SpinButton
-          label={_('DPI')}
-          tooltip={_('DPI')}
-          value={dpi}
-          min={1}
-          max={100000}
-          step={0.1}
-          digits={2}
-          onChange={(v) => {
-            setDpi(v);
-            prefs.setDouble('/dialogs/export/defaultxdpi/value', v);
-          }}
-        />
-      </div>
+      {!output && (
+        <>
+          <h4>{_('Image Size')}</h4>
+          <div className="export-grid">
+            <SpinButton
+              label={_('Width')}
+              tooltip={_('Width')}
+              value={size.width}
+              min={1}
+              max={16384}
+              step={1}
+              digits={0}
+              onChange={(v) => setDpi(dpi_change(g, 'bmwidth', v).dpi)}
+            />
+            <SpinButton
+              label={_('Height')}
+              tooltip={_('Height')}
+              value={size.height}
+              min={1}
+              max={16384}
+              step={1}
+              digits={0}
+              onChange={(v) => setDpi(dpi_change(g, 'bmheight', v).dpi)}
+            />
+            <SpinButton
+              label={_('DPI')}
+              tooltip={_('DPI')}
+              value={dpi}
+              min={1}
+              max={100000}
+              step={0.1}
+              digits={2}
+              onChange={(v) => {
+                setDpi(v);
+                prefs.setDouble('/dialogs/export/defaultxdpi/value', v);
+              }}
+            />
+          </div>
+        </>
+      )}
 
       <label className="export-row">
         <input type="checkbox" checked={selectedOnly} onChange={(e) => setSelectedOnly(e.target.checked)} />
         <span>{_('Export Selected Only')}</span>
       </label>
-      <div className="export-row">
-        <span>{_('Background Color')}</span>
-        <input
-          type="color"
-          aria-label={_('Background color')}
-          value={bg.toString(false)}
-          onChange={(e) => {
-            const c = Colors.Color.parse(e.target.value);
-            if (c) set_export_bg_color(doc, c.withOpacity(bg.getOpacity()));
-          }}
-        />
-        <SpinButton
-          label={_('Alpha')}
-          tooltip={_('Opacity of the background')}
-          value={bg.getOpacity()}
-          min={0}
-          max={1}
-          step={0.05}
-          digits={2}
-          onChange={(v) => {
-            const c = bg.clone();
-            c.setOpacity(v);
-            set_export_bg_color(doc, c);
-          }}
-        />
-      </div>
+      {!output && (
+        <div className="export-row">
+          <span>{_('Background Color')}</span>
+          <input
+            type="color"
+            aria-label={_('Background color')}
+            value={bg.toString(false)}
+            onChange={(e) => {
+              const c = Colors.Color.parse(e.target.value);
+              if (c) set_export_bg_color(doc, c.withOpacity(bg.getOpacity()));
+            }}
+          />
+          <SpinButton
+            label={_('Alpha')}
+            tooltip={_('Opacity of the background')}
+            value={bg.getOpacity()}
+            min={0}
+            max={1}
+            step={0.05}
+            digits={2}
+            onChange={(v) => {
+              const c = bg.clone();
+              c.setOpacity(v);
+              set_export_bg_color(doc, c);
+            }}
+          />
+        </div>
+      )}
+
+      <label className="export-row">
+        <span>{_('File type')}</span>
+        <select aria-label={_('File type')} value={format} onChange={(e) => setFormat(e.target.value)}>
+          <option value={PNG}>{_('Portable Network Graphic (*.png)')}</option>
+          {outputs.map((o) => (
+            <option key={o.get_id()} value={o.get_id()}>
+              {o.get_filetypename(true)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {output && <ExtensionWidgets key={output.get_id()} module={output} />}
 
       <label className="export-row">
         <span>{_('Filename')}</span>

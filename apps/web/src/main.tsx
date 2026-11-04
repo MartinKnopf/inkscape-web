@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import { setImagePixelsLoader, setPathBoolopBackend, setTraceBackend } from '@inkscape-web/core';
-import { installCanvasTextMeasurer, load_image_pixels } from '@inkscape-web/editor';
+import {
+  setCairoBackendLoader,
+  setImagePixelsLoader,
+  setPathBoolopBackend,
+  setTraceBackend,
+} from '@inkscape-web/core';
+import {
+  browser_cairo_renderer_hooks,
+  cairo_renderer_hooks,
+  installCanvasTextMeasurer,
+  load_image_pixels,
+} from '@inkscape-web/editor';
 import { loadGeom } from '@inkscape-web/wasm';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -20,6 +30,9 @@ setPathBoolopBackend(geom);
 // Trace Bitmap and the paint bucket: potrace and the trace filters in WASM, images decoded by the browser.
 setTraceBackend(geom);
 setImagePixelsLoader(load_image_pixels);
+// PDF, PS and EPS export: cairo in its own WASM module, loaded on the first export.
+setCairoBackendLoader(() => import('@inkscape-web/wasm/cairo').then((m) => m.loadCairo()));
+cairo_renderer_hooks.current = browser_cairo_renderer_hooks;
 // Text layout measures with the browser's fonts; before any document is loaded.
 installCanvasTextMeasurer();
 add_actions_web();

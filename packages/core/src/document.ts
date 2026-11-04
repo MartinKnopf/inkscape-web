@@ -417,7 +417,10 @@ export class SPDocument {
    */
   fitToRect(rect: Rect, _with_margins = false): void {
     const { height } = this.root;
-    const unit = height._set && height.unit !== SVGLengthUnit.PERCENT ? height.getUnit().abbr : 'px';
+    const unit =
+      height.unit !== SVGLengthUnit.NONE && height.unit !== SVGLengthUnit.PERCENT
+        ? height.getUnit().abbr
+        : 'px';
     const tr_x = -rect.left();
     const tr_y_items = -rect.top() * this.yaxisdir();
     // Item translation (in desktop coordinates)

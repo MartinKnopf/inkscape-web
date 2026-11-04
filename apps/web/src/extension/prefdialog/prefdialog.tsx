@@ -15,8 +15,10 @@
 import { _, Colors, Signal } from '@inkscape-web/core';
 import {
   Effect,
+  type Extension,
   type InxWidget,
   LabelMode,
+  type Output,
   ParamBool,
   ParamColor,
   ParamDescription,
@@ -38,6 +40,8 @@ import { SpinButton } from '../../ui/widget/spinbutton.tsx';
 import './prefdialog.css';
 
 const dialogs: PrefDialog[] = [];
+/** The open option dialogs of outputs (Save As) and the functions that close them. */
+const output_dialogs: { output: Output; done: (ok: boolean) => void }[] = [];
 let working: string | null = null;
 const changed = new Signal<[]>();
 let version = 0;
@@ -271,6 +275,68 @@ function Widget({ widget, onChange }: { widget: InxWidget; onChange: () => void 
   return null;
 }
 
+/** The widgets of an extension, for example of an output in the Export dialog. */
+export function ExtensionWidgets({ module, onChange }: { module: Extension; onChange?: () => void }) {
+  const [, setVersion] = useState(0);
+  const changed = () => {
+    setVersion((v) => v + 1);
+    onChange?.();
+  };
+  return (
+    <div className="ext-widgets">
+      {module.get_widgets().map((w, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the widgets of an extension are fixed
+        <Widget key={i} widget={w} onChange={changed} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Ask for the options of an output before saving (upstream Output::prefs). Returns true at
+ * once if the output has no options, else when the user presses OK; false on Cancel.
+ */
+export function output_prefs(output: Output): Promise<boolean> {
+  if (output.widget_visible_count() === 0) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const entry = {
+      output,
+      done: (ok: boolean) => {
+        output_dialogs.splice(output_dialogs.indexOf(entry), 1);
+        bump();
+        resolve(ok);
+      },
+    };
+    output_dialogs.push(entry);
+    bump();
+  });
+}
+
+/** The option dialog of an output. */
+function OutputDialog({ output, done }: { output: Output; done: (ok: boolean) => void }) {
+  return (
+    <div
+      className="guide-dialog ext-dialog"
+      role="dialog"
+      aria-label={output.get_name()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') done(false);
+      }}
+    >
+      <h3>{output.get_translation(output.get_name(), null)}</h3>
+      <ExtensionWidgets module={output} />
+      <div className="guide-dialog-buttons">
+        <button type="button" onClick={() => done(false)}>
+          {label(_('_Cancel'))}
+        </button>
+        <button type="button" onClick={() => done(true)}>
+          {label(_('_OK'))}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** The dialog of one effect (upstream PrefDialog). */
 function EffectDialog({ dialog }: { dialog: PrefDialog }) {
   const [, setVersion] = useState(0);
@@ -344,6 +410,9 @@ export function PrefDialogHost() {
     <>
       {dialogs.map((d) => (
         <EffectDialog key={d._effect.get_id()} dialog={d} />
+      ))}
+      {output_dialogs.map((d) => (
+        <OutputDialog key={d.output.get_id()} output={d.output} done={d.done} />
       ))}
       {working && (
         <div className="ext-working" role="status">

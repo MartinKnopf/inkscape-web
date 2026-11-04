@@ -124,3 +124,54 @@ cp "$B/vendor/gsl/COPYING" dist/licenses/gsl-COPYING
 cp "$B/vendor/double-conversion/LICENSE" dist/licenses/double-conversion-LICENSE
 cp "$B/vendor/potrace/COPYING" dist/licenses/potrace-COPYING
 echo "wasm: $(du -h dist/geom-module.wasm | cut -f1) ($(gzip -9c dist/geom-module.wasm | wc -c | tr -d ' ') bytes gzip)"
+
+# --- cairo-module: cairo + pixman for PDF, PS and EPS export (loaded only when exporting) ---
+# Upstream links the system cairo (>= 1.18.6, see CMakeScripts/DefineDependsandFlags.cmake).
+# There is no meson here: the library sources of src/meson.build (cairo) and
+# pixman/meson.build (pixman) are compiled directly, with the config headers in shim/cairo
+# and shim/pixman. FreeType, libpng and zlib are Emscripten ports.
+fetch_xz() { # url sha256 dir
+    [ -d "$B/vendor/$3" ] && return
+    mkdir -p "$B/vendor" && curl -sSL "$1" -o "$B/vendor/$3.tar.xz"
+    echo "$2  $B/vendor/$3.tar.xz" | shasum -a 256 -c - >/dev/null
+    mkdir "$B/vendor/$3" && tar xJf "$B/vendor/$3.tar.xz" -C "$B/vendor/$3" --strip-components 1
+}
+fetch https://cairographics.org/releases/pixman-0.46.4.tar.gz \
+    d09c44ebc3bd5bee7021c79f922fe8fb2fb57f7320f55e97ff9914d2346a591c pixman
+fetch_xz https://cairographics.org/releases/cairo-1.18.6.tar.xz \
+    1c767308174337a74694da0f3ec069c271452163a1ef4540964c50c301f157d4 cairo
+PX=$B/vendor/pixman/pixman
+CA=$B/vendor/cairo/src
+mkdir -p "$B/cairo-include"
+sed -e 's/@PIXMAN_VERSION_MAJOR@/0/' -e 's/@PIXMAN_VERSION_MINOR@/46/' -e 's/@PIXMAN_VERSION_MICRO@/4/' \
+    "$PX/pixman-version.h.in" > "$B/cairo-include/pixman-version.h"
+CAIRO_SRCS=""
+for f in $(sed -n '/^pixman_files = files(/,/^)/p' "$PX/meson.build" | grep -oE "'[a-z0-9-]+\.c'" | tr -d "'"); do
+    CAIRO_SRCS="$CAIRO_SRCS $PX/$f"
+done
+# The core sources plus the features of shim/cairo/cairo-features.h.
+for f in $(sed -n '/^cairo_sources = \[/,/^\]/p' "$CA/meson.build" | grep -oE "'[a-z0-9-]+\.c'" | tr -d "'") \
+    cairo-png.c cairo-ft-font.c cairo-colr-glyph-render.c cairo-svg-glyph-render.c \
+    cairo-ps-surface.c cairo-pdf-surface.c cairo-pdf-interchange.c; do
+    CAIRO_SRCS="$CAIRO_SRCS $CA/$f"
+done
+export CAIRO_FLAGS="-O3 -sUSE_FREETYPE=1 -sUSE_LIBPNG=1 -sUSE_ZLIB=1 -DHAVE_CONFIG_H -D_GNU_SOURCE \
+    -DCAIRO_COMPILATION -I$HERE/shim/cairo -I$HERE/shim/pixman -I$B/cairo-include -I$PX -I$CA \
+    -Wno-attributes -Wno-unused-but-set-variable -Wno-missing-field-initializers -Wno-unused-parameter \
+    -Wno-enum-conversion -Wno-parentheses-equality -Wno-unused-function -Wno-unused-variable"
+CAIRO_OBJ=$B/cairo-obj && mkdir -p "$CAIRO_OBJ"
+cobj() { echo "$CAIRO_OBJ/$(basename "$(dirname "$1")")_$(basename "$1" .c).o"; }
+for s in $CAIRO_SRCS; do
+    o=$(cobj "$s")
+    [ "$o" -nt "$s" ] && [ "$o" -nt "$HERE/shim/cairo/config.h" ] || echo "$s $o"
+done | xargs -P "$JOBS" -n 2 sh -c 'emcc $CAIRO_FLAGS -c "$0" -o "$1"'
+CAIRO_OBJS=""
+for s in $CAIRO_SRCS; do CAIRO_OBJS="$CAIRO_OBJS $(cobj "$s")"; done
+# shellcheck disable=SC2086
+em++ -std=c++20 $CAIRO_FLAGS -lembind bindings/cairo.cpp $CAIRO_OBJS \
+    -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
+    --emit-tsd cairo-module.d.mts -o dist/cairo-module.mjs
+cp "$B/vendor/cairo/COPYING-LGPL-2.1" dist/licenses/cairo-COPYING-LGPL-2.1
+cp "$B/vendor/cairo/COPYING-MPL-1.1" dist/licenses/cairo-COPYING-MPL-1.1
+cp "$B/vendor/pixman/COPYING" dist/licenses/pixman-COPYING
+echo "cairo wasm: $(du -h dist/cairo-module.wasm | cut -f1) ($(gzip -9c dist/cairo-module.wasm | wc -c | tr -d ' ') bytes gzip)"
