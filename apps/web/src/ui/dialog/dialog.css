@@ -373,12 +373,12 @@
 
 .align-grid {
   display: grid;
-  grid-template-columns: repeat(5, 28px);
+  grid-template-columns: repeat(6, 28px);
   gap: 2px;
 }
 
 .align-grid.distribute {
-  grid-template-columns: repeat(4, 28px);
+  grid-template-columns: repeat(5, 28px);
 }
 
 .align-button {

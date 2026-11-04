@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/actions/actions-object-align.cpp
-import { ObjectSet, Preferences, SPDocument, type SPItem } from '@inkscape-web/core';
+import { ObjectSet, Preferences, SPDocument, type SPItem, type SPText } from '@inkscape-web/core';
 import { describe, expect, it } from 'vitest';
 import { useWasmBackend } from '../ui/tools/tool-test-utils.ts';
-import { object_align, object_align_actions, object_distribute } from './actions-object-align.ts';
+import {
+  object_align,
+  object_align_actions,
+  object_align_text,
+  object_distribute,
+  object_distribute_text,
+} from './actions-object-align.ts';
 
 await useWasmBackend();
 
@@ -160,5 +166,51 @@ describe('object-remove-overlaps', () => {
     ).toBeGreaterThanOrEqual(5);
     expect([c?.left(), c?.top()]).toEqual([100, 50]);
     expect(doc.undoStack.undo.map((s) => s.description)).toEqual(['Remove overlaps']);
+  });
+});
+
+describe('text alignment', () => {
+  const TEXTS =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">' +
+    '<text id="t1" x="10" y="50">A</text><text id="t2" x="40" y="80">BB</text>' +
+    '<text id="t3" x="100" y="60" style="text-anchor:end;text-align:end">CCC</text><rect id="r" x="5" y="7" width="5" height="5"/></svg>';
+
+  function texts(...ids: string[]) {
+    const doc = SPDocument.createNewDocFromMem(TEXTS)!;
+    doc.ensureUpToDate();
+    const set = new ObjectSet(doc);
+    set.setList(ids.map((id) => doc.getObjectById(id)!));
+    /** The baseline anchor of a text in desktop coordinates. */
+    const anchor = (id: string) => {
+      doc.ensureUpToDate();
+      const t = doc.getObjectById(id) as SPText;
+      const p = t.layout.baselineAnchorPoint()!.transformed(t.i2dtAffine());
+      return [Math.round(p.x), Math.round(p.y)];
+    };
+    return { doc, set, anchor, undo: () => doc.undoStack.undo.map((s) => s.description) };
+  }
+
+  it('aligns the baseline anchors to the first text, vertically', () => {
+    const { set, anchor, undo } = texts('t1', 't2', 't3');
+    object_align_text(set, 'vertical first');
+    expect([anchor('t1'), anchor('t2'), anchor('t3')]).toEqual([
+      [10, 50],
+      [40, 50],
+      [100, 50],
+    ]);
+    expect(undo()).toEqual(['Align']);
+  });
+
+  it('aligns horizontally to the minimum corner of a shape', () => {
+    const { set, anchor } = texts('t1', 't3', 'r');
+    object_align_text(set, 'horizontal last');
+    expect([anchor('t1')[0], anchor('t3')[0]]).toEqual([5, 5]);
+  });
+
+  it('distributes the anchors evenly', () => {
+    const { set, anchor, undo } = texts('t3', 't1', 't2');
+    object_distribute_text(set, 'horizontal');
+    expect([anchor('t1')[0], anchor('t2')[0], anchor('t3')[0]]).toEqual([10, 55, 100]);
+    expect(undo()).toEqual(['Distribute']);
   });
 });
