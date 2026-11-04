@@ -23,6 +23,7 @@ import {
   type SPGradient,
   type SPGradientSpread,
   SPGradientType,
+  SPHatch,
   type SPIPaint,
   type SPItem,
   SPLinearGradient,
@@ -67,11 +68,14 @@ import {
   sp_desktop_set_color,
   sp_desktop_set_style,
 } from '../../desktop-style.ts';
+import { renderHatch } from '../../display/drawing-paintserver.ts';
 import { sp_item_apply_gradient } from '../../gradient-chemistry.ts';
 import {
+  hatchSettings,
   type PatternSettings,
   sp_get_pattern_label,
   sp_get_pattern_list,
+  sp_item_apply_hatch,
   sp_item_apply_pattern,
   sp_pattern_get_gap,
 } from '../../pattern-manipulation.ts';
@@ -106,15 +110,17 @@ export type PaintInfo =
       gradient: SPGradient | null;
       /** The pattern of the first selected object (PaintMode.Pattern), else null. */
       pattern: SPPattern | null;
+      /** The hatch of the first selected object (PaintMode.Pattern), else null. */
+      hatch: SPHatch | null;
     };
 
 /** The mode of paint (upstream get_mode_from_paint). */
 export function paintModeFromPaint(paint: SPIPaint, server: SPPaintServer | null = null): PaintMode {
   if (paint.isDerived()) return PaintMode.Derived;
   if (paint.isPaintserver()) {
-    // TODO: hatches, swatches
+    // TODO: swatches
     if (server instanceof SPMeshGradient) return PaintMode.Mesh;
-    return server instanceof SPPattern ? PaintMode.Pattern : PaintMode.Gradient;
+    return server instanceof SPPattern || server instanceof SPHatch ? PaintMode.Pattern : PaintMode.Gradient;
   }
   if (paint.isColor()) return PaintMode.Solid;
   return PaintMode.None;
@@ -156,7 +162,8 @@ export function queryPaint(desktop: SPDesktop, isFill: boolean): PaintInfo {
     : null;
   const gradient = server instanceof SPLinearGradient || server instanceof SPRadialGradient ? server : null;
   const pattern = server instanceof SPPattern ? server : null;
-  return { kind: 'paint', mode, color, fillRule: style.fill_rule.computed, gradient, pattern };
+  const hatch = server instanceof SPHatch ? server : null;
+  return { kind: 'paint', mode, color, fillRule: style.fill_rule.computed, gradient, pattern, hatch };
 }
 
 /** Set the paint to a flat color; sliders merge their steps (upstream get_flat_color_changed). */
@@ -319,6 +326,41 @@ export function patternPreviewSvg(pattern: SPPattern, width: number, height: num
     `width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<defs>${[...used.values()].join('')}</defs>` +
     `<rect width="${width}" height="${height}" fill="#fff"/><rect width="${width}" height="${height}" fill="url(#${id})"/></svg>`
+  );
+}
+
+/**
+ * Apply a hatch (of the document, or copied from a stock document) with its settings to the
+ * selection (upstream FillAndStroke: the hatch_changed signal of the paint switch).
+ */
+export function setHatch(desktop: SPDesktop, isFill: boolean, hatch: SPHatch): void {
+  const items = desktop.getSelection().items();
+  if (!items.length || !hatch) return;
+  const settings = hatchSettings(hatch);
+  for (const it of items) {
+    sp_item_apply_hatch(it, hatch, isFill, settings);
+    remove_opacity(it, isFill);
+  }
+  DocumentUndo.done(
+    desktop.getDocument(),
+    isFill ? C_(UNDO, 'Set hatch on fill') : C_(UNDO, 'Set hatch on stroke'),
+    ICON,
+  );
+}
+
+/**
+ * An SVG image of width × height filled with the hatch on a white background, for the pattern
+ * lists of the editor. The hatch is drawn as the pattern that the canvas uses (renderHatch()).
+ */
+export function hatchPreviewSvg(hatch: SPHatch, width: number, height: number, doc: Document): string {
+  const element = doc.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+  element.setAttribute('id', 'h');
+  renderHatch(hatch, element);
+  const pattern = new XMLSerializer().serializeToString(element);
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<defs>${pattern}</defs>` +
+    `<rect width="${width}" height="${height}" fill="#fff"/><rect width="${width}" height="${height}" fill="url(#h)"/></svg>`
   );
 }
 

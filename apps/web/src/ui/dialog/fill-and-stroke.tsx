@@ -9,6 +9,7 @@ import {
   type SPGradient,
   SPGradientSpread,
   SPGradientType,
+  SPHatch,
   SPMarkerLoc,
   type SPPattern,
   SPRadialGradient,
@@ -28,9 +29,11 @@ import {
   DASH_PATTERNS,
   deleteGradientStop,
   edit_marker,
+  get_stock_hatch,
   get_stock_pattern,
   gradientStops,
   type Hsva,
+  hatchPreviewSvg,
   JOIN_NAMES,
   loadStockMarkers,
   type MarkerSelectorLoc,
@@ -57,6 +60,7 @@ import {
   setFlatColor,
   setGradient,
   setGradientRepeat,
+  setHatch,
   setMarker,
   setOpacity,
   setPaintMode,
@@ -68,6 +72,8 @@ import {
   setStrokeMiter,
   setStrokeWidth,
   sliderBackground,
+  sp_get_hatch_list,
+  sp_get_pattern_label,
   sp_get_pattern_list,
 } from '@inkscape-web/editor';
 import { Point } from '@inkscape-web/geom';
@@ -179,6 +185,11 @@ function PaintPage({ desktop, isFill }: { desktop: SPDesktop; isFill: boolean })
       )}
       {info.mode === PaintMode.Pattern && info.pattern && (
         <PatternEditor desktop={desktop} isFill={isFill} pattern={info.pattern} />
+      )}
+      {info.mode === PaintMode.Pattern && info.hatch && (
+        <div className="pattern-editor">
+          <PaintGalleries desktop={desktop} isFill={isFill} selected={info.hatch.rootHatch()} />
+        </div>
       )}
       {info.mode === PaintMode.Mesh && <p className="fillstroke-placeholder">{_('Mesh fill')}</p>}
       {info.mode === PaintMode.None && <p className="fillstroke-placeholder">{_('No paint')}</p>}
@@ -326,16 +337,19 @@ function GradientEditor(props: { desktop: SPDesktop; isFill: boolean; gradient: 
 
 // Pattern editor --------------------------------------------------------------------------------
 
-/** A stock pattern file of share/paint (upstream PatternManager::Category). */
+/** A pattern or a hatch of the pattern lists. */
+type PaintItem = SPPattern | SPHatch;
+
+/** A stock pattern file of share/paint (upstream PatternManager::Category): its patterns, else its hatches. */
 interface StockCategory {
   name: string;
   doc: SPDocument;
-  patterns: SPPattern[];
+  patterns: PaintItem[];
 }
 
 let stockCategories: Promise<StockCategory[]> | null = null;
 
-/** Load the stock pattern files once; files without patterns (hatches) are left out. */
+/** Load the stock pattern files once; a file without patterns gives its hatches. */
 function loadStockPatterns(): Promise<StockCategory[]> {
   stockCategories ??= fetch('/share/paint/index.json')
     .then((r) => r.json() as Promise<string[]>)
@@ -345,8 +359,9 @@ function loadStockPatterns(): Promise<StockCategory[]> {
           const doc = SPDocument.createNewDocFromMem(await (await fetch(`/share/paint/${file}`)).text());
           if (!doc) return null;
           doc.ensureUpToDate();
-          const patterns = sp_get_pattern_list(doc);
-          return patterns.length ? { name: file.replace(/\.svg$/, ''), doc, patterns } : null;
+          const patterns: PaintItem[] = sp_get_pattern_list(doc);
+          const list = patterns.length ? patterns : sp_get_hatch_list(doc);
+          return list.length ? { name: file.replace(/\.svg$/, ''), doc, patterns: list } : null;
         }),
       ),
     )
@@ -360,8 +375,13 @@ function applyStockPattern(
   desktop: SPDesktop,
   isFill: boolean,
   category: StockCategory,
-  stock: SPPattern,
+  stock: PaintItem,
 ): void {
+  if (stock instanceof SPHatch) {
+    const hatch = get_stock_hatch(desktop.getDocument(), category.doc, stock.getId() ?? '');
+    if (hatch) setHatch(desktop, isFill, hatch);
+    return;
+  }
   const pattern = get_stock_pattern(desktop.getDocument(), category.doc, stock.getId() ?? '');
   if (pattern) setPattern(desktop, isFill, pattern, patternItem(pattern));
 }
@@ -373,20 +393,22 @@ async function applyFirstStockPattern(desktop: SPDesktop, isFill: boolean): Prom
   if (first && stock) applyStockPattern(desktop, isFill, first, stock);
 }
 
-const previewUrl = (pattern: SPPattern) =>
-  `data:image/svg+xml;charset=utf-8,${encodeURIComponent(patternPreviewSvg(pattern, 32, 32))}`;
+const previewUrl = (p: PaintItem) =>
+  `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+    p instanceof SPHatch ? hatchPreviewSvg(p, 32, 32, document) : patternPreviewSvg(p, 32, 32),
+  )}`;
 
 /** A grid of pattern previews. */
 function PatternGallery(props: {
   label: string;
-  patterns: SPPattern[];
-  selected: SPPattern | null;
-  onSelect: (p: SPPattern) => void;
+  patterns: PaintItem[];
+  selected: PaintItem | null;
+  onSelect: (p: PaintItem) => void;
 }) {
   return (
     <div className="pattern-gallery" role="listbox" aria-label={props.label}>
       {props.patterns.map((p) => {
-        const name = patternItem(p).label;
+        const name = sp_get_pattern_label(p instanceof SPHatch ? p.rootHatch() : p.rootPattern());
         return (
           <button
             key={p.getId()}
@@ -405,23 +427,67 @@ function PatternGallery(props: {
   );
 }
 
+/** Apply a pattern or hatch of the document with its own settings. */
+function applyDocumentPaint(desktop: SPDesktop, isFill: boolean, p: PaintItem): void {
+  if (p instanceof SPHatch) setHatch(desktop, isFill, p);
+  else setPattern(desktop, isFill, p, patternItem(p));
+}
+
 /**
- * Editor of the pattern of the selection (upstream PatternEditor): the patterns of the document
- * and the stock patterns, the name, scale, rotation, offset, gap and color.
- * TODO: search, show names, tile size, a large preview, hatches (pitch, stroke).
+ * The pattern lists of the pattern editor (upstream PatternEditor): the patterns and hatches of
+ * the document, and the stock files of share/paint.
  */
-function PatternEditor(props: { desktop: SPDesktop; isFill: boolean; pattern: SPPattern }) {
-  const { desktop, isFill, pattern } = props;
-  const item = patternItem(pattern);
-  const root = pattern.rootPattern();
+function PaintGalleries(props: { desktop: SPDesktop; isFill: boolean; selected: PaintItem | null }) {
+  const { desktop, isFill } = props;
   const [categories, setCategories] = useState<StockCategory[]>([]);
   const [category, setCategory] = useState(0);
   useEffect(() => {
     void loadStockPatterns().then(setCategories);
   }, []);
+  const stock = categories[category];
+  const doc = desktop.getDocument();
+  return (
+    <>
+      <PatternGallery
+        label={_('Pattern fill')}
+        patterns={[...sp_get_pattern_list(doc), ...sp_get_hatch_list(doc)]}
+        selected={props.selected}
+        onSelect={(p) => applyDocumentPaint(desktop, isFill, p)}
+      />
+      <select
+        aria-label={_('All patterns')}
+        value={category}
+        onChange={(e) => setCategory(Number(e.target.value))}
+      >
+        {categories.map((c, i) => (
+          <option key={c.name} value={i}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      {stock && (
+        <PatternGallery
+          label={stock.name}
+          patterns={stock.patterns}
+          selected={null}
+          onSelect={(p) => applyStockPattern(desktop, isFill, stock, p)}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * Editor of the pattern of the selection (upstream PatternEditor): the patterns of the document
+ * and the stock patterns, the name, scale, rotation, offset, gap and color.
+ * TODO: search, show names, tile size, a large preview, the settings of hatches (pitch, stroke).
+ */
+function PatternEditor(props: { desktop: SPDesktop; isFill: boolean; pattern: SPPattern }) {
+  const { desktop, isFill, pattern } = props;
+  const item = patternItem(pattern);
+  const root = pattern.rootPattern();
   const apply = (change: Partial<PatternItem>) =>
     setPattern(desktop, isFill, pattern, { ...item, ...change });
-  const stock = categories[category];
   const spin = (
     label: string,
     value: number,
@@ -447,31 +513,7 @@ function PatternEditor(props: { desktop: SPDesktop; isFill: boolean; pattern: SP
 
   return (
     <div className="pattern-editor">
-      <PatternGallery
-        label={_('Pattern fill')}
-        patterns={sp_get_pattern_list(desktop.getDocument())}
-        selected={root}
-        onSelect={(p) => setPattern(desktop, isFill, p, patternItem(p))}
-      />
-      <select
-        aria-label={_('All patterns')}
-        value={category}
-        onChange={(e) => setCategory(Number(e.target.value))}
-      >
-        {categories.map((c, i) => (
-          <option key={c.name} value={i}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      {stock && (
-        <PatternGallery
-          label={stock.name}
-          patterns={stock.patterns}
-          selected={null}
-          onSelect={(p) => applyStockPattern(desktop, isFill, stock, p)}
-        />
-      )}
+      <PaintGalleries desktop={desktop} isFill={isFill} selected={root} />
       <div className="fillstroke-row">
         <input
           type="text"

@@ -14,10 +14,11 @@ import {
 } from '@inkscape-web/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SPDesktop } from '../../desktop.ts';
-import { get_stock_pattern } from '../../pattern-manipulation.ts';
+import { get_stock_hatch, get_stock_pattern, sp_get_hatch_list } from '../../pattern-manipulation.ts';
 import { Canvas } from '../widget/canvas.ts';
 import {
   gradientStops,
+  hatchPreviewSvg,
   PaintMode,
   patternItem,
   patternPreviewSvg,
@@ -28,6 +29,7 @@ import {
   set_scaled_dash,
   setFlatColor,
   setGradient,
+  setHatch,
   setOpacity,
   setPaintMode,
   setPattern,
@@ -284,5 +286,29 @@ describe('pattern paint', () => {
       'g',
     ]);
     expect(dom.querySelector('rect[fill="url(#link)"]')?.getAttribute('width')).toBe('40');
+  });
+});
+
+describe('hatch paint', () => {
+  const STOCK =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"><defs>' +
+    '<hatch id="h1" inkscape:label="Diagonal" hatchUnits="userSpaceOnUse" pitch="15" rotate="45" style="stroke:#000000;stroke-width:2"><hatchpath offset="0"/></hatch>' +
+    '</defs></svg>';
+
+  it('lists the stock hatches, applies one through a link and reads it back as pattern mode', () => {
+    const { dt, select, steps } = setup();
+    const stock = SPDocument.createNewDocFromMem(STOCK)!;
+    stock.ensureUpToDate();
+    expect(sp_get_hatch_list(stock).map((h) => h.getId())).toEqual(['h1']);
+    select('a');
+    const hatch = get_stock_hatch(dt.getDocument(), stock, 'h1')!;
+    setHatch(dt, true, hatch);
+    const info = queryPaint(dt, true);
+    if (info.kind !== 'paint') throw new Error(info.kind);
+    expect(info.mode).toBe(PaintMode.Pattern);
+    expect(info.hatch?.rootHatch()).toBe(hatch);
+    expect(info.hatch?.pitch()).toBe(15);
+    expect(steps()).toEqual(['Set hatch on fill']);
+    expect(hatchPreviewSvg(hatch, 32, 32, document)).toContain('<path');
   });
 });
