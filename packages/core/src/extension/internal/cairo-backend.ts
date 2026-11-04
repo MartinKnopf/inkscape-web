@@ -272,6 +272,60 @@ export interface CairoBackend {
   showGlyphs(cr: CairoHandle, glyphs: Float64Array): void;
   /** cairo_glyph_path(); glyphs as for showGlyphs(). */
   glyphPath(cr: CairoHandle, glyphs: Float64Array): void;
+
+  // PDF import (poppler and upstream pdfinput in the same module, see bindings/pdf.cpp)
+  /** Open PDF data: a document handle (> 0), or minus the poppler error code. */
+  pdfOpen(data: Uint8Array): number;
+  pdfClose(handle: number): void;
+  pdfPageCount(handle: number): number;
+  /** The fonts of the document (getPdfFonts() and FontData). */
+  pdfFonts(handle: number): PdfFontData[];
+  /** SvgBuilder::autoFontStrategies(): {font id: FontFallback}. */
+  pdfAutoFontStrategies(handle: number, strategy: number): Record<string, number>;
+  /** The local fonts that the font matching of the import knows. */
+  pdfSetLocalFonts(fonts: readonly { family: string; style: string; postscriptName: string }[]): void;
+  /** The internal import (PdfParser and SvgBuilder) of the pages: SVG text. */
+  pdfImport(handle: number, pages: readonly number[], options: PdfImportOptions): string;
+  /** The preview of a page that fits into width x height: RGBA pixels; null on failure. */
+  pdfRenderPage(
+    handle: number,
+    page: number,
+    width: number,
+    height: number,
+  ): { width: number; height: number; data: Uint8Array } | null;
+  /** The Cairo import of a page: SVG text. */
+  pdfCairoImport(handle: number, page: number): string;
+}
+
+/** A font of a PDF document (upstream FontData). */
+export interface PdfFontData {
+  /** The object number of the font (the key of the font strategies). */
+  id: number;
+  name: string;
+  family: string;
+  style: string;
+  weight: string;
+  stretch: string;
+  /** A local font has the font's family. */
+  found: boolean;
+  /** The closest-named local family (FontData::getSubstitute) if the font is not found. */
+  substitute: string;
+  cid: boolean;
+}
+
+/** The settings of the internal PDF import (the parameters of SvgBuilder). */
+export interface PdfImportOptions {
+  docname: string;
+  importPages: boolean;
+  embedImages: boolean;
+  convertColors: boolean;
+  /** "by-xobject" or "by-layer". */
+  groupBy: string;
+  /** "none", "media-box", "crop-box", "trim-box", "bleed-box" or "art-box". */
+  clipTo: string;
+  approximationPrecision: number;
+  /** {font id: FontFallback}. */
+  fontStrategies: Record<string, number>;
 }
 
 let backend: CairoBackend | null = null;
