@@ -67,7 +67,7 @@ import { SPStop } from './sp-stop.ts';
 import { SPString } from './sp-string.ts';
 import { SPSymbol } from './sp-symbol.ts';
 import { SPText } from './sp-text.ts';
-import { SPTSpan } from './sp-tspan.ts';
+import { SPTextPath, SPTSpan } from './sp-tspan.ts';
 import { SPUse } from './sp-use.ts';
 
 function genericEllipse(type: GenericEllipseType): SPGenericEllipse {
@@ -111,6 +111,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:symbol', () => new SPSymbol()],
   ['svg:text', () => new SPText()],
   ['svg:tspan', () => new SPTSpan()],
+  ['svg:textPath', () => new SPTextPath()],
   ['svg:flowDiv', () => new SPFlowdiv()],
   ['svg:flowSpan', () => new SPFlowtspan()],
   ['svg:flowPara', () => new SPFlowpara()],

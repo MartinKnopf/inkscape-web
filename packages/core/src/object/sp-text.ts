@@ -12,20 +12,35 @@
  * Copyright (C) 1999-2002 Lauris Kaplinski
  * Copyright (C) 2000-2001 Ximian, Inc.
  */
-import { Affine, are_near, type OptRect, type Point, Rect, Translate } from '@inkscape-web/geom';
+import {
+  Affine,
+  are_near,
+  Point as GeomPoint,
+  type OptRect,
+  type PathVector,
+  type Point,
+  Rect,
+  Translate,
+  write_svg_path,
+} from '@inkscape-web/geom';
 import { SPAttr } from '../attributes.ts';
 import type { Drawing, DrawingGroup, DrawingItem } from '../display/drawing.ts';
 import type { SPDocument } from '../document.ts';
 import { _, ngettext } from '../i18n.ts';
 import {
+  Direction,
   emptyOptionalTextTagAttrs,
+  FontMetrics,
   Layout,
   type OptionalTextTagAttrs,
   TextControlCode,
   WrapMode,
 } from '../libnrtype/Layout-TNG.ts';
-import { computeFontLineHeight } from '../libnrtype/Layout-TNG-Compute.ts';
-import { getTextMeasurer, ink_font_from_style } from '../libnrtype/text-measurer.ts';
+import {
+  getTextLayoutBackend,
+  ShapeScanlineMaker,
+  type WrapShape,
+} from '../libnrtype/Layout-TNG-Scanline-Makers.ts';
 import { Preferences } from '../preferences.ts';
 import { SnapCandidatePoint } from '../snap-candidate.ts';
 import { SnapSourceType, SnapTargetType } from '../snap-enums.ts';
@@ -38,14 +53,18 @@ import {
   SPWhiteSpace,
 } from '../style-enums.ts';
 import { SPCSSUnit, SPFontSizeType } from '../style-internal.ts';
-import { spSvgReadPercentage } from '../svg/svg-length.ts';
+import { ink_font_from_style } from '../style-text.ts';
+import { sp_svg_transform_write } from '../svg/svg-affine.ts';
+import { formatNumber, spSvgReadPercentage } from '../svg/svg-length.ts';
 import type { XmlDocument } from '../xml/document.ts';
+import { setHrefAttribute } from '../xml/href-attribute-helper.ts';
 import type { Node } from '../xml/node.ts';
 import {
   type SPCSSAttr,
   spReprCssAttr,
   spReprCssProperty,
   spReprCssSet,
+  spReprCssSetProperty,
   spReprCssSetPropertyDouble,
 } from '../xml/repr-css.ts';
 import { sp_repr_is_meta_element } from '../xml/repr-util.ts';
@@ -60,26 +79,30 @@ import {
   type SPCtx,
   type SPObject,
 } from './sp-object.ts';
+import { SPRect } from './sp-rect.ts';
+import { SPShape } from './sp-shape.ts';
 import { SPString } from './sp-string.ts';
 import {
+  SP_IS_TEXT_TEXTPATH,
   SP_TEXT_CONTENT_MODIFIED_FLAG,
   SP_TEXT_LAYOUT_MODIFIED_FLAG,
   SP_TSPAN_ROLE_UNSPECIFIED,
+  SPTextPath,
   SPTSpan,
+  sp_textpath_get_path_item,
 } from './sp-tspan.ts';
 import { TextTagAttributes } from './text-tag-attributes.ts';
 
 /**
  * svg:text (upstream SPText). The layout is rebuilt from the children in
  * update(); the drawing shows the layout's spans.
- * TODO: textPath and tref children, shape-subtract and shape-padding, real
- * shapes for shape-inside (the bounding box is used), print, getNormalizedBpath
- * (convert to path), getLinked, textLength, the gradient and pattern
- * adjustment in setTransform.
+ * TODO: tref children, print, getLinked, the gradient adjustment in setTransform.
  */
 export class SPText extends SPItem {
   readonly attributes = new TextTagAttributes();
   readonly layout = new Layout();
+  /** Allow one setTransform() optimization of text on a path (upstream _optimizeTextpathText). */
+  _optimizeTextpathText = false;
 
   protected override build(document: SPDocument, repr: Node): void {
     this.readAttr(SPAttr.X);
@@ -284,7 +307,11 @@ export class SPText extends SPItem {
   override setTransform(xform: Affine): Affine {
     // See if 'shape-inside' has rectangle
     if (Preferences.get().getBool('/tools/text/use_svg2', true) && this.style.shape_inside.set) return xform;
-    // TODO: we cannot optimize textpath because changing its fontsize will break its match to the path
+    // we cannot optimize textpath because changing its fontsize will break its match to the path
+    if (SP_IS_TEXT_TEXTPATH(this)) {
+      if (!this._optimizeTextpathText) return xform;
+      this._optimizeTextpathText = false;
+    }
     // we cannot optimize text with textLength because it may show different size than specified
     if (this.attributes.getTextLength()._set) return xform;
     if (this.style.inline_size.set) return xform;
@@ -317,6 +344,7 @@ export class SPText extends SPItem {
   static _adjustCoordsRecursive(item: SPItem, m: Affine, ex: number, is_root = true): void {
     // it doesn't matter if we change the x,y for role=line spans because we'll just overwrite them anyway
     if (item instanceof SPTSpan || item instanceof SPText) item.attributes.transform(m, ex, ex, is_root);
+    else if (item instanceof SPTextPath) item.attributes.transform(m, ex, ex, is_root);
     else return;
     for (const o of item.children) if (o instanceof SPItem) SPText._adjustCoordsRecursive(o, m, ex, false);
   }
@@ -360,22 +388,34 @@ export class SPText extends SPItem {
     const style = this.style;
     // Strut
     const font = ink_font_from_style(style);
-    layout.strut.set(getTextMeasurer().fontMetrics(font), font.size);
+    layout.strut.set(font);
+    layout.strut.xheight = font.GetXHeight();
     layout.strut.scale(style.font_size.computed);
-    layout.strut.computeEffective(computeFontLineHeight(style));
+    if (style.line_height.normal) {
+      layout.strut.computeEffective(Layout.LINE_HEIGHT_NORMAL);
+    } else if (style.line_height.unit === SPCSSUnit.SP_CSS_UNIT_NONE) {
+      layout.strut.computeEffective(style.line_height.computed);
+    } else if (style.font_size.computed > 0.0) {
+      layout.strut.computeEffective(style.line_height.computed / style.font_size.computed);
+    }
 
+    const backend = getTextLayoutBackend();
+    // To do: follow SPItem clip_ref/mask_ref code
     if (style.shape_inside.set) {
       layout.wrap_mode = WrapMode.WRAP_SHAPE_INSIDE;
-      for (const shape of this.#shapeInsideItems()) {
-        const box = shape.bbox(shape.transform, BBoxType.GEOMETRIC_BBOX);
-        if (box) layout.appendWrapShape(box);
-      }
-      if (!layout._input_wrap_shapes.length) layout.wrap_mode = WrapMode.WRAP_NONE;
+      for (const wrap_shape of this.makeEffectiveShapes()) layout.appendWrapShape(wrap_shape);
     } else if (this.has_inline_size()) {
       layout.wrap_mode = WrapMode.WRAP_INLINE_SIZE;
-      // A rectangle with one dimension set by 'inline-size' and the other infinite.
+
+      // If both shape_inside and inline_size are set, shape_inside wins out.
+
+      // We construct a rectangle with one dimension set by the computed value of 'inline-size'
+      // and the other dimension set to infinity. Text is laid out starting at the 'x' and 'y'
+      // attribute values. This is handled elsewhere.
       const frame = this.get_frame();
-      if (frame) layout.appendWrapShape(frame);
+      if (frame && backend) {
+        layout.appendWrapShape(backend.rectShape(frame.left(), frame.top(), frame.right(), frame.bottom()));
+      }
     } else if (
       style.white_space.value === SPWhiteSpace.SP_CSS_WHITE_SPACE_PRE ||
       style.white_space.value === SPWhiteSpace.SP_CSS_WHITE_SPACE_PREWRAP ||
@@ -385,7 +425,7 @@ export class SPText extends SPItem {
     }
   }
 
-  /** The items referenced by shape-inside. */
+  /** The shape items referenced by shape-inside. */
   #shapeInsideItems(): SPItem[] {
     const items: SPItem[] = [];
     for (const href of this.style.shape_inside.hrefs) {
@@ -394,6 +434,93 @@ export class SPText extends SPItem {
       if (obj instanceof SPItem) items.push(obj);
     }
     return items;
+  }
+
+  /** The union of the shape-subtract shapes (upstream getExclusionShape). */
+  getExclusionShape(): WrapShape | null {
+    const backend = getTextLayoutBackend();
+    if (!backend) return null;
+    let result: WrapShape | null = null; // Union of all exclusion shapes
+    for (const href of this.style.shape_subtract.hrefs) {
+      const uri = href.getURI();
+      const shape = href.getObject() ?? (uri ? this.document.getObjectById(uri.replace(/^#/, '')) : null);
+      if (!(shape instanceof SPShape)) continue;
+      if (!shape.curve()) shape.set_shape();
+      const curve = shape.curve();
+      if (!curve) continue;
+      const margin = shape.style.shape_margin.set ? shape.style.shape_margin.computed : -1;
+      const uncrossed = backend.exclusionShape(
+        write_svg_path(curve),
+        shape.getRelativeTransform(this),
+        margin,
+      );
+      if (result?.hasEdges()) {
+        const shape_temp = backend.booleen(result, uncrossed, 0);
+        result.delete();
+        uncrossed.delete();
+        result = shape_temp;
+      } else {
+        result?.delete();
+        result = uncrossed;
+      }
+    }
+    return result;
+  }
+
+  /** The shape-inside shape of an item with shape-padding (upstream getInclusionShape). */
+  getInclusionShape(shape: SPItem): WrapShape | null {
+    let padding = Math.abs(this.style.shape_padding.computed);
+    if (!this.style.shape_padding.set || padding < 1e-12) padding = -1;
+    return SPText.makeInclusionShape(shape, padding);
+  }
+
+  /** The livarot shape of a shape-inside item, padding < 0: none (upstream makeInclusionShape). */
+  static makeInclusionShape(shape: SPItem | null, padding = -1): WrapShape | null {
+    const backend = getTextLayoutBackend();
+    if (!backend || !(shape instanceof SPShape)) return null;
+    if (!shape.curve()) shape.set_shape();
+    const curve = shape.curve();
+    if (!curve) return null;
+    return backend.inclusionShape(write_svg_path(curve), shape.transform, padding);
+  }
+
+  /** Where the first line of text in a shape starts (upstream getFirstInsertionPosition). */
+  static getFirstInsertionPosition(shape: SPItem, ltr: boolean): Point | null {
+    const layout_shape = SPText.makeInclusionShape(shape);
+    if (!layout_shape) return null;
+    // TODO: Layout direction would need to return the value unrotated, since
+    // the scanline maker can return interesting results when not in TTB.
+    const scan = new ShapeScanlineMaker(layout_shape, Direction.TOP_TO_BOTTOM);
+    const line = scan.makeScanline(new FontMetrics());
+    scan.dispose();
+    layout_shape.delete();
+    const run = line[0];
+    return run ? new GeomPoint(ltr ? run.x_start : run.x_end, run.y) : null;
+  }
+
+  /** The shape-inside shapes minus the shape-subtract shapes (upstream makeEffectiveShapes). */
+  makeEffectiveShapes(): WrapShape[] {
+    const backend = getTextLayoutBackend();
+    if (!backend) return [];
+    // Find union of all exclusion shapes
+    const exclusion_shape = this.style.shape_subtract.set ? this.getExclusionShape() : null;
+    const has_exclusion = !!exclusion_shape?.hasEdges();
+
+    const result: WrapShape[] = [];
+    // Find inside shape curves
+    for (const obj of this.#shapeInsideItems()) {
+      let textarea_shape = this.getInclusionShape(obj);
+      if (!textarea_shape) continue;
+      if (has_exclusion) {
+        // Subtract exclusion shape
+        const copy = backend.booleen(textarea_shape, exclusion_shape!, 2);
+        textarea_shape.delete();
+        textarea_shape = copy;
+      }
+      result.push(textarea_shape);
+    }
+    exclusion_shape?.delete();
+    return result;
   }
 
   /**
@@ -409,7 +536,7 @@ export class SPText extends SPItem {
   ): number {
     let length = 0;
     let child_attrs_offset = 0;
-    const optional_attrs = emptyOptionalTextTagAttrs();
+    let optional_attrs = emptyOptionalTextTagAttrs();
     const layout = this.layout;
 
     // Per SVG spec, an object with 'display:none' doesn't contribute to text layout.
@@ -426,12 +553,27 @@ export class SPText extends SPItem {
         !flowed,
         !flowed,
       );
-      // For inline-size, 'y' gives the first baseline.
+
+      // SVG 2 Text wrapping
       if (layout.wrap_mode === WrapMode.WRAP_INLINE_SIZE) {
-        const y = this._getFirstYLength();
-        if (y) optional_attrs.y.push(y);
+        // For horizontal text:
+        //   'x' is used to calculate the left/right edges of the rectangle but is not
+        //   needed later. If not deleted here, it will cause an incorrect positioning
+        //   of the first line.
+        //   'y' is used to determine where the first line box is located and is needed
+        //   during the output stage.
+        // For vertical text:
+        //   Follow above but exchange 'x' and 'y'.
+        if (this.is_horizontal()) {
+          const y = this._getFirstYLength();
+          if (y) optional_attrs.y.push(y);
+        } else {
+          const x = this._getFirstXLength();
+          if (x) optional_attrs.x.push(x);
+        }
       }
-      // set textLength on the entire layout
+
+      // set textLength on the entire layout, see note in TNG-Layout.h
       if (object.attributes.getTextLength()._set) {
         layout.textLength = object.attributes.getTextLength().copy();
         layout.lengthAdjust = object.attributes.getLengthAdjust();
@@ -475,9 +617,14 @@ export class SPText extends SPItem {
         // breaks do match to an x/y/etc attribute.
         child_attrs_offset--;
       }
+    } else if (object instanceof SPTextPath) {
+      in_textpath = true; // This should be made local so we can mix normal text with textpath per SVG 2.
+      object.attributes.mergeInto(optional_attrs, parent_optional_attrs, parent_attrs_offset, false, true);
+      optional_attrs.x = []; // Hmm, you can use x with horizontal text. So this is probably wrong.
+      optional_attrs.y = [];
     } else {
-      // TODO: tref and textPath.
-      Object.assign(optional_attrs, parent_optional_attrs);
+      // TODO: tref.
+      optional_attrs = parent_optional_attrs;
       child_attrs_offset = parent_attrs_offset;
     }
 
@@ -514,7 +661,12 @@ export class SPText extends SPItem {
     this._buildLayoutInit();
     this._buildLayoutInput(this, emptyOptionalTextTagAttrs(), 0, false);
     this.layout.calculateFlow();
-    // TODO: fitToPathAlign for textPath children.
+
+    for (const child of this.children) {
+      if (child instanceof SPTextPath && child.originalPath) {
+        this.layout.fitToPathAlign(child.startOffset, child.originalPath);
+      }
+    }
 
     // set the x,y attributes on role:line spans
     for (const child of this.children) {
@@ -580,8 +732,49 @@ export class SPText extends SPItem {
         frame = frame.transformed(Translate(0, -inline_size));
       return frame;
     }
-    const shape = this.#shapeInsideItems()[0];
-    return shape ? shape.bbox(shape.transform, BBoxType.GEOMETRIC_BBOX) : null;
+    // See if 'shape-inside' has rectangle
+    const rectangle = this.get_first_rectangle();
+    if (rectangle) {
+      const x = rectangle.getAttributeDouble('x', 0.0);
+      const y = rectangle.getAttributeDouble('y', 0.0);
+      const width = rectangle.getAttributeDouble('width', 0.0);
+      const height = rectangle.getAttributeDouble('height', 0.0);
+      return Rect.fromXywh(x, y, width, height);
+    }
+    return null;
+  }
+
+  /** Find the node of the first rectangle (if it exists) in 'shape-inside'. */
+  get_first_rectangle(): Node | null {
+    if (this.style.shape_inside.set) {
+      for (const shape of this.#shapeInsideItems()) {
+        if (shape instanceof SPRect) return shape.getRepr();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get the first shape reference which affects the position and layout of
+   * this text item: a shape-inside or a textPath referenced shape.
+   */
+  get_first_shape_dependency(): SPItem | null {
+    return this.get_all_shape_dependencies()[0] ?? null;
+  }
+
+  get_all_shape_dependencies(): SPItem[] {
+    if (this.style.shape_inside.set) return this.#shapeInsideItems();
+    const textpath = this.firstChild();
+    if (textpath instanceof SPTextPath) {
+      const item = sp_textpath_get_path_item(textpath);
+      return item ? [item] : [];
+    }
+    return [];
+  }
+
+  /** The outlines of the glyphs (upstream getNormalizedBpath). */
+  getNormalizedBpath(): PathVector {
+    return this.layout.convertToCurves();
   }
 }
 
@@ -624,5 +817,95 @@ export function create_text_at_position(
   if (inline_size !== undefined) spReprCssSetPropertyDouble(style, 'inline-size', inline_size);
   spReprCssSet(text_repr, style, 'style');
 
+  return text_item instanceof SPText ? text_item : null;
+}
+
+/** Create a text flowed into a new rectangle doc_rect (document coordinates) in the defs (upstream create_text_in_rectangle). */
+export function create_text_in_rectangle(
+  parent: SPGroup,
+  css: SPCSSAttr | null,
+  doc_rect: Rect,
+): SPText | null {
+  const xml_doc = parent.document.getReprDoc();
+
+  // Create rectangle
+  const rect = doc_rect.transformed(parent.i2docAffine().inverse());
+  const rect_repr = xml_doc.createElement('svg:rect');
+  rect_repr.setAttributeSvgDouble('x', rect.left());
+  rect_repr.setAttributeSvgDouble('y', rect.top());
+  rect_repr.setAttributeSvgDouble('width', rect.width());
+  rect_repr.setAttributeSvgDouble('height', rect.height());
+
+  // Add rectangle to defs.
+  const defs = parent.document.getDefs();
+  const box = defs?.appendChildRepr(rect_repr);
+  if (!(box instanceof SPShape)) return null;
+  return create_text_in_shape(parent, css, box);
+}
+
+/** Create a text that flows into shape with shape-inside (upstream create_text_in_shape). */
+export function create_text_in_shape(parent: SPGroup, css: SPCSSAttr | null, shape: SPShape): SPText | null {
+  const xml_doc = parent.document.getReprDoc();
+  const text_repr = xml_doc.createElement('svg:text');
+  text_repr.setAttribute('xml:space', 'preserve'); // we preserve spaces in the text objects we create
+
+  // Text transform is uneffected by the shape's parent transforms (groups etc) but does already
+  // have the transformation of the shape itself, if any.
+  const tr = shape.parent instanceof SPItem ? parent.getRelativeTransform(shape.parent) : Affine.identity();
+  text_repr.setAttributeOrRemoveIfEmpty('transform', sp_svg_transform_write(tr.inverse()));
+
+  const text_item = parent.appendChildRepr(text_repr);
+
+  const style = css ?? spReprCssAttr(text_repr, 'style');
+  spReprCssSetProperty(style, 'white-space', 'pre');
+  spReprCssSetProperty(style, 'shape-inside', `url(#${shape.getId()})`);
+  spReprCssSet(text_repr, style, 'style');
+
+  /* Create <tspan> */
+  const rtspan = xml_doc.createElement('svg:tspan');
+  rtspan.setAttribute('sodipodi:role', 'line'); // otherwise, why bother creating the tspan?
+  rtspan.appendChild(xml_doc.createTextNode(''));
+  text_repr.appendChild(rtspan);
+
+  return text_item instanceof SPText ? text_item : null;
+}
+
+/**
+ * Create a text on path at offset (0..1 of the path length) with alignment
+ * align (< 0 start, 0 middle, > 0 end) (upstream create_text_on_path).
+ */
+export function create_text_on_path(
+  parent: SPGroup,
+  css: SPCSSAttr | null,
+  path: SPShape,
+  offset: number,
+  align: number,
+  right_side: boolean,
+): SPText | null {
+  const xml_doc = parent.document.getReprDoc();
+  const text_repr = xml_doc.createElement('svg:text');
+  text_repr.setAttribute('xml:space', 'preserve'); // we preserve spaces in the text objects we create
+  const text_item = parent.appendChildRepr(text_repr);
+
+  // Create textPath object and link to path
+  const textpath_repr = xml_doc.createElement('svg:textPath');
+  setHrefAttribute(textpath_repr, `#${path.getId()}`);
+  textpath_repr.appendChild(xml_doc.createTextNode(''));
+  text_repr.appendChild(textpath_repr);
+
+  const style = css ?? spReprCssAttr(text_repr, 'style');
+  if (align < 0) {
+    spReprCssSetProperty(style, 'text-anchor', 'start');
+    spReprCssSetProperty(style, 'text-align', 'start');
+  } else if (align > 0) {
+    spReprCssSetProperty(style, 'text-anchor', 'end');
+    spReprCssSetProperty(style, 'text-align', 'end');
+  } else {
+    spReprCssSetProperty(style, 'text-anchor', 'middle');
+    spReprCssSetProperty(style, 'text-align', 'center');
+  }
+  textpath_repr.setAttribute('startOffset', `${formatNumber(offset * 100.0, 3)}%`);
+  textpath_repr.setAttribute('side', right_side ? 'right' : 'left');
+  spReprCssSet(text_repr, style, 'style');
   return text_item instanceof SPText ? text_item : null;
 }

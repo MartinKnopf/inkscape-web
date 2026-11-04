@@ -171,6 +171,11 @@ export class Node {
   setAttributePoint(name: string, val: Point): void {
     this.setAttribute(name, `${svgNumber(val.x)},${svgNumber(val.y)}`);
   }
+  /** The number of an attribute, or defaultValue if it is missing or invalid. */
+  getAttributeDouble(name: string, defaultValue = 0.0): number {
+    const v = Number.parseFloat(this.attribute(name) ?? '');
+    return Number.isNaN(v) ? defaultValue : v;
+  }
   /** The point of an "x,y" attribute, or defaultValue if it is missing or invalid. */
   getAttributePoint(name: string, defaultValue: Point = new Point(0, 0)): Point {
     const parts = this.attribute(name)?.split(',');

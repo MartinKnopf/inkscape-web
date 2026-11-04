@@ -27,6 +27,8 @@ export interface TextFace {
   gsubTables(): string;
   varAxes(): string;
   withVariations(variations: string): TextFace;
+  /** The font file data and the face index. */
+  fontData(): { data: Uint8Array; index: number };
 }
 
 /** The text module. Structurally the core TextBackend. */
@@ -118,8 +120,10 @@ export async function loadText(options?: { locateFile: (path: string) => string 
   // Free the faces of the module when their wrappers are collected.
   const registry = new FinalizationRegistry<number>((id) => m.faceDestroy(id));
 
-  const wrap = (id: number): TextFace => {
+  const wrap = (id: number, data: Uint8Array, index: number): TextFace => {
+    const file = { data, index };
     const face: TextFace = {
+      fontData: () => file,
       upem: m.upem(id),
       table: (tag) => m.table(id, tag) as Uint8Array,
       tableList: () => m.tableList(id).split(' ').filter(Boolean),
@@ -135,7 +139,7 @@ export async function loadText(options?: { locateFile: (path: string) => string 
       withVariations: (variations) => {
         const clone = m.faceClone(id);
         m.setVariations(clone, variations);
-        return wrap(clone);
+        return wrap(clone, data, index);
       },
     };
     registry.register(face, id);
@@ -146,7 +150,7 @@ export async function loadText(options?: { locateFile: (path: string) => string 
     faceCount: (bytes) => m.faceCount(bytes),
     createFace: (bytes, index) => {
       const id = m.faceCreate(bytes, index);
-      return id ? wrap(id) : null;
+      return id ? wrap(id, bytes, index) : null;
     },
     scripts: (cps) => m.scripts(cps) as Uint32Array,
     bidiLevels: (cps, rtl) => m.bidiLevels(cps, rtl) as Uint8Array,

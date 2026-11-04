@@ -74,7 +74,6 @@ export * from './helper/pixbuf-ops.ts';
 export * from './helper/png-write.ts';
 export * from './inkscape-application.ts';
 export * from './layer-manager.ts';
-export * from './libnrtype/canvas-text-measurer.ts';
 export * from './libnrtype/font-lister.ts';
 export * from './line-snapper.ts';
 export * from './object-snapper.ts';

@@ -755,7 +755,7 @@ export function sp_te_set_repr_text_multiline(text: SPItem, str: string | null):
 export function sp_te_get_average_linespacing(text: SPItem): number {
   const layout = te_get_layout(text);
   if (!layout) return 0;
-  const line_count = layout._cursorLine(layout.end());
+  const line_count = layout.lineIndex(layout.end());
   const all_lines_height =
     layout.characterAnchorPoint(layout.end()).y - layout.characterAnchorPoint(layout.begin()).y;
   return all_lines_height / (line_count === 0 ? 1 : line_count);
