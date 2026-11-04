@@ -93,7 +93,7 @@ export function add_actions_transform(app: InkscapeApplication): void {
     app.get_active_selection()?.move(dx, dy);
     // Needed to update repr (is this the best way?).
     const doc = app.get_active_document();
-    if (doc) DocumentUndo.done(doc, C_('Undo', 'Translate'), '');
+    if (doc) DocumentUndo.done(doc, 'ActionTransformTranslate', '');
   });
   app_actions.add_action_with_parameter('transform-rotate', 'd', (angle) => {
     const selection = app.get_active_selection();

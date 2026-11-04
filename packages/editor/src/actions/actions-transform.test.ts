@@ -28,7 +28,7 @@ describe('transform actions', () => {
     const after = item('r').desktopVisualBounds();
     expect(after?.left()).toBeCloseTo((before?.left() ?? 0) + 5, 6);
     expect(after?.top()).toBeCloseTo((before?.top() ?? 0) + 7, 6);
-    expect(undoSteps()).toEqual(['Translate']);
+    expect(undoSteps()).toEqual(['Move']);
     run('app.transform-translate("1")'); // invalid: ignored
     expect(item('r').desktopVisualBounds()?.left()).toBeCloseTo((before?.left() ?? 0) + 5, 6);
   });
