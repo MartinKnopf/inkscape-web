@@ -12,7 +12,15 @@
  * Copyright (C) 2002-2004 Authors
  */
 import { _ } from '@inkscape-web/core';
-import { build_from_mem, ExecutionEnv, type Extension, Script } from '@inkscape-web/editor';
+import {
+  build_from_mem,
+  CairoEpsOutput,
+  CairoPsOutput,
+  CairoRendererPdfOutput,
+  ExecutionEnv,
+  type Extension,
+  Script,
+} from '@inkscape-web/editor';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
 import { PyodideRunner } from './implementation/pyodide-runner.ts';
 import { setWorking } from './prefdialog/prefdialog.tsx';
@@ -27,6 +35,11 @@ export const runner = new PyodideRunner();
  * build_module_from_dir) and set up the Python runner. Python itself loads on the first run.
  */
 export async function load_extensions(): Promise<Extension[]> {
+  // The internal modules (upstream init()): the Cairo PDF, PS and EPS outputs.
+  CairoRendererPdfOutput.init();
+  CairoPsOutput.init();
+  CairoEpsOutput.init();
+
   Script.runner = runner;
   Script.on_message = (message, data) =>
     void showMessageDialog({

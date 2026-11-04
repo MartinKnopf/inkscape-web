@@ -11,6 +11,7 @@ import {
   sp_file_open_dialog,
   sp_file_open_recent,
   sp_file_save,
+  sp_file_save_a_copy,
   sp_file_save_as,
 } from './file.ts';
 
@@ -24,6 +25,12 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
   ['app.quit', N_('Quit'), SECTION_FILE, N_('Quit Inkscape, check for data loss')],
   ['win.document-save', N_('Save'), SECTION_FILE, N_('Save document')],
   ['win.document-save-as', N_('Save As'), SECTION_FILE, N_('Save document under a new name')],
+  [
+    'win.document-save-copy',
+    N_('Save a Copy'),
+    SECTION_FILE,
+    N_('Save a copy of the document under a new name'),
+  ],
   ['win.document-import', N_('Import'), SECTION_FILE, N_('Import a bitmap or SVG image into this document')],
   [
     "win.dialog-open('FillStroke')",
@@ -129,6 +136,10 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   app.actions.win.add_action(
     'document-save-as',
     withDesktop((dt) => sp_file_save_as(dt.doc)),
+  );
+  app.actions.win.add_action(
+    'document-save-copy',
+    withDesktop((dt) => sp_file_save_a_copy(dt.doc)),
   );
   app.actions.win.add_action(
     'document-import',

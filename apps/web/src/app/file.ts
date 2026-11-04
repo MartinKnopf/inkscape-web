@@ -20,6 +20,7 @@
  */
 import { _, DocumentUndo, gdkpixbuf_input_open, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
 import { db, file_import, type Input, type Output, type SPDesktop } from '@inkscape-web/editor';
+import { output_prefs } from '../extension/prefdialog/prefdialog.tsx';
 import { decodeSvgBytes, gzip } from './gzip.ts';
 import { getRecentFiles } from './recent-files.ts';
 
@@ -247,12 +248,17 @@ async function file_save(doc: SPDocument, name: string, write: (data: Blob) => P
   doc.setModifiedSinceSave(false);
 }
 
-/** Write through a file handle. Returns false and tells the user on failure. */
-async function saveToHandle(doc: SPDocument, handle: FileHandle): Promise<boolean> {
+/**
+ * Write through a file handle. Returns false and tells the user on failure. A copy (upstream
+ * FILE_SAVE_METHOD_SAVE_COPY) leaves the file name, the handle and the modified state of the
+ * document as they are.
+ */
+async function saveToHandle(doc: SPDocument, handle: FileHandle, copy = false): Promise<boolean> {
   const output = moduleFor(db.get_output_list(), handle.name);
   if (output) {
     // An output extension writes a copy; the document keeps its SVG file (upstream: lossy
-    // formats do not become the file of the document).
+    // formats do not become the file of the document). Its options first (upstream prefs()).
+    if (!(await output_prefs(output))) return false;
     const data = await output.save(doc, handle.name);
     if (!data) {
       alert(_('File %s could not be saved.').replace('%s', handle.name));
@@ -266,11 +272,16 @@ async function saveToHandle(doc: SPDocument, handle: FileHandle): Promise<boolea
     return true;
   }
   try {
-    await file_save(doc, handle.name, async (data) => {
+    const write = async (data: Blob) => {
       const writable = await handle.createWritable();
       await writable.write(data);
       await writable.close();
-    });
+    };
+    if (copy) {
+      await write(await serialize(doc, handle.name));
+      return true;
+    }
+    await file_save(doc, handle.name, write);
   } catch (e) {
     console.error(e);
     alert(_('File %s could not be saved.').replace('%s', handle.name));
@@ -295,13 +306,14 @@ async function download(data: Blob, name: string): Promise<void> {
  * document was saved. Without the File System Access API the file is
  * downloaded under the current name.
  */
-export async function sp_file_save_dialog(doc: SPDocument): Promise<boolean> {
+export async function sp_file_save_dialog(doc: SPDocument, copy = false): Promise<boolean> {
   const suggestedName = doc.documentName?.includes('.')
     ? doc.documentName
     : `${doc.documentName ?? 'drawing'}.svg`;
   const w = window as Window & Partial<FilePickers>;
   if (!w.showSaveFilePicker) {
-    await file_save(doc, suggestedName, (data) => download(data, suggestedName));
+    if (copy) await download(await serialize(doc, suggestedName), suggestedName);
+    else await file_save(doc, suggestedName, (data) => download(data, suggestedName));
     return true;
   }
   let handle: FileHandle;
@@ -314,7 +326,7 @@ export async function sp_file_save_dialog(doc: SPDocument): Promise<boolean> {
     if (isAbort(e)) return false;
     throw e;
   }
-  return saveToHandle(doc, handle);
+  return saveToHandle(doc, handle, copy);
 }
 
 /**
@@ -330,6 +342,11 @@ export async function sp_file_save(doc: SPDocument): Promise<boolean> {
 /** win.document-save-as (upstream sp_file_save_as): always ask for a file. */
 export function sp_file_save_as(doc: SPDocument): Promise<boolean> {
   return sp_file_save_dialog(doc);
+}
+
+/** win.document-save-copy (upstream sp_file_save_a_copy): save under a new name, keep the document's file. */
+export function sp_file_save_a_copy(doc: SPDocument): Promise<boolean> {
+  return sp_file_save_dialog(doc, true);
 }
 
 /**
