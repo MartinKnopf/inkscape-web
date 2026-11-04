@@ -14,12 +14,13 @@ import {
   type SPItem,
   SPLPEItem,
   SPMarker,
+  SPOffset,
   SPPattern,
 } from '@inkscape-web/core';
 import type { Affine } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
 import { KnotHolder } from './knot/knot-holder.ts';
-import { MarkerKnotHolder } from './shape-editor-knotholders.ts';
+import { MarkerKnotHolder, OffsetKnotHolder } from './shape-editor-knotholders.ts';
 
 /**
  * The knot holder of the current path effect of the item, or null (upstream createLPEKnotHolder).
@@ -34,7 +35,7 @@ export function createLPEKnotHolder(item: SPItem, desktop: SPDesktop): KnotHolde
 }
 
 /**
- * The knot holder of the item (upstream createKnotHolder): the knots of a marker, or of the
+ * The knot holder of the item (upstream createKnotHolder): the knots of a marker or an offset, or of the
  * patterns of its fill and stroke, or null. TODO: the knot holders of shapes (rect, ellipse, star, spiral, ...).
  */
 export function createKnotHolder(
@@ -44,6 +45,7 @@ export function createKnotHolder(
   edit_marker_mode = -1,
 ): KnotHolder | null {
   if (item instanceof SPMarker) return new MarkerKnotHolder(desktop, item, edit_rotation, edit_marker_mode);
+  if (item instanceof SPOffset) return new OffsetKnotHolder(desktop, item);
   if (
     !(item.style.getFillPaintServer() instanceof SPPattern) &&
     !(item.style.getStrokePaintServer() instanceof SPPattern)

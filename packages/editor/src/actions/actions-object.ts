@@ -17,6 +17,7 @@ import {
   spReprCssProperty,
   spReprCssSet,
   spReprCssSetProperty,
+  strokesToPaths,
   toCurves,
 } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
@@ -29,6 +30,7 @@ const SECTION = NC_('Action Section', 'Object');
  * TODO: attributes, inverse clip and mask (Power Clip/Mask LPE), clip group, …
  */
 export const raw_data_object: readonly (readonly [string, string, string, string])[] = [
+  ['app.object-stroke-to-path', N_('Stroke to Path'), SECTION, N_('Convert strokes to paths')],
   ['app.object-to-path', N_('Object to Path'), SECTION, N_('Convert shapes to paths')],
   ['app.object-rotate-90-cw', N_('Rotate Object 90°'), SECTION, N_('Rotate selected objects 90° clockwise')],
   [
@@ -148,6 +150,7 @@ export function add_actions_object(app: InkscapeApplication): void {
     });
   // TODO: /options/clonestocurvesjustunlink/value (clones).
   add('object-to-path', (s) => toCurves(s));
+  add('object-stroke-to-path', (s) => void strokesToPaths(s));
   add('object-rotate-90-cw', (s) => s.rotateAnchored(yaxisdown(s) ? 90 : -90));
   add('object-rotate-90-ccw', (s) => s.rotateAnchored(yaxisdown(s) ? -90 : 90));
   add('object-flip-horizontal', (s) =>

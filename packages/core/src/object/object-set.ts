@@ -955,6 +955,40 @@ export class ObjectSet {
     }
   }
 
+  /**
+   * Path > Fill between paths: add a path with the Fill between many effect, linked to the
+   * selected items, below the bottom one, and select it.
+   */
+  fillBetweenMany(): void {
+    // TODO: flash "Select path(s) to create fill between." when empty.
+    const doc = this.document();
+    const items = this.items();
+    if (!doc || items.length === 0) return;
+    const xml_doc = doc.getReprDoc();
+
+    const effectRepr = xml_doc.createElement('inkscape:path-effect');
+    effectRepr.setAttribute('effect', 'fill_between_many');
+    effectRepr.setAttribute('method', 'originald');
+    effectRepr.setAttribute('linkedpaths', items.map((item) => `#${item.getId()},0,1|`).join(''));
+    doc.getDefs()?.getRepr().appendChild(effectRepr); // assigns the 'id' attribute
+
+    const fillRepr = xml_doc.createElement('svg:path');
+    fillRepr.setAttribute('inkscape:original-d', 'M 0,0');
+    fillRepr.setAttribute('inkscape:path-effect', `#${effectRepr.attribute('id')}`);
+    fillRepr.setAttribute('d', 'M 0,0');
+
+    // Get the bottommost element in the selection to create the fill underneath
+    const first = [...items].sort((a, b) => sp_repr_compare_position(a.getRepr(), b.getRepr()))[0] as SPItem;
+    const prev = first.getRepr().prev();
+    first.getRepr().parent()?.addChild(fillRepr, prev);
+
+    doc.ensureUpToDate();
+    this.clear();
+    const fill = doc.getObjectByRepr(fillRepr);
+    if (fill) this.add(fill);
+    DocumentUndo.done(doc, C_('Undo', 'Create linked fill object between paths'), '');
+  }
+
   /** Apply the last affine again. */
   reapplyAffine(): void {
     const cached = this.#lastAffine;
