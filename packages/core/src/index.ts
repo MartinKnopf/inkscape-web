@@ -106,6 +106,7 @@ export * from './object/filters/turbulence.ts';
 export * from './object/object-set.ts';
 export * from './object/persp3d.ts';
 export * from './object/persp3d-reference.ts';
+export * from './object/sp-anchor.ts';
 export * from './object/sp-clippath.ts';
 export * from './object/sp-conn-end.ts';
 export * from './object/sp-conn-end-pair.ts';

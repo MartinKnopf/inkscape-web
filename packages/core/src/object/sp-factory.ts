@@ -33,6 +33,7 @@ import { SPFeSpotLight } from './filters/spotlight.ts';
 import { SPFeTile } from './filters/tile.ts';
 import { SPFeTurbulence } from './filters/turbulence.ts';
 import { Persp3D } from './persp3d.ts';
+import { SPAnchor } from './sp-anchor.ts';
 import { SPClipPath } from './sp-clippath.ts';
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
@@ -83,6 +84,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['inkscape:box3d', () => new SPBox3D()],
   ['inkscape:box3dside', () => new Box3DSide()],
   ['inkscape:persp3d', () => new Persp3D()],
+  ['svg:a', () => new SPAnchor()],
   ['svg:clipPath', () => new SPClipPath()],
   ['svg:defs', () => new SPDefs()],
   ['svg:ellipse', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE)],
