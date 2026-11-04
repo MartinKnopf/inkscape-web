@@ -208,6 +208,7 @@ export * from './ui/knot/knot-holder-entity.ts';
 export * from './util/enums.ts';
 export * from './util/paper.ts';
 export * from './util/signal.ts';
+export * from './xml/css-selector.ts';
 export * from './xml/document.ts';
 export * from './xml/event.ts';
 export * from './xml/href-attribute-helper.ts';

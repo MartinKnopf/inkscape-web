@@ -20,6 +20,7 @@ import { add_actions_object } from './actions/actions-object.ts';
 import { add_actions_object_align } from './actions/actions-object-align.ts';
 import { add_actions_pages } from './actions/actions-pages.ts';
 import { add_actions_path } from './actions/actions-paths.ts';
+import { add_actions_selection } from './actions/actions-selection.ts';
 import { add_actions_selection_object } from './actions/actions-selection-object.ts';
 import { add_actions_select_window } from './actions/actions-selection-window.ts';
 import { add_actions_text } from './actions/actions-text.ts';
@@ -61,6 +62,7 @@ export class InkscapeApplication {
     add_actions_object(this); // actions for object manipulation
     add_actions_object_align(this); // actions for object alignment
     add_actions_path(this); // actions for Paths
+    add_actions_selection(this); // actions for selection by id, class, ...
     add_actions_selection_object(this); // actions for selected objects
     add_actions_text(this); // actions for text
     add_actions_transform(this); // actions for transforming selected objects
