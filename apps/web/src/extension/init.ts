@@ -19,6 +19,7 @@ import {
   CairoRendererPdfOutput,
   ExecutionEnv,
   type Extension,
+  PdfInput,
   Script,
 } from '@inkscape-web/editor';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
@@ -35,7 +36,8 @@ export const runner = new PyodideRunner();
  * build_module_from_dir) and set up the Python runner. Python itself loads on the first run.
  */
 export async function load_extensions(): Promise<Extension[]> {
-  // The internal modules (upstream init()): the Cairo PDF, PS and EPS outputs.
+  // The internal modules (upstream init()): the PDF and AI inputs, the Cairo PDF, PS and EPS outputs.
+  PdfInput.init();
   CairoRendererPdfOutput.init();
   CairoPsOutput.init();
   CairoEpsOutput.init();

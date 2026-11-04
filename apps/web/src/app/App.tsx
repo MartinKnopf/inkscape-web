@@ -4,6 +4,7 @@ import { attachActionShortcuts } from '@inkscape-web/editor';
 import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from 'dockview-react';
 import { useEffect } from 'react';
 import 'dockview-react/dist/styles/dockview.css';
+import { PdfImportDialogHost } from '../extension/internal/pdfinput/pdf-input.tsx';
 import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
 import { MenuBar } from '../ui/desktop/menubar.tsx';
 import { dialogComponents, setDialogDock } from '../ui/dialog/dialog-manager.ts';
@@ -80,6 +81,7 @@ export function App() {
       <StatusBar />
       <GuidelineDialogHost />
       <PrefDialogHost />
+      <PdfImportDialogHost />
       <MessageDialogHost />
     </div>
   );

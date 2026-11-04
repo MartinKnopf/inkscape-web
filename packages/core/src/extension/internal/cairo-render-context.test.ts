@@ -130,6 +130,19 @@ describe('CairoRenderContext', () => {
     expect(content).toContain('0.666667 0 0.666667 rg'); // the circle of the tile
   });
 
+  it('renders a hatch as a tiling pattern of its stroked paths', async () => {
+    const it = item(
+      '<defs><hatch id="h" hatchUnits="userSpaceOnUse" pitch="10" rotate="45" style="stroke:#ff0000;stroke-width:2"><hatchpath/></hatch></defs>' +
+        '<rect id="r" width="40" height="40" style="fill:url(#h)"/>',
+      'r',
+    );
+    const ctx = pdfContext();
+    await ctx.renderPathVector([Path.fromRect(new Rect(0, 0, 40, 40))], it.style, it.geometricBounds());
+    const content = pdfText(finish(ctx));
+    expect(content).toMatch(/\/PatternType 1/);
+    expect(content).toContain('1 0 0 RG'); // the red stroke of the hatch path
+  });
+
   it('renders a mesh gradient as a PDF patch mesh shading', async () => {
     const it = item(
       '<defs><meshgradient id="m" x="0" y="0" gradientUnits="userSpaceOnUse"><meshrow><meshpatch>' +

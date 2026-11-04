@@ -163,12 +163,23 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     />
   );
 
-  /** Export with the vector output (upstream SingleExport::onExport with a vector output). */
-  const exportVector = async (o: Output, pages: readonly SPPage[] | null) => {
+  /**
+   * Export with the vector output (upstream SingleExport::onExport with a vector output) and
+   * save the file; with files that go next to it (the LaTeX file), all into a folder.
+   */
+  const exportVector = async (o: Output, pages: readonly SPPage[] | null, name: string) => {
     const items = selectedOnly ? [...desktop.getSelection().items()] : [];
-    const data = await export_vector_area(o, desktop, g, items, pages);
+    const data = await export_vector_area(o, desktop, g, items, pages, name);
     if (!data) throw new Error(_('Could not export to filename <b>%s</b>.\n').replace('%s', filename));
-    return new Blob([data as BlobPart], { type: o.mimetype ?? 'application/octet-stream' });
+    const type = o.mimetype ?? 'application/octet-stream';
+    const files = [
+      { name, data: new Blob([data as BlobPart], { type }) },
+      ...o.extra_files.map((f) => ({
+        name: f.name,
+        data: new Blob([f.data as BlobPart], { type: 'text/plain' }),
+      })),
+    ];
+    return files.length === 1 ? sp_file_save_blob(files[0]!.data, name) : sp_file_save_blobs(files);
   };
 
   const doExport = async () => {
@@ -176,11 +187,14 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     try {
       const only = selectedOnly ? desktop.getSelection().items() : null;
       const page = selectedPage ?? pm.getFirstPage();
-      const blob = output
-        ? await exportVector(output, shown === 'page' && pm.hasPages() && page ? [page] : null)
-        : await export_raster(desktop, g, { background: bg, only: only ? [...only] : null });
       const name = with_extension(filename.split(/[\\/]/).pop() || 'bitmap', ext);
-      if (await sp_file_save_blob(blob, name)) {
+      const saved = output
+        ? await exportVector(output, shown === 'page' && pm.hasPages() && page ? [page] : null, name)
+        : await sp_file_save_blob(
+            await export_raster(desktop, g, { background: bg, only: only ? [...only] : null }),
+            name,
+          );
+      if (saved) {
         setFilename(name);
         // Save the export hints back to the svg document.
         save_export_hints(desktop, shown, name, g.dpi);
@@ -200,7 +214,7 @@ function ExportSingle({ desktop }: { desktop: SPDesktop }) {
     try {
       if (output) {
         const name = with_extension(filename.split(/[\\/]/).pop() || 'drawing', ext);
-        await sp_file_save_blob(await exportVector(output, pm.getPages()), name);
+        await exportVector(output, pm.getPages(), name);
         return;
       }
       const files = [];

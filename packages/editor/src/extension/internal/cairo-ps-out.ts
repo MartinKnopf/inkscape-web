@@ -13,14 +13,21 @@
  *
  * Copyright (C) 2004-2006 Authors
  */
-import { CairoPsLevel, CairoRenderer, ensureCairoBackend, N_, type SPDocument } from '@inkscape-web/core';
+import {
+  CairoPsLevel,
+  CairoRenderer,
+  ensureCairoBackend,
+  latex_render_document_text_to_file,
+  N_,
+  type SPDocument,
+} from '@inkscape-web/core';
 import { db } from '../db.ts';
 import type { Extension } from '../extension.ts';
 import { Implementation } from '../implementation/implementation.ts';
 import type { Output } from '../output.ts';
 import { INKSCAPE_EXTENSION_URI } from '../prefdialog/widget.ts';
 import { build_from_mem } from '../system.ts';
-import { cairo_renderer_hooks } from './cairo-renderer-pdf-out.ts';
+import { cairo_renderer_hooks, latex_file } from './cairo-renderer-pdf-out.ts';
 
 export const SP_MODULE_KEY_PRINT_CAIRO_PS = 'org.inkscape.print.ps.cairo';
 export const SP_MODULE_KEY_PRINT_CAIRO_EPS = 'org.inkscape.print.eps.cairo';
@@ -101,6 +108,21 @@ function ps_options(mod: Output) {
   return { level, textToPath, textToLaTeX, blurToBitmap, bitmapResolution };
 }
 
+/** Create the LaTeX file if requested (upstream save()); the file data, or null if it fails. */
+function with_latex(
+  mod: Output,
+  doc: SPDocument,
+  filename: string,
+  textToLaTeX: boolean,
+  data: Uint8Array,
+): Uint8Array | null {
+  if (!textToLaTeX) return data;
+  const latex = latex_render_document_text_to_file(doc, filename, false);
+  if (latex === null) return null;
+  mod.extra_files.push(latex_file(filename, latex));
+  return data;
+}
+
 /** The definition of the PS and EPS outputs (upstream CairoPsOutput::init and CairoEpsOutput::init). */
 function ps_extension_xml(
   name: string,
@@ -147,11 +169,11 @@ export class CairoPsOutput extends Implementation {
     return db.get(SP_MODULE_KEY_PRINT_CAIRO_PS) !== null;
   }
 
-  /** Save the document as PS; the file data. TODO: the LaTeX file of the LaTeX option. */
-  override async save(mod: Output, doc: SPDocument, _filename: string): Promise<Uint8Array | null> {
+  /** Save the document as PS; the file data (the LaTeX file goes to mod.extra_files). */
+  override async save(mod: Output, doc: SPDocument, filename: string): Promise<Uint8Array | null> {
     if (!db.get(SP_MODULE_KEY_PRINT_CAIRO_PS)) return null;
     const o = ps_options(mod);
-    return ps_print_document_to_file(
+    const ret = await ps_print_document_to_file(
       doc,
       o.level,
       o.textToPath,
@@ -159,6 +181,7 @@ export class CairoPsOutput extends Implementation {
       o.blurToBitmap,
       o.bitmapResolution,
     );
+    return ret && with_latex(mod, doc, filename, o.textToLaTeX, ret);
   }
 
   static init(): void {
@@ -182,11 +205,11 @@ export class CairoEpsOutput extends Implementation {
     return db.get(SP_MODULE_KEY_PRINT_CAIRO_EPS) !== null;
   }
 
-  /** Save the document as EPS; the file data. TODO: the LaTeX file of the LaTeX option. */
-  override async save(mod: Output, doc: SPDocument, _filename: string): Promise<Uint8Array | null> {
+  /** Save the document as EPS; the file data (the LaTeX file goes to mod.extra_files). */
+  override async save(mod: Output, doc: SPDocument, filename: string): Promise<Uint8Array | null> {
     if (!db.get(SP_MODULE_KEY_PRINT_CAIRO_EPS)) return null;
     const o = ps_options(mod);
-    return ps_print_document_to_file(
+    const ret = await ps_print_document_to_file(
       doc,
       o.level,
       o.textToPath,
@@ -195,6 +218,7 @@ export class CairoEpsOutput extends Implementation {
       o.bitmapResolution,
       true,
     );
+    return ret && with_latex(mod, doc, filename, o.textToLaTeX, ret);
   }
 
   static init(): void {

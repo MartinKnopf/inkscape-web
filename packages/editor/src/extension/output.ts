@@ -24,6 +24,11 @@ export class Output extends Extension {
   readonly priority: number;
   /** The Export dialog offers the output (is_exported="true"). */
   readonly exported: boolean;
+  /**
+   * The files that the last save made next to the file (upstream writes them beside it, for
+   * example the LaTeX file "<name>_tex" of the PDF, PS and EPS outputs).
+   */
+  extra_files: { name: string; data: Uint8Array }[] = [];
 
   constructor(in_repr: Node, implementation: Implementation, base_directory = '') {
     super(in_repr, implementation, base_directory);
@@ -53,6 +58,7 @@ export class Output extends Extension {
   async save(doc: SPDocument, name: string): Promise<Uint8Array | null> {
     if (!this.loaded()) this.set_state(ExtensionState.STATE_LOADED);
     if (!this.loaded()) return null;
+    this.extra_files = [];
     return this.imp.save(this, doc, name);
   }
 }

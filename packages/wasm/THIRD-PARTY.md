@@ -18,15 +18,19 @@ does not require a notice in compiled code.
 
 # Third-party code in cairo-module.wasm
 
-Loaded only for PDF, PS and EPS export.
+Loaded only for PDF, PS and EPS export and for PDF import.
 
 | Component | Source | License |
 |---|---|---|
 | cairo 1.18.6 | cairographics.org | LGPL-2.1-only OR MPL-1.1 |
 | pixman 0.46.4 | cairographics.org | MIT |
-| FreeType, libpng, zlib | Emscripten ports | FTL or GPL-2.0, libpng, Zlib |
+| poppler 26.07.0 | poppler.freedesktop.org | GPL-2.0-or-later |
+| Little CMS 2.17 | github.com/mm2/Little-CMS | MIT |
+| Inkscape (`src/extension/internal/pdfinput`, `src/svg`, `src/util`) | upstream checkout | GPL-2.0-or-later |
+| lib2geom, livarot (shared with geom-module) | upstream checkout | see above |
+| FreeType, libpng, libjpeg, zlib | Emscripten ports | FTL or GPL-2.0, libpng, IJG, Zlib |
 
-`build.sh` copies the cairo and pixman license files into `dist/licenses/`.
+`build.sh` copies the cairo, pixman, poppler and lcms2 license files into `dist/licenses/`.
 
 # Third-party code in text-module.wasm and dist/fonts
 

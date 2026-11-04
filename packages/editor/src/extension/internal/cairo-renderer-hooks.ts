@@ -33,6 +33,17 @@ function query_local_fonts(): Promise<LocalFontData[]> {
   return localFonts;
 }
 
+/** The local fonts by family, style and PostScript name (for the font matching of the PDF import). */
+export async function local_font_list(): Promise<
+  { family: string; style: string; postscriptName: string }[]
+> {
+  return (await query_local_fonts()).map((f) => ({
+    family: f.family,
+    style: f.style,
+    postscriptName: f.postscriptName,
+  }));
+}
+
 /** The families of a CSS font-family list, generic families replaced by typical fonts. */
 export function font_family_candidates(family: string): string[] {
   const names = family

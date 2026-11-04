@@ -33,6 +33,7 @@ import { SPFeSpotLight } from './filters/spotlight.ts';
 import { SPFeTile } from './filters/tile.ts';
 import { SPFeTurbulence } from './filters/turbulence.ts';
 import { Persp3D } from './persp3d.ts';
+import { SPAnchor } from './sp-anchor.ts';
 import { SPClipPath } from './sp-clippath.ts';
 import { SPDefs } from './sp-defs.ts';
 import { GenericEllipseType, SPGenericEllipse } from './sp-ellipse.ts';
@@ -42,6 +43,8 @@ import { SPFlowregion, SPFlowregionExclude } from './sp-flowregion.ts';
 import { SPFlowtext } from './sp-flowtext.ts';
 import { SPGrid } from './sp-grid.ts';
 import { SPGuide } from './sp-guide.ts';
+import { SPHatch } from './sp-hatch.ts';
+import { SPHatchPath } from './sp-hatch-path.ts';
 import { SPImage } from './sp-image.ts';
 import { SPGroup } from './sp-item-group.ts';
 import { SPLine } from './sp-line.ts';
@@ -81,6 +84,7 @@ const map = new Map<string, (() => SPObject) | null>([
   ['inkscape:box3d', () => new SPBox3D()],
   ['inkscape:box3dside', () => new Box3DSide()],
   ['inkscape:persp3d', () => new Persp3D()],
+  ['svg:a', () => new SPAnchor()],
   ['svg:clipPath', () => new SPClipPath()],
   ['svg:defs', () => new SPDefs()],
   ['svg:ellipse', () => genericEllipse(GenericEllipseType.SP_GENERIC_ELLIPSE_ELLIPSE)],
@@ -96,6 +100,9 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:meshpatch', () => new SPMeshpatch()],
   ['svg:marker', () => new SPMarker()],
   ['svg:mask', () => new SPMask()],
+  ['svg:hatch', () => new SPHatch()],
+  ['svg:hatchpath', () => new SPHatchPath()],
+  ['svg:hatchPath', () => new SPHatchPath()],
   ['svg:path', () => new SPPath()],
   ['svg:pattern', () => new SPPattern()],
   ['svg:polygon', () => new SPPolygon()],

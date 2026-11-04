@@ -9,7 +9,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Dialogs | 25 | 29 | 86 |
 | Actions | 274 | 409 | 67 |
 | Live path effects | 23 | 56 | 41 |
-| Internal import/export modules | 6 | 35 | 17 |
+| Internal import/export modules | 7 | 35 | 20 |
 | Python extensions | 154 | 160 | 96 |
 
 <details><summary>Tools (24/26)</summary>
@@ -552,7 +552,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Internal import/export modules (6/35)</summary>
+<details><summary>Internal import/export modules (7/35)</summary>
 
 - [ ] `bluredge.cpp`
 - [x] `cairo-ps-out.cpp`
@@ -569,7 +569,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `image-resolution.cpp`
 - [ ] `latex-pstricks-out.cpp`
 - [ ] `latex-pstricks.cpp`
-- [ ] `latex-text-renderer.cpp`
+- [x] `latex-text-renderer.cpp`
 - [ ] `metafile-inout.cpp`
 - [ ] `metafile-print.cpp`
 - [ ] `odf.cpp`

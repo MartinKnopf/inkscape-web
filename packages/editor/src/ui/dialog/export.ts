@@ -317,13 +317,15 @@ function crop_to_objects(doc: SPDocument, ids: ReadonlySet<string>): void {
 /**
  * Export to vector graphics (upstream Export::exportVector): the pages of copy_doc (a copy of
  * the document) render with the output extension; the other pages are deleted. With items, only
- * these objects are drawn. Returns the file data, or null if the output fails.
+ * these objects are drawn. Returns the file data, or null if the output fails; files that go
+ * next to it are in extension.extra_files.
  */
 export async function export_vector(
   extension: Output,
   copy_doc: SPDocument,
   items: readonly SPItem[],
   pages: readonly SPPage[],
+  filename = '',
 ): Promise<Uint8Array | null> {
   if (extension.raster) return null;
   copy_doc.ensureUpToDate();
@@ -342,7 +344,7 @@ export async function export_vector(
   // Remove all unused definitions
   copy_doc.vacuumDocument();
 
-  return extension.save(copy_doc, '');
+  return extension.save(copy_doc, filename);
 }
 
 /**
@@ -356,6 +358,7 @@ export function export_vector_area(
   g: ExportGeometry,
   items: readonly SPItem[],
   pages: readonly SPPage[] | null,
+  filename = '',
 ): Promise<Uint8Array | null> {
   const doc = desktop.getDocument();
   const copy_doc = copy_document(doc);
@@ -366,10 +369,10 @@ export function export_vector_area(
   if (pages) {
     const all = doc.getPageManager().getPages();
     const copy_pages = pages.flatMap((p) => copy_doc.getPageManager().getPage(all.indexOf(p)) ?? []);
-    return export_vector(extension, copy_doc, copy_items, copy_pages);
+    return export_vector(extension, copy_doc, copy_items, copy_pages, filename);
   }
   // To get the right kind of export, we're going to make a page
   const area = new Rect(new Point(g.x0, g.y0), new Point(g.x1, g.y1)).transformed(desktop.dt2doc());
   const page = copy_doc.getPageManager().newDocumentPage(area);
-  return export_vector(extension, copy_doc, copy_items, page ? [page] : []);
+  return export_vector(extension, copy_doc, copy_items, page ? [page] : [], filename);
 }

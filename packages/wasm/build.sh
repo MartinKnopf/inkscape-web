@@ -154,7 +154,7 @@ done
 # The core sources plus the features of shim/cairo/cairo-features.h.
 for f in $(sed -n '/^cairo_sources = \[/,/^\]/p' "$CA/meson.build" | grep -oE "'[a-z0-9-]+\.c'" | tr -d "'") \
     cairo-png.c cairo-ft-font.c cairo-colr-glyph-render.c cairo-svg-glyph-render.c \
-    cairo-ps-surface.c cairo-pdf-surface.c cairo-pdf-interchange.c; do
+    cairo-ps-surface.c cairo-pdf-surface.c cairo-pdf-interchange.c cairo-svg-surface.c; do
     CAIRO_SRCS="$CAIRO_SRCS $CA/$f"
 done
 export CAIRO_FLAGS="-O3 -sUSE_FREETYPE=1 -sUSE_LIBPNG=1 -sUSE_ZLIB=1 -DHAVE_CONFIG_H -D_GNU_SOURCE \
@@ -165,14 +165,95 @@ CAIRO_OBJ=$B/cairo-obj && mkdir -p "$CAIRO_OBJ"
 cobj() { echo "$CAIRO_OBJ/$(basename "$(dirname "$1")")_$(basename "$1" .c).o"; }
 for s in $CAIRO_SRCS; do
     o=$(cobj "$s")
-    [ "$o" -nt "$s" ] && [ "$o" -nt "$HERE/shim/cairo/config.h" ] || echo "$s $o"
+    [ "$o" -nt "$s" ] && [ "$o" -nt "$HERE/shim/cairo/config.h" ] && [ "$o" -nt "$HERE/shim/cairo/cairo-features.h" ] ||
+        echo "$s $o"
 done | xargs -P "$JOBS" -n 2 sh -c 'emcc $CAIRO_FLAGS -c "$0" -o "$1"'
 CAIRO_OBJS=""
 for s in $CAIRO_SRCS; do CAIRO_OBJS="$CAIRO_OBJS $(cobj "$s")"; done
+
+# --- PDF import in cairo-module: poppler + upstream src/extension/internal/pdfinput ---
+# The PDF import shares cairo and FreeType with the export, so it lives in the same module.
+# Upstream links the system poppler; 26.07 is the newest version that its pdfinput code knows
+# (POPPLER_CHECK_VERSION in poppler-transition-api.h). Poppler and lcms2 are built from their
+# release tarballs. The upstream pdfinput sources (PdfParser, SvgBuilder) are compiled unchanged:
+# shim/pdfinput gives them a small XML tree, document, colors and font list (Inkscape's object
+# model stays in TypeScript); the tree goes to the app as SVG text (bindings/pdf.cpp).
+fetch https://github.com/mm2/Little-CMS/releases/download/lcms2.17/lcms2-2.17.tar.gz \
+    d11af569e42a1baa1650d20ad61d12e41af4fead4aa7964a01f93b08b53ab074 lcms2
+fetch_xz https://poppler.freedesktop.org/poppler-26.07.0.tar.xz \
+    304832f48f8a47fdca90c6b6d1f684e68f37c10c9a0726f345f4ca9df4ca01e2 poppler
+if [ ! -f "$P/lib/liblcms2.a" ]; then
+    mkdir -p "$B/lcms2" "$P/lib" "$P/include" && (cd "$B/lcms2" &&
+        for f in "$B"/vendor/lcms2/src/*.c; do
+            emcc -O2 -DCMS_NO_PTHREADS=1 -I"$B/vendor/lcms2/include" -c "$f" -o "$(basename "$f" .c).o"
+        done &&
+        emar rcs "$P/lib/liblcms2.a" ./*.o &&
+        cp "$B"/vendor/lcms2/include/*.h "$P/include/")
+fi
+EMLIB=$(em-config CACHE)/sysroot
+POP=$B/vendor/poppler
+PB=$B/poppler
+# In C++23 the libc++ of Emscripten instantiates ~unique_ptr<Array> where Array is incomplete:
+# shim/poppler/complete-deleters.h declares the deleters of the incomplete poppler types.
+DELETERS="-include $HERE/shim/poppler/complete-deleters.h"
+if [ ! -f "$PB/libpoppler.a" ]; then
+    embuilder build libjpeg freetype libpng zlib >/dev/null
+    mkdir -p "$PB" && (cd "$PB" &&
+        emcmake cmake "$POP" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF "-DCMAKE_CXX_FLAGS=$DELETERS" \
+            -DENABLE_UTILS=OFF -DENABLE_CPP=OFF -DENABLE_GLIB=OFF -DENABLE_QT5=OFF -DENABLE_QT6=OFF \
+            -DENABLE_GOBJECT_INTROSPECTION=OFF -DENABLE_BOOST=OFF -DENABLE_LIBOPENJPEG=OFF \
+            -DENABLE_LIBCURL=OFF -DENABLE_LIBTIFF=OFF -DENABLE_NSS3=OFF -DENABLE_GPGME=OFF \
+            -DBUILD_GTK_TESTS=OFF -DBUILD_QT5_TESTS=OFF -DBUILD_QT6_TESTS=OFF -DBUILD_CPP_TESTS=OFF \
+            -DBUILD_MANUAL_TESTS=OFF -DRUN_GPERF_IF_PRESENT=OFF -DFONT_CONFIGURATION=generic \
+            -DCMAKE_DISABLE_FIND_PACKAGE_Cairo=ON \
+            -DENABLE_LCMS=ON -DLCMS2_INCLUDE_DIR="$P/include" -DLCMS2_LIBRARIES="$P/lib/liblcms2.a" \
+            -DFREETYPE_INCLUDE_DIRS="$EMLIB/include/freetype2" -DFREETYPE_LIBRARY="$EMLIB/lib/wasm32-emscripten/libfreetype.a" \
+            -DZLIB_INCLUDE_DIR="$EMLIB/include" -DZLIB_LIBRARY="$EMLIB/lib/wasm32-emscripten/libz.a" \
+            -DPNG_PNG_INCLUDE_DIR="$EMLIB/include" -DPNG_LIBRARY="$EMLIB/lib/wasm32-emscripten/libpng.a" \
+            -DJPEG_INCLUDE_DIR="$EMLIB/include" -DJPEG_LIBRARY="$EMLIB/lib/wasm32-emscripten/libjpeg.a" \
+            >/dev/null &&
+        emmake make -j"$JOBS" poppler >/dev/null)
+fi
+# Upstream objects of the geom module that the PDF import needs too (2geom, livarot, svg streams).
+rm -f "$B/libinkgeom.a" && emar rcs "$B/libinkgeom.a" "$OBJ"/*.o
+PI=$INK/src/extension/internal/pdfinput
+PDF_SRCS="$PI/pdf-parser.cpp $PI/svg-builder.cpp $PI/pdf-utils.cpp $PI/poppler-utils.cpp $PI/poppler-cairo-font-engine.cpp \
+    $INK/src/svg/svg-affine.cpp $INK/src/svg/svg-affine-parser.cpp $INK/src/svg/svg-path.cpp $INK/src/svg/path-string.cpp $INK/src/svg/css-ostringstream.cpp \
+    $INK/src/util/uri.cpp $INK/src/util-string/string-convert.cpp \
+    $(ls "$HERE"/shim/pdfinput/*.cpp) $HERE/shim/poppler/complete-deleters.cpp"
+export PDF_FLAGS="-O2 -std=c++23 -fexceptions -sUSE_FREETYPE=1 -sUSE_LIBPNG=1 $DELETERS -include $HERE/shim/pdfinput/glib.h \
+    -I$HERE/shim/pdfinput -I$HERE/shim -I$INK/src -I$G/include -I$P/include -I$B/boost-include \
+    -I$POP -I$POP/poppler -I$PB -I$PB/poppler -I$HERE/shim/cairo -I$CA -Wno-deprecated-declarations"
+PDF_OBJ=$B/pdf-obj && mkdir -p "$PDF_OBJ"
+pobj() { echo "$PDF_OBJ/$(echo "${1#"$INK"/}" | tr / _ | sed 's|^.*shim_|shim_|').o"; }
+for s in $PDF_SRCS; do
+    o=$(pobj "$s")
+    [ "$o" -nt "$s" ] && [ -z "$(find "$HERE/shim/pdfinput" "$HERE/shim/poppler" -newer "$o" -name '*.h')" ] || echo "$s $o"
+done | xargs -P "$JOBS" -n 2 sh -c 'em++ $PDF_FLAGS -c "$0" -o "$1"'
+PDF_OBJS=""
+for s in $PDF_SRCS; do PDF_OBJS="$PDF_OBJS $(pobj "$s")"; done
+# Poppler's Cairo output device (upstream gets it through poppler-glib) for the page preview and
+# the Cairo import. Upstream's poppler-cairo-font-engine.cpp is a copy of poppler's
+# CairoFontEngine with the same class names: poppler's classes get other names here.
+export POPPLER_CAIRO_FLAGS="-DCairoFont=PopplerCairoFont -DCairoFontEngine=PopplerCairoFontEngine \
+    -DCairoFreeTypeFont=PopplerCairoFreeTypeFont -DCairoType3Font=PopplerCairoType3Font"
+for f in CairoOutputDev CairoFontEngine CairoRescaleBox; do
+    o=$PDF_OBJ/poppler_$f.o
+    [ "$o" -nt "$POP/poppler/$f.cc" ] || echo "$POP/poppler/$f.cc $o"
+done | xargs -P "$JOBS" -n 2 sh -c 'em++ $PDF_FLAGS $POPPLER_CAIRO_FLAGS -c "$0" -o "$1"'
+for f in CairoOutputDev CairoFontEngine CairoRescaleBox; do PDF_OBJS="$PDF_OBJS $PDF_OBJ/poppler_$f.o"; done
+# The bindings that use the Cairo output device need the same names.
+em++ $PDF_FLAGS $POPPLER_CAIRO_FLAGS -c bindings/pdf-cairo.cpp -o "$PDF_OBJ/bindings_pdf-cairo.o"
+PDF_OBJS="$PDF_OBJS $PDF_OBJ/bindings_pdf-cairo.o"
+
 # shellcheck disable=SC2086
-em++ -std=c++20 $CAIRO_FLAGS -lembind bindings/cairo.cpp $CAIRO_OBJS \
+em++ $PDF_FLAGS -lembind bindings/cairo.cpp bindings/pdf.cpp $PDF_OBJS $CAIRO_OBJS \
+    "$PB/libpoppler.a" "$P/lib/liblcms2.a" "$B/libinkgeom.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" \
+    "$P/lib/libdouble-conversion.a" -sUSE_LIBJPEG=1 -sUSE_ZLIB=1 -Wl,--error-limit=0 \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd cairo-module.d.mts -o dist/cairo-module.mjs
+cp "$B/vendor/poppler/COPYING" dist/licenses/poppler-COPYING
+cp "$B/vendor/lcms2/LICENSE" dist/licenses/lcms2-LICENSE
 cp "$B/vendor/cairo/COPYING-LGPL-2.1" dist/licenses/cairo-COPYING-LGPL-2.1
 cp "$B/vendor/cairo/COPYING-MPL-1.1" dist/licenses/cairo-COPYING-MPL-1.1
 cp "$B/vendor/pixman/COPYING" dist/licenses/pixman-COPYING

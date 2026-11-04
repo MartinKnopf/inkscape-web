@@ -90,6 +90,34 @@ describe('PDF output', () => {
     expect(text).not.toMatch(/\/FontFile/);
     expect(text).not.toMatch(/\bTJ\b|\bTj\b/);
   });
+
+  it('omits the text and writes the LaTeX file with the LaTeX option', async () => {
+    const out = output('org.inkscape.output.pdf.cairorenderer');
+    out.set_param_any('textToPath', 'LaTeX');
+    const doc = SPDocument.createNewDocFromMem(DOC)!;
+    const pdf = pdfText((await out.save(doc, 'figure.pdf'))!);
+    out.set_param_any('textToPath', 'embed');
+    expect(pdf).not.toMatch(/\bTJ\b|\bTj\b/);
+    expect(out.extra_files.map((f) => f.name)).toEqual(['figure.pdf_tex']);
+    const tex = new TextDecoder().decode(out.extra_files[0]!.data);
+    expect(tex).toContain('{figure.pdf}');
+    expect(tex).toContain('Hello');
+  });
+
+  it('writes links to URIs and to objects of the document', async () => {
+    const doc = SPDocument.createNewDocFromMem(
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="100">
+        <a xlink:href="https://inkscape.org"><rect width="50" height="20" style="fill:#000"/></a>
+        <a xlink:href="#target"><rect y="40" width="50" height="20" style="fill:#000"/></a>
+        <rect id="target" x="150" y="40" width="20" height="20" style="fill:#f00"/>
+      </svg>`,
+    )!;
+    const text = pdfText((await output('org.inkscape.output.pdf.cairorenderer').save(doc, 'links.pdf'))!);
+    expect(text).toMatch(/\/Subtype \/Link/);
+    expect(text).toContain('(https://inkscape.org)');
+    // The local link goes to a named destination at the object.
+    expect(text).toMatch(/\/Dest(s)? *\(target\)|\(target\) *\[/);
+  });
 });
 
 describe('PS and EPS output', () => {
