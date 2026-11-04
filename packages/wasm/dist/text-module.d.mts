@@ -16,6 +16,7 @@ interface EmbindModule {
   hasVExtents(_0: number): boolean;
   glyphPath(_0: number, _1: number): string;
   setVariations(_0: number, _1: EmbindString): void;
+  setSyntheticBold(_0: number, _1: number, _2: number): void;
   shape(_0: number, _1: any, _2: number, _3: number, _4: number, _5: EmbindString, _6: EmbindString, _7: EmbindString): any;
   name(_0: number, _1: number): string;
   gsubTables(_0: number): string;

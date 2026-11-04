@@ -144,6 +144,14 @@ const SUBSTITUTES: Record<string, string> = {
 /** The shear of a synthesized oblique face (the fontconfig matrix for synthetic italics). */
 const SYNTHETIC_SLANT = 0.2;
 
+/**
+ * Whether fontconfig emboldens a face (conf.d/90-synthetic.conf): the face is
+ * at most medium (CSS 500) and the request at least bold (CSS 700).
+ */
+export function synthetic_bold(requested_weight: number, face_weight: number): boolean {
+  return face_weight <= 500 && requested_weight >= 700;
+}
+
 /** Split a CSS font-family list into unquoted names. */
 export function split_font_family_list(family: string): string[] {
   return family
@@ -296,6 +304,7 @@ export class FontFactory {
         ? SYNTHETIC_SLANT
         : 0;
     let face = state?.face ?? null;
+    if (face && state && synthetic_bold(descr.weight, state.source.weight)) face = face.withSyntheticBold();
     if (face && descr.variations) face = face.withVariations(descr.variations);
     const font = new FontInstance(descr, face, synthetic);
     // Only cache final results: a face that is still loading replaces the stand-in later.

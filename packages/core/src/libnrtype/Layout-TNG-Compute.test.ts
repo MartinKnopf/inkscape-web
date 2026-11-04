@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/libnrtype/Layout-TNG-Compute.cpp, src/libnrtype/Layout-TNG-Output.cpp
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { Affine } from '@inkscape-web/geom';
+import { BUNDLED_FONTS } from '@inkscape-web/wasm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { SPDocument } from '../document.ts';
 import { SPFlowtext } from '../object/sp-flowtext.ts';
 import { SPText } from '../object/sp-text.ts';
+import { FontFactory, type PangoStretch } from './font-factory.ts';
 import { Direction, type Layout } from './Layout-TNG.ts';
 import { setupTextLayout } from './text-test-utils.ts';
 
@@ -42,6 +46,38 @@ describe('Layout with HarfBuzz', () => {
     // DejaVu Sans: H is 1540 and A 1401 units of 2048 wide; the AV pair is kerned.
     expect(plain._glyphs[1]!.x).toBeCloseTo((1540 / 2048) * 100, 5);
     expect(kerned._glyphs[1]!.x).toBeLessThan((1401 / 2048) * 100 - 1);
+  });
+
+  it('emboldens a face without a bold variant (synthetic bold)', async () => {
+    // A family with only a regular face: font-weight:bold uses it with synthetic bold.
+    const regular = BUNDLED_FONTS.find(
+      (f) => f.family === 'DejaVu Sans' && f.weight === 400 && f.style === 0,
+    )!;
+    const factory = FontFactory.get();
+    factory.addFontSource({
+      family: 'Regular Only',
+      style: 0,
+      weight: 400,
+      stretch: 4 as PangoStretch,
+      display_name: 'Book',
+      load: async () => new Uint8Array(await readFile(fileURLToPath(regular.url))),
+    });
+    await factory.preload({
+      family: 'Regular Only',
+      style: 0,
+      weight: 400,
+      stretch: 4,
+      variant: 0,
+      variations: '',
+    });
+    const style = "font-family:'Regular Only';font-size:100px";
+    const plain = layoutOf(`<text id="t" x="0" y="100" style="${style}">HH</text>`);
+    const bold = layoutOf(`<text id="t" x="0" y="100" style="${style};font-weight:bold">HH</text>`);
+    // The advance grows by 0.02 em; the outline gets wider.
+    expect(plain._glyphs[1]!.x).toBeCloseTo((1540 / 2048) * 100, 5);
+    expect(bold._glyphs[1]!.x).toBeCloseTo((1540 / 2048) * 100 + 2, 1);
+    const w = (l: Layout) => l.bounds(Affine.identity())!.width();
+    expect(w(bold) - w(plain)).toBeGreaterThan(3);
   });
 
   it('uses the glyph outlines for the bounding box', () => {

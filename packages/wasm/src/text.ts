@@ -27,6 +27,8 @@ export interface TextFace {
   gsubTables(): string;
   varAxes(): string;
   withVariations(variations: string): TextFace;
+  /** A copy of the face with synthetic bold (fontconfig's embolden). */
+  withSyntheticBold(): TextFace;
   /** The font file data and the face index. */
   fontData(): { data: Uint8Array; index: number };
 }
@@ -120,7 +122,16 @@ export async function loadText(options?: { locateFile: (path: string) => string 
   // Free the faces of the module when their wrappers are collected.
   const registry = new FinalizationRegistry<number>((id) => m.faceDestroy(id));
 
-  const wrap = (id: number, data: Uint8Array, index: number): TextFace => {
+  /** The emboldening of synthetic bold in em (as Pango with FC_EMBOLDEN). */
+  const SYNTHETIC_BOLD = 0.02;
+  // A face of a font file; a clone keeps the variations and the synthetic bold of its source.
+  const wrap = (id: number, data: Uint8Array, index: number, variations = '', bold = false): TextFace => {
+    const clone = (v: string, b: boolean) => {
+      const c = m.faceClone(id);
+      if (v) m.setVariations(c, v);
+      if (b) m.setSyntheticBold(c, SYNTHETIC_BOLD, SYNTHETIC_BOLD);
+      return wrap(c, data, index, v, b);
+    };
     const file = { data, index };
     const face: TextFace = {
       fontData: () => file,
@@ -136,11 +147,8 @@ export async function loadText(options?: { locateFile: (path: string) => string 
       name: (n) => m.name(id, n),
       gsubTables: () => m.gsubTables(id),
       varAxes: () => m.varAxes(id),
-      withVariations: (variations) => {
-        const clone = m.faceClone(id);
-        m.setVariations(clone, variations);
-        return wrap(clone, data, index);
-      },
+      withVariations: (v) => clone(v, bold),
+      withSyntheticBold: () => clone(variations, true),
     };
     registry.register(face, id);
     return face;
