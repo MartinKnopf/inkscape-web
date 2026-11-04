@@ -28,6 +28,7 @@ import { SPContentUnits } from '../../enums.ts';
 import { PangoStretch, PangoStyle } from '../../libnrtype/font-factory.ts';
 import type { FontInstance } from '../../libnrtype/font-instance.ts';
 import { InputStreamTextSource, type Layout } from '../../libnrtype/Layout-TNG.ts';
+import { SPAnchor } from '../../object/sp-anchor.ts';
 import { SPClipPath } from '../../object/sp-clippath.ts';
 import { SPFlowtext } from '../../object/sp-flowtext.ts';
 import type { SPHatchPath } from '../../object/sp-hatch-path.ts';
@@ -36,6 +37,7 @@ import { i2anc_affine, SPItem } from '../../object/sp-item.ts';
 import { SPGroup } from '../../object/sp-item-group.ts';
 import { SPMarker } from '../../object/sp-marker.ts';
 import type { SPMask } from '../../object/sp-mask.ts';
+import type { SPObject } from '../../object/sp-object.ts';
 import type { SPPage } from '../../object/sp-page.ts';
 import { SPRoot } from '../../object/sp-root.ts';
 import { SPShape } from '../../object/sp-shape.ts';
@@ -856,20 +858,82 @@ async function sp_asbitmap_render(item: SPItem, ctx: CairoRenderContext, page: S
   }
 }
 
+async function sp_anchor_render(
+  a: SPAnchor,
+  ctx: CairoRenderContext,
+  origin: SPItem | null,
+  page: SPPage | null,
+): Promise<void> {
+  if (a.href) {
+    // Raw linking, whatever the user said they wanted
+    let link = `uri='${a.href}'`;
+    const obj = a.local_link?.getObject();
+    if (obj) {
+      // We wanted to use the syntax page=%d here to link to pages, but
+      // cairo has an odd bug that only allows linking to previous pages
+      // So we link everything with a dest link instead.
+      link = `dest='${obj.getId()}'`;
+    }
+    // Write a box for this hyperlink so it's contained and positioned correctly.
+    const vbox = a.visualBounds();
+    if (vbox) {
+      // Apply transforms as we are writing out the box directly.
+      const bbox = vbox.transformed(ctx.getTransform());
+      link += ` rect=[${bbox.left()} ${bbox.top()} ${bbox.width()} ${bbox.height()}]`;
+    }
+    ctx.tagBegin(link);
+  }
+
+  const renderer = ctx.getRenderer();
+  for (const object of a.children) {
+    if (object instanceof SPItem) await renderer.renderItem(ctx, object, origin, page);
+  }
+  if (a.href) ctx.tagEnd();
+}
+
+/**
+ * The objects that local links (svg:a with "#id") point to (upstream: the DEPENDENT linked
+ * objects of SPItem::getLinked), found once per renderer (one export).
+ */
+const link_targets = new WeakMap<CairoRenderer, Set<SPObject>>();
+function is_link_target(item: SPItem, renderer: CairoRenderer): boolean {
+  let targets = link_targets.get(renderer);
+  if (!targets) {
+    const found = new Set<SPObject>();
+    const walk = (o: SPObject) => {
+      if (o instanceof SPAnchor) {
+        const target = o.local_link?.getObject();
+        if (target) found.add(target);
+      }
+      for (const c of o.children) walk(c);
+    };
+    walk(item.document.getRoot());
+    link_targets.set(renderer, found);
+    targets = found;
+  }
+  return targets.has(item);
+}
+
 async function sp_item_invoke_render(
   item: SPItem,
   ctx: CairoRenderContext,
   origin: SPItem | null,
   page: SPPage | null,
 ): Promise<void> {
+  const id = item.getId();
+  const is_linked = !!id && is_link_target(item, ctx.getRenderer());
+
   // Test to see if the objects would be invisible on this page and hide them if so.
   if (page && !origin && !page.itemOnPage(item, false, false)) return;
 
-  // TODO: SPAnchor (links and their destinations): the core has no SPAnchor yet.
+  if (is_linked) ctx.destBegin(id);
+
   if (item instanceof SPRoot) {
     await sp_root_render(item, ctx);
   } else if (item instanceof SPSymbol) {
     await sp_symbol_render(item, ctx, origin, page);
+  } else if (item instanceof SPAnchor) {
+    await sp_anchor_render(item, ctx, origin, page);
   } else if (item instanceof SPShape) {
     await sp_shape_render(item, ctx, origin);
   } else if (item instanceof SPUse) {
@@ -883,6 +947,8 @@ async function sp_item_invoke_render(
   } else if (item instanceof SPGroup) {
     await sp_group_render(item, ctx, origin, page);
   }
+
+  if (is_linked) ctx.destEnd();
 }
 
 /** Upstream SPItem::isFiltered(). */
