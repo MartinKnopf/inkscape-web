@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/actions/actions-svg-processing.cpp
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest';
+import { join } from 'node:path';
+import { type Node, type SPText, setTextLayoutBackend } from '@inkscape-web/core';
+import { loadGeom } from '@inkscape-web/wasm';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { InkscapeApplication } from '../inkscape-application.ts';
 import { setupDesktop, useWasmBackend } from '../ui/tools/tool-test-utils.ts';
 
@@ -111,5 +114,60 @@ describe('doc processing actions for strokes, transforms, markers and polyfills'
     const { item, run } = setup();
     run('doc.insert-path-data');
     expect(item('r').getAttribute('inkscape:d')).toBe('M 1,2 H 4 V 6 H 1 Z');
+  });
+});
+
+describe('insert_text_fallback', () => {
+  // Line breaking needs the shapes of the geom module.
+  beforeAll(async () => {
+    const wasm = join(process.cwd(), 'packages/wasm/dist/geom-module.wasm');
+    setTextLayoutBackend(await loadGeom({ locateFile: () => wasm }));
+  });
+  afterAll(() => setTextLayoutBackend(null));
+
+  // Without fonts every character is 0.5 em wide: at 10px "aaa bbb" (35px) does not fit 30px.
+  const TEXT =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+    '<text id="t" x="20" y="40" style="font-size:10px;line-height:2;inline-size:30px">aaa bbb ccc</text>' +
+    '<text id="plain" x="5" y="5">plain</text></svg>';
+
+  const content = (n: Node): string => n.content() ?? [...n.children()].map(content).join('');
+  /** The x, y and text of the line tspans of a text. */
+  const lines = (t: SPText) =>
+    [...t.getRepr().children()].map((c) => [c.attribute('x'), c.attribute('y'), content(c)]);
+
+  it('replaces the children of SVG 2 text by one positioned tspan per line (doc.insert-text-fallback)', () => {
+    const s = setupDesktop(TEXT, 'Select');
+    const app = InkscapeApplication.instance();
+    app.set_active_desktop(s.dt);
+    expect(app.activate_action('doc.insert-text-fallback')).toBe(true);
+    expect(lines(s.item('t') as SPText)).toEqual([
+      ['20', '40', 'aaa '],
+      ['20', '60', 'bbb '],
+      ['20', '80', 'ccc'],
+    ]);
+    expect(lines(s.item('plain') as SPText)).toEqual([[null, null, 'plain']]);
+  });
+
+  it('keeps the line positions for app.text-unflow-and-keep-shape', () => {
+    const s = setupDesktop(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+        '<rect id="r" x="20" y="30" width="30" height="100"/>' +
+        '<text id="t" style="font-size:10px;line-height:2;shape-inside:url(#r)">aaa bbb</text></svg>',
+      'Select',
+    );
+    const app = InkscapeApplication.instance();
+    app.set_active_desktop(s.dt);
+    const text = s.item('t') as SPText;
+    s.dt.getSelection().set(text);
+    expect(app.activate_action('app.text-unflow-and-keep-shape')).toBe(true);
+    s.doc.ensureUpToDate();
+    expect(text.has_shape_inside()).toBe(false);
+    expect(lines(text).map(([x, , str]) => [x, str])).toEqual([
+      ['20', 'aaa '],
+      ['20', 'bbb'],
+    ]);
+    const [first, second] = lines(text).map(([, y]) => Number(y));
+    expect(second! - first!).toBe(20);
   });
 });

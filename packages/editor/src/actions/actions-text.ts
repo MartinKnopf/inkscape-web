@@ -25,6 +25,7 @@ import {
   text_unflow,
 } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
+import { insert_text_fallback } from './actions-svg-processing.ts';
 
 const SECTION = NC_('Action Section', 'Text');
 
@@ -90,7 +91,7 @@ export function add_actions_text(app: InkscapeApplication): void {
     withSelection((selection) => {
       const text = selection.singleItem();
       if (!(text instanceof SPText)) return;
-      // TODO: insert_text_fallback() (actions-svg-processing.cpp) to keep the line positions.
+      insert_text_fallback(text.getRepr(), text.document);
       text_hide_shape_inside(text);
     }),
   );
