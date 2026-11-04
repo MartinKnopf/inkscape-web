@@ -22,8 +22,11 @@ import {
   Preferences,
   removeoverlap,
   SPCloneCompensation,
+  SPFlowtext,
   type SPItem,
+  SPText,
   sp_repr_compare_position,
+  te_get_layout,
   unclump,
 } from '@inkscape-web/core';
 import { are_near, type OptRect, Point, type Rect, Translate } from '@inkscape-web/geom';
@@ -384,6 +387,130 @@ function object_remove_overlaps(selection: ObjectSet, value: string): void {
   DocumentUndo.done(document, C_('Undo', 'Remove overlaps'), 'dialog-align-and-distribute');
 }
 
+/** The anchor of the first baseline of a text or flowed text in desktop coordinates, or null. */
+function text_baseline(item: SPItem): Point | null {
+  if (!(item instanceof SPText || item instanceof SPFlowtext)) return null;
+  const pt = te_get_layout(item)?.baselineAnchorPoint();
+  return pt ? pt.transformed(item.i2dtAffine()) : null;
+}
+
+/**
+ * app.object-distribute-text: distribute the baseline anchors of the selected
+ * texts evenly, horizontally (default) or "vertical". One undo step "Distribute".
+ */
+export function object_distribute_text(selection: ObjectSet, value: string): void {
+  const orientation = value.includes('vertical') ? 'y' : 'x';
+  const document = selection.document();
+  if (!document || selection.size() < 2) return;
+
+  const baselines: { item: SPItem; base: Point }[] = [];
+  let b_min = Infinity;
+  let b_max = -Infinity;
+  for (const item of selection.items()) {
+    const base = text_baseline(item);
+    if (!base) continue;
+    b_min = Math.min(b_min, base[orientation]);
+    b_max = Math.max(b_max, base[orientation]);
+    baselines.push({ item, base });
+  }
+  if (baselines.length < 2) return;
+
+  // Array.prototype.sort is stable.
+  baselines.sort((a, b) => a.base[orientation] - b.base[orientation]);
+  const step = (b_max - b_min) / (baselines.length - 1);
+  baselines.forEach((baseline, i) => {
+    const t = b_min + step * i - baseline.base[orientation];
+    baseline.item.move_rel(orientation === 'x' ? Translate(t, 0) : Translate(0, t));
+  });
+
+  DocumentUndo.done(document, C_('Undo', 'Distribute'), 'dialog-align-and-distribute');
+}
+
+/**
+ * app.object-align-text: align the baseline anchors of the selected texts.
+ * value: [vertical | horizontal] [last|first|biggest|smallest|page|drawing|selection|pref]?
+ * Horizontal (default) moves along x. The reference is the baseline anchor of
+ * a text target, the minimum corner of the bounds of other targets.
+ */
+export function object_align_text(selection: ObjectSet, value: string): void {
+  const tokens = value.split(' ');
+
+  // Defaults
+  let target = ObjectAlignTarget.SELECTION;
+  let orientation: 'x' | 'y' = 'x';
+  let direction = CompareSize.HORIZONTAL;
+
+  // Preference request allows alignment action to remember for key-presses
+  if (tokens.includes('pref')) {
+    tokens.push(Preferences.get().getString('/dialogs/align/objects-align-to', 'selection'));
+  }
+
+  for (const token of tokens) {
+    // Target
+    if (token === 'last') target = ObjectAlignTarget.LAST;
+    else if (token === 'first') target = ObjectAlignTarget.FIRST;
+    else if (token === 'biggest') target = ObjectAlignTarget.BIGGEST;
+    else if (token === 'smallest') target = ObjectAlignTarget.SMALLEST;
+    else if (token === 'page') target = ObjectAlignTarget.PAGE;
+    else if (token === 'drawing') target = ObjectAlignTarget.DRAWING;
+    else if (token === 'selection') target = ObjectAlignTarget.SELECTION;
+
+    // Direction
+    if (token === 'vertical') {
+      orientation = 'y';
+      direction = CompareSize.VERTICAL;
+    }
+  }
+
+  const selected = selection.items();
+  const document = selection.document();
+  if (selected.length === 0 || !document) return;
+
+  // Find alignment rectangle. This can come from:
+  // - The bounding box of an object
+  // - The bounding box of a group of objects
+  // - The bounding box of the page, drawing, or selection.
+  let focus: SPItem | null = null;
+  let b: OptRect = null;
+  switch (target) {
+    case ObjectAlignTarget.LAST:
+      focus = selected.at(-1) ?? null;
+      break;
+    case ObjectAlignTarget.FIRST:
+      focus = selected[0] ?? null;
+      break;
+    case ObjectAlignTarget.BIGGEST:
+      focus = selection.largestItem(direction);
+      break;
+    case ObjectAlignTarget.SMALLEST:
+      focus = selection.smallestItem(direction);
+      break;
+    case ObjectAlignTarget.PAGE:
+      b = document.pageBounds();
+      break;
+    case ObjectAlignTarget.DRAWING:
+      b = document.getRoot().desktopPreferredBounds();
+      break;
+    case ObjectAlignTarget.SELECTION:
+      b = selection.preferredBounds();
+      break;
+  }
+
+  const ref_point = focus
+    ? (text_baseline(focus) ?? focus.desktopPreferredBounds()?.min() ?? null)
+    : (b?.min() ?? null);
+  if (!ref_point) return;
+
+  for (const item of selected) {
+    const base = text_baseline(item);
+    if (!base) continue;
+    const t = ref_point[orientation] - base[orientation];
+    item.move_rel(orientation === 'x' ? Translate(t, 0) : Translate(0, t));
+  }
+
+  DocumentUndo.done(document, C_('Undo', 'Align'), 'dialog-align-and-distribute');
+}
+
 /**
  * The actions of this file by name, without the "app." prefix, for detailed
  * action names like app.object-align('left pref').
@@ -393,6 +520,8 @@ export const object_align_actions: Readonly<Record<string, (selection: ObjectSet
   'object-distribute': object_distribute,
   'object-rearrange': object_rearrange,
   'object-remove-overlaps': object_remove_overlaps,
+  'object-align-text': object_align_text,
+  'object-distribute-text': object_distribute_text,
 };
 
 const SECTION = NC_('Action Section', 'Object');
@@ -427,9 +556,35 @@ export const raw_data_object_align: readonly (readonly [string, string, string, 
       'Remove overlaps between objects: requires two comma separated numbers (horizontal and vertical gaps)',
     ),
   ],
+  [
+    'app.object-align-text',
+    N_('Align text objects'),
+    SECTION,
+    N_(
+      'Align selected text anchors; usage: [[vertical | horizontal] [last|first|biggest|smallest|page|drawing|selection]?',
+    ),
+  ],
+  [
+    'app.object-distribute-text',
+    N_('Distribute text objects'),
+    SECTION,
+    N_('Distribute text anchors; usage [vertical | horizontal]'),
+  ],
+  [
+    "app.object-distribute-text('horizontal')",
+    N_('Distribute text horizontally'),
+    SECTION,
+    N_('Distribute text anchors horizontally'),
+  ],
+  [
+    "app.object-distribute-text('vertical')",
+    N_('Distribute text vertically'),
+    SECTION,
+    N_('Distribute text anchors vertically'),
+  ],
 ];
 
-/** Register app.object-align and app.object-distribute (string parameter). */
+/** Register app.object-align, app.object-distribute and their text variants (string parameter). */
 export function add_actions_object_align(app: InkscapeApplication): void {
   for (const [name, run] of Object.entries(object_align_actions)) {
     app.actions.app.add_action_with_parameter(name, 's', (value) => {

@@ -52,6 +52,8 @@ export interface FontFaceBackend {
   varAxes(): string;
   /** A face with the same data and the font variations ("wght=700,wdth=80"). */
   withVariations(variations: string): FontFaceBackend;
+  /** A face with the same data, emboldened (fontconfig's synthetic bold). */
+  withSyntheticBold(): FontFaceBackend;
   /** The font file data and the face index (for PDF export with cairo). */
   fontData?(): { data: Uint8Array; index: number };
 }

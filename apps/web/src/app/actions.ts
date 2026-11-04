@@ -220,6 +220,13 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     N_('Create multiple clones of selected object, arranging them into a pattern or scattering'),
   ],
   [
+    "win.dialog-open('FontCollections')",
+    N_('Open Font Collections'),
+    SECTION_DIALOG,
+    N_('Manage Font Collections'),
+  ],
+  ["win.dialog-open('SVGFonts')", N_('Open SVG Fonts'), SECTION_DIALOG, N_('Edit SVG fonts')],
+  [
     "win.dialog-open('XMLEditor')",
     N_('Open XML Editor'),
     SECTION_DIALOG,

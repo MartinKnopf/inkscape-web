@@ -268,6 +268,17 @@ void set_variations(int id, std::string const &variations)
     hb_font_set_variations(f->font, list.data(), list.size());
 }
 
+// Embolden the glyphs (fontconfig's synthetic bold: Pango sets FC_EMBOLDEN fonts to
+// hb_font_set_synthetic_bold). The strengths are in em; the advances grow too.
+void set_synthetic_bold(int id, double x_embolden, double y_embolden)
+{
+    auto f = get(id);
+    if (!f) {
+        return;
+    }
+    hb_font_set_synthetic_bold(f->font, x_embolden, y_embolden, false);
+}
+
 // Shape code points [offset, offset + length) of a paragraph (pango_shape_full, the rest is
 // context): direction is an hb_direction_t, script an ISO 15924 tag, features a comma separated
 // list in the hb_feature_from_string syntax. Returns [glyph, cluster, x_advance, y_advance,
@@ -608,6 +619,7 @@ EMSCRIPTEN_BINDINGS(text)
     emscripten::function("hasVExtents", &has_v_extents);
     emscripten::function("glyphPath", &glyph_path);
     emscripten::function("setVariations", &set_variations);
+    emscripten::function("setSyntheticBold", &set_synthetic_bold);
     emscripten::function("shape", &shape);
     emscripten::function("name", &name);
     emscripten::function("gsubTables", &gsub_tables);

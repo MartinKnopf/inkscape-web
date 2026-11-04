@@ -38,6 +38,7 @@ import {
 import type { SPDesktop } from '../../desktop.ts';
 import { sp_desktop_set_style } from '../../desktop-style.ts';
 import { FontLister, isTextObject } from '../../libnrtype/font-lister.ts';
+import { RecentlyUsedFonts } from '../../util/font-collections.ts';
 import {
   type FontVariantsState,
   font_variants_fill_css,
@@ -140,5 +141,6 @@ export function onApply(desktop: SPDesktop, font: TextEditFont, text: string | n
     if (sp_te_get_string_multiline(item) !== text) sp_te_set_repr_text_multiline(item, text);
   }
   FontLister.get_instance().add_document_fonts_at_top(desktop.getDocument());
+  RecentlyUsedFonts.get().prepend_to_list(font.family);
   DocumentUndo.done(desktop.getDocument(), C_('Undo', 'Set text style'), 'draw-text');
 }

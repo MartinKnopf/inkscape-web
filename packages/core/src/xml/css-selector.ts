@@ -185,6 +185,23 @@ export function selectorMatches(selector: CssSelector, node: Node, index = selec
   }
 }
 
+/**
+ * The specificity of a selector as one number, a * 10000 + b * 100 + c with a the ids, b the
+ * classes, attributes and pseudo classes and c the element names (upstream
+ * cr_simple_sel_compute_specificity).
+ */
+export function selectorSpecificity(selector: CssSelector): number {
+  let a = 0;
+  let b = 0;
+  let c = 0;
+  for (const s of selector) {
+    if (s.id !== null) a++;
+    b += s.classes.length + s.attrs.length + (s.firstChild ? 1 : 0);
+    if (s.type !== null) c++;
+  }
+  return a * 10000 + b * 100 + c;
+}
+
 /** Whether any selector of the list matches the node. */
 export function selectorListMatches(selectors: readonly CssSelector[], node: Node): boolean {
   return selectors.some((s) => selectorMatches(s, node));

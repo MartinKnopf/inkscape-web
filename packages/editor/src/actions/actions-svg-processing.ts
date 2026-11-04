@@ -8,6 +8,7 @@
  * The contents of this file may be used under the GNU General Public License Version 2 or later.
  */
 import {
+  emptyOptionalTextTagAttrs,
   hatch_polyfill,
   item_find_paths,
   item_to_paths,
@@ -18,6 +19,9 @@ import {
   ObjectSet,
   type SPDocument,
   SPItem,
+  SPString,
+  SPText,
+  SPTextAnchor,
   SVGBox,
   sp_item_list_to_curves,
   sp_repr_lookup_descendant,
@@ -31,6 +35,7 @@ import {
   spReprCssSet,
   spReprCssSetProperty,
   spReprCssUnsetProperty,
+  TextTagAttributes,
 } from '@inkscape-web/core';
 import { type OptRect, Scale } from '@inkscape-web/geom';
 import type { InkscapeApplication } from '../inkscape-application.ts';
@@ -40,7 +45,6 @@ const SECTION = NC_('Action Section', 'Processing');
 
 /**
  * Action id, label, section and tooltip (untranslated).
- * TODO: insert-text-fallback (it needs the text layout).
  */
 export const doc_svg_processing_actions: readonly (readonly [string, string, string, string])[] = [
   [
@@ -140,6 +144,7 @@ export const doc_svg_processing_actions: readonly (readonly [string, string, str
     N_('Annotate every non-path shape with their equivalent path string (not kept up to date)'),
   ],
   ['doc.vacuum-defs', N_('Clean up Document'), SECTION, N_('Remove unused definitions (gradients, etc.)')],
+  ['doc.insert-text-fallback', N_('Insert Text Fallback'), SECTION, N_('Replace SVG2 text with SVG1.1 text')],
 ];
 
 const starts = (name: string, prefix: string): boolean => name.startsWith(prefix);
@@ -358,6 +363,171 @@ export function normalize_all_paths(node: Node): void {
   for (const child of node.children()) normalize_all_paths(child);
 }
 
+/**
+ * Recursively insert SVG 1.1 fallback for SVG 2 text (ignored by SVG 2 renderers including ours):
+ * the children of each text with inline-size or shape-inside are replaced by
+ * one tspan with x and y per line of the layout.
+ * Notes:
+ *   Text must have been layed out.
+ */
+export function insert_text_fallback(repr: Node | null, doc: SPDocument): void {
+  if (!repr) return;
+  if (repr.name() === 'svg:text') {
+    // We need to get the SPText object to access layout.
+    const text = doc.getObjectByRepr(repr);
+    if (!(text instanceof SPText)) {
+      console.error('insert_text_fallback: bad cast');
+      return;
+    }
+    if (!text.has_inline_size() && !text.has_shape_inside()) {
+      // No SVG 2 text, nothing to do.
+      return;
+    }
+
+    // We will keep this text node but replace all children.
+    // Text object must be visible for the text calculatons to work
+    const was_hidden = text.isHidden();
+    text.setHidden(false);
+    text.rebuildLayout();
+    const layout = text.layout;
+    const xml_doc = doc.getReprDoc();
+
+    // For text in a shape, We need to unset 'text-anchor' or SVG 1.1 fallback won't work.
+    if (text.has_shape_inside()) {
+      const css = spReprCssAttr(repr, 'style');
+      spReprCssUnsetProperty(css, 'text-anchor');
+      spReprCssSet(repr, css, 'style');
+    }
+
+    // We need to put trailing white space into its own tspan for inline size so
+    // it is excluded during calculation of line position in SVG 1.1 renderers.
+    const trim =
+      text.has_inline_size() && text.style.text_anchor.computed !== SPTextAnchor.SP_CSS_TEXT_ANCHOR_START;
+
+    // Make a list of children to delete at end:
+    const old_children = [...repr.children()];
+
+    // For round-tripping, xml:space (or 'white-space:pre') must be set.
+    repr.setAttribute('xml:space', 'preserve');
+
+    const text_x = repr.getAttributeDouble('x', 0.0);
+    const text_y = repr.getAttributeDouble('y', 0.0);
+
+    // Loop over all lines in layout.
+    let it = layout.begin();
+    while (!it.equals(layout.end())) {
+      // Create a <tspan> with 'x' and 'y' for each line.
+      const line_tspan = xml_doc.createElement('svg:tspan');
+
+      // Hide overflow tspan (one line of text).
+      if (layout.isHidden(it)) line_tspan.setAttribute('style', 'visibility:hidden');
+
+      const line_anchor_point = layout.characterAnchorPoint(it);
+      const line_x = line_anchor_point.x;
+      const line_y = line_anchor_point.y;
+
+      if (text.is_horizontal()) {
+        // With inline-size, text_x is the reference for 'text-anchor' (line_x is the start
+        // of the line which gives wrong position when 'text-anchor' not start); with
+        // shape-inside we don't have to worry about 'text-anchor'.
+        line_tspan.setAttributeSvgDouble('x', text.has_inline_size() ? text_x : line_x);
+        line_tspan.setAttributeSvgDouble('y', line_y); // FIXME: this will pick up the wrong end of counter-directional runs
+      } else {
+        line_tspan.setAttributeSvgDouble('x', line_x); // FIXME: this will pick up the wrong end of counter-directional runs
+        line_tspan.setAttributeSvgDouble('y', text.has_inline_size() ? text_y : line_y);
+      }
+
+      // Inside line <tspan>, create <tspan>s for each change of style or shift. (No shifts in SVG 2 flowed text.)
+      // For simple lines, this creates an unneeded <tspan> but so be it.
+      const it_line_end = it.copy();
+      it_line_end.nextStartOfLine();
+
+      // Find last span in line so we can put trailing whitespace in its own tspan for SVG 1.1 fallback.
+      const it_last_span = it.copy();
+      it_last_span.nextStartOfLine();
+      it_last_span.prevStartOfSpan();
+
+      let trailing_whitespace = '';
+
+      // Loop over chunks in line
+      while (!it.equals(it_line_end)) {
+        let span_tspan = xml_doc.createElement('svg:tspan');
+
+        // use kerning to simulate justification and whatnot
+        const it_span_end = it.copy();
+        it_span_end.nextStartOfSpan();
+        const attrs = emptyOptionalTextTagAttrs();
+        layout.simulateLayoutUsingKerning(it, it_span_end, attrs);
+
+        // 'dx' and 'dy' attributes are used to simulated justified text.
+        if (!text.is_horizontal()) [attrs.dx, attrs.dy] = [attrs.dy, attrs.dx];
+        const tag = new TextTagAttributes();
+        tag.attributes = attrs;
+        tag.writeTo(span_tspan);
+        const { source: source_obj, text_offset: start } = layout.getSourceOfCharacter(it);
+
+        // Set tspan style
+        const style_obj = source_obj instanceof SPString ? source_obj.parent : source_obj;
+        const style_text = style_obj?.style.writeIfDiff(text.style) ?? '';
+        if (style_text) span_tspan.setAttributeOrRemoveIfEmpty('style', style_text);
+
+        // If this tspan has no attributes, discard it and add content directly to parent element.
+        if (span_tspan.attributeList().length === 0) span_tspan = line_tspan;
+        else line_tspan.appendChild(span_tspan);
+
+        // Add text node
+        if (source_obj instanceof SPString) {
+          const string = source_obj.string;
+          let { source: span_end_obj, text_offset: end } = layout.getSourceOfCharacter(it_span_end);
+          if (span_end_obj !== source_obj) {
+            if (it_span_end.equals(layout.end())) {
+              const n = layout.iteratorToCharIndex(it_span_end) - layout.iteratorToCharIndex(it);
+              end = start + [...string.slice(start)].slice(0, n).join('').length;
+            } else {
+              end = string.length; // spans will never straddle a source boundary
+            }
+          }
+          span_end_obj = null;
+          if (start !== end) {
+            let new_string = string.slice(start, end);
+            if (it.equals(it_last_span) && trim) {
+              // Found last span in line
+              const s = new_string.search(/[ \t]*$/); // Any other white space characters needed?
+              trailing_whitespace = new_string.slice(s);
+              new_string = new_string.slice(0, s);
+            }
+            span_tspan.appendChild(xml_doc.createTextNode(new_string));
+          }
+        }
+        it = it_span_end;
+      }
+
+      // Add line tspan to document
+      repr.appendChild(line_tspan);
+
+      // For center and end justified text, we need to remove any spaces and put them
+      // into a separate tspan (alignment is done by "text chunk" and spaces at ends of
+      // line will mess this up).
+      if (trim && trailing_whitespace.length !== 0) {
+        const space_tspan = xml_doc.createElement('svg:tspan');
+        // Set either 'x' or 'y' to force a new text chunk. To do: this really should
+        // be positioned at the end of the line (overhanging).
+        if (text.is_horizontal()) space_tspan.setAttributeSvgDouble('y', line_y);
+        else space_tspan.setAttributeSvgDouble('x', line_x);
+        space_tspan.appendChild(xml_doc.createTextNode(trailing_whitespace));
+        line_tspan.appendChild(space_tspan);
+      }
+    }
+
+    for (const i of old_children) repr.removeChild(i);
+
+    text.setHidden(was_hidden);
+    return; // No need to look at children of <text>
+  }
+
+  for (const child of [...repr.children()]) insert_text_fallback(child, doc);
+}
+
 export function add_actions_processing(app: InkscapeApplication): void {
   const map = app.actions.doc;
   const run = (f: (doc: SPDocument) => void) => () => {
@@ -449,6 +619,10 @@ export function add_actions_processing(app: InkscapeApplication): void {
   map.add_action(
     'vacuum-defs',
     run((doc) => void doc.vacuumDocument()),
+  );
+  map.add_action(
+    'insert-text-fallback',
+    run((doc) => insert_text_fallback(doc.getReprRoot(), doc)),
   );
   app.get_action_extra_data().add_data(doc_svg_processing_actions);
 }

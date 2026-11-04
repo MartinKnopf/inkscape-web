@@ -34,7 +34,10 @@ const RELATIVE_TO: [label: string, id: string][] = [
 /** The choices offered for a single selected item. */
 const single_selection_relative_categories = new Set(['drawing', 'page']);
 
-/** Align buttons: icon, object-align argument and tooltip, in the order of the .ui file. */
+/**
+ * Align buttons: icon, object-align argument and tooltip, in the order of the
+ * .ui file. "horizontal" and "vertical" (text anchors) run object-align-text.
+ */
 const ALIGN_BUTTONS: [icon: string, argument: string, tooltip: string][] = [
   [
     'align-horizontal-right-to-anchor',
@@ -49,6 +52,7 @@ const ALIGN_BUTTONS: [icon: string, argument: string, tooltip: string][] = [
     'left anchor',
     'Align left edges of objects to the right edge of anchor',
   ],
+  ['align-horizontal-baseline', 'horizontal', 'Align text anchors horizontally'],
   [
     'align-vertical-bottom-to-anchor',
     'bottom anchor',
@@ -58,18 +62,61 @@ const ALIGN_BUTTONS: [icon: string, argument: string, tooltip: string][] = [
   ['align-vertical-center', 'vcenter', 'Center on horizontal axis'],
   ['align-vertical-bottom', 'bottom', 'Align bottom edges'],
   ['align-vertical-top-to-anchor', 'top anchor', 'Align top edges of objects to bottom edge of anchor'],
+  ['align-vertical-baseline', 'vertical', 'Align text anchors vertically'],
 ];
 
-/** Distribute buttons: icon, object-distribute argument and tooltip. */
-const DISTRIBUTE_BUTTONS: [icon: string, argument: string, tooltip: string][] = [
-  ['distribute-horizontal-left', 'left', 'Distribute horizontally with even spacing between left edges'],
-  ['distribute-horizontal-center', 'hcenter', 'Distribute horizontally with even spacing between centers'],
-  ['distribute-horizontal-right', 'right', 'Distribute horizontally with even spacing between right edges'],
-  ['distribute-horizontal-gaps', 'hgap', 'Distribute horizontally with even horizontal gaps'],
-  ['distribute-vertical-top', 'top', 'Distribute vertically with even spacing between top edges'],
-  ['distribute-vertical-center', 'vcenter', 'Distribute vertically with even spacing between centers'],
-  ['distribute-vertical-bottom', 'bottom', 'Distribute vertically with even spacing between bottom edges'],
-  ['distribute-vertical-gaps', 'vgap', 'Distribute vertically with even vertical gaps'],
+/** Distribute buttons: icon, action and tooltip. */
+const DISTRIBUTE_BUTTONS: [icon: string, action: string, tooltip: string][] = [
+  [
+    'distribute-horizontal-left',
+    "app.object-distribute('left')",
+    'Distribute horizontally with even spacing between left edges',
+  ],
+  [
+    'distribute-horizontal-center',
+    "app.object-distribute('hcenter')",
+    'Distribute horizontally with even spacing between centers',
+  ],
+  [
+    'distribute-horizontal-right',
+    "app.object-distribute('right')",
+    'Distribute horizontally with even spacing between right edges',
+  ],
+  [
+    'distribute-horizontal-gaps',
+    "app.object-distribute('hgap')",
+    'Distribute horizontally with even horizontal gaps',
+  ],
+  [
+    'distribute-horizontal-baseline',
+    "app.object-distribute-text('horizontal')",
+    'Distribute text anchors horizontally',
+  ],
+  [
+    'distribute-vertical-top',
+    "app.object-distribute('top')",
+    'Distribute vertically with even spacing between top edges',
+  ],
+  [
+    'distribute-vertical-center',
+    "app.object-distribute('vcenter')",
+    'Distribute vertically with even spacing between centers',
+  ],
+  [
+    'distribute-vertical-bottom',
+    "app.object-distribute('bottom')",
+    'Distribute vertically with even spacing between bottom edges',
+  ],
+  [
+    'distribute-vertical-gaps',
+    "app.object-distribute('vgap')",
+    'Distribute vertically with even vertical gaps',
+  ],
+  [
+    'distribute-vertical-baseline',
+    "app.object-distribute-text('vertical')",
+    'Distribute text anchors vertically',
+  ],
 ];
 
 function IconButton(props: { icon: string; tooltip: string; pressed?: boolean; onClick: () => void }) {
@@ -91,8 +138,8 @@ function IconButton(props: { icon: string; tooltip: string; pressed?: boolean; o
  * The Align and Distribute dialog (dialog key "AlignDistribute"): runs
  * app.object-align and app.object-distribute on the selection. "Relative to"
  * is remembered separately for a single item and for several items, as upstream.
- * TODO: on-canvas alignment handles (app.object-align-on-canvas), text
- * baselines (object-align-text, object-distribute-text), Rearrange, Remove
+ * The text anchor buttons run app.object-align-text and app.object-distribute-text.
+ * TODO: on-canvas alignment handles (app.object-align-on-canvas), Rearrange, Remove
  * overlaps, node alignment for the node tool, icon size preference.
  */
 export function AlignAndDistributeDialog() {
@@ -120,8 +167,12 @@ export function AlignAndDistributeDialog() {
     else choices.current.multi = id;
     rerender((n) => n + 1);
   };
-  const onAlign = (argument: string) =>
-    void runAction(`app.object-align('${argument} ${align_to}${asGroup ? ' group' : ''}')`);
+  // Upstream on_align_clicked: the text anchor buttons ("horizontal", "vertical") use object-align-text.
+  const onAlign = (argument: string) => {
+    const action =
+      argument === 'horizontal' || argument === 'vertical' ? 'object-align-text' : 'object-align';
+    void runAction(`app.${action}('${argument} ${align_to}${asGroup ? ' group' : ''}')`);
+  };
 
   return (
     <div className="align-dialog">
@@ -157,13 +208,8 @@ export function AlignAndDistributeDialog() {
       <fieldset className="align-frame">
         <legend>{_('Distribute')}</legend>
         <div className="align-grid distribute">
-          {DISTRIBUTE_BUTTONS.map(([icon, argument, tooltip]) => (
-            <IconButton
-              key={icon}
-              icon={icon}
-              tooltip={tooltip}
-              onClick={() => void runAction(`app.object-distribute('${argument}')`)}
-            />
+          {DISTRIBUTE_BUTTONS.map(([icon, action, tooltip]) => (
+            <IconButton key={icon} icon={icon} tooltip={tooltip} onClick={() => void runAction(action)} />
           ))}
         </div>
       </fieldset>

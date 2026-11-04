@@ -41,6 +41,10 @@ import { SPFilter } from './sp-filter.ts';
 import { SPFlowdiv, SPFlowline, SPFlowpara, SPFlowregionbreak, SPFlowtspan } from './sp-flowdiv.ts';
 import { SPFlowregion, SPFlowregionExclude } from './sp-flowregion.ts';
 import { SPFlowtext } from './sp-flowtext.ts';
+import { SPFont } from './sp-font.ts';
+import { SPFontFace } from './sp-font-face.ts';
+import { SPGlyph, SPMissingGlyph } from './sp-glyph.ts';
+import { SPHkern, SPVkern } from './sp-glyph-kerning.ts';
 import { SPGrid } from './sp-grid.ts';
 import { SPGuide } from './sp-guide.ts';
 import { SPHatch } from './sp-hatch.ts';
@@ -69,8 +73,10 @@ import { SPSpiral } from './sp-spiral.ts';
 import { SPStar } from './sp-star.ts';
 import { SPStop } from './sp-stop.ts';
 import { SPString } from './sp-string.ts';
+import { SPStyleElem } from './sp-style-elem.ts';
 import { SPSymbol } from './sp-symbol.ts';
 import { SPText } from './sp-text.ts';
+import { SPTRef } from './sp-tref.ts';
 import { SPTextPath, SPTSpan } from './sp-tspan.ts';
 import { SPUse } from './sp-use.ts';
 
@@ -117,9 +123,17 @@ const map = new Map<string, (() => SPObject) | null>([
   ['svg:use', () => new SPUse()],
   ['svg:view', () => new SPPage()],
   ['svg:stop', () => new SPStop()],
+  ['svg:style', () => new SPStyleElem()],
+  ['svg:font', () => new SPFont()],
+  ['svg:font-face', () => new SPFontFace()],
+  ['svg:glyph', () => new SPGlyph()],
+  ['svg:missing-glyph', () => new SPMissingGlyph()],
+  ['svg:hkern', () => new SPHkern()],
+  ['svg:vkern', () => new SPVkern()],
   ['svg:symbol', () => new SPSymbol()],
   ['svg:text', () => new SPText()],
   ['svg:tspan', () => new SPTSpan()],
+  ['svg:tref', () => new SPTRef()],
   ['svg:textPath', () => new SPTextPath()],
   ['svg:flowDiv', () => new SPFlowdiv()],
   ['svg:flowSpan', () => new SPFlowtspan()],

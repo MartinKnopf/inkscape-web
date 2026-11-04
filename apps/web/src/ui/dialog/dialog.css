@@ -373,12 +373,12 @@
 
 .align-grid {
   display: grid;
-  grid-template-columns: repeat(5, 28px);
+  grid-template-columns: repeat(6, 28px);
   gap: 2px;
 }
 
 .align-grid.distribute {
-  grid-template-columns: repeat(4, 28px);
+  grid-template-columns: repeat(5, 28px);
 }
 
 .align-button {
@@ -1197,4 +1197,212 @@
   gap: 4px;
   padding: 4px;
   border-top: 1px solid #ccc;
+}
+
+/* Font Browser, font collections */
+.font-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+.font-list-popover {
+  position: relative;
+}
+
+.font-list-popover > summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.font-collection-selector {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 12px;
+}
+
+.font-collection-selector hr {
+  width: 100%;
+  margin: 2px 0;
+}
+
+.font-collection-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.font-list-items {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  border: 1px solid #ccc;
+}
+
+.font-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  align-content: start;
+}
+
+.font-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.font-list-grid .font-list-item {
+  align-items: center;
+}
+
+.font-list-item[aria-selected="true"],
+.font-collections-tree [aria-current="true"] {
+  background: #cfe2f7;
+}
+
+.font-list-name {
+  font-size: 11px;
+  color: #555;
+}
+
+.font-list-count {
+  font-size: 11px;
+  color: #555;
+}
+
+.font-collections-manager {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+  padding: 8px;
+  background: #fff;
+}
+
+.font-collections-fonts,
+.font-collections-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.font-collections-tree {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 0 0 0 4px;
+  border: 1px solid #ccc;
+  list-style: none;
+  font-size: 12px;
+}
+
+.font-collections-tree ul {
+  margin: 0;
+  padding-left: 14px;
+  list-style: none;
+}
+
+.font-collections-tree button {
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.font-collections-system {
+  color: #777;
+}
+
+/* SVG Font Editor */
+.svg-fonts-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 8px;
+  overflow: auto;
+  background: #fff;
+}
+
+.svg-fonts-fontlist {
+  display: flex;
+  flex-direction: column;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px solid #ccc;
+}
+
+.svg-fonts-fontname {
+  border: 0;
+  padding: 2px 4px;
+}
+
+.svg-fonts-fontname[aria-selected="true"] {
+  background: #dbe8ff;
+}
+
+.svg-fonts-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.svg-fonts-attr {
+  display: grid;
+  grid-template-columns: 11em 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.svg-fonts-glyphs {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.svg-fonts-glyphs td,
+.svg-fonts-glyphs th {
+  padding: 1px 4px;
+  text-align: left;
+}
+
+.svg-fonts-glyphs input {
+  width: 100%;
+  min-width: 3em;
+}
+
+.svg-fonts-glyphs tr[aria-selected="true"] {
+  background: #dbe8ff;
+}
+
+.svg-fonts-text {
+  overflow: visible;
+  fill: currentColor;
+}
+
+.svg-fonts-preview {
+  border-top: 1px solid #ddd;
+  padding-top: 6px;
+  overflow-x: auto;
+}
+
+.svg-fonts-message {
+  margin: 0;
+  color: #a00;
 }

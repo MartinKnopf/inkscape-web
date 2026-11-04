@@ -82,6 +82,7 @@ import {
 import { SPRect } from './sp-rect.ts';
 import { SPShape } from './sp-shape.ts';
 import { SPString } from './sp-string.ts';
+import { SPTRef } from './sp-tref.ts';
 import {
   SP_IS_TEXT_TEXTPATH,
   SP_TEXT_CONTENT_MODIFIED_FLAG,
@@ -97,7 +98,7 @@ import { TextTagAttributes } from './text-tag-attributes.ts';
 /**
  * svg:text (upstream SPText). The layout is rebuilt from the children in
  * update(); the drawing shows the layout's spans.
- * TODO: tref children, print, getLinked, the gradient adjustment in setTransform.
+ * TODO: print, getLinked, the gradient adjustment in setTransform.
  */
 export class SPText extends SPItem {
   readonly attributes = new TextTagAttributes();
@@ -121,7 +122,11 @@ export class SPText extends SPItem {
 
   override set(key: SPAttr, value: string | null): void {
     if (this.attributes.readSingleAttribute(key, value, this.style, this.viewport)) {
-      this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+      // Upstream requests only SP_OBJECT_MODIFIED_FLAG; its layout follows because write()
+      // sets the content of the string children again, and upstream's setContent() always
+      // notifies. The port's setContent() does not notify for equal content, so a moved text
+      // without tspans asks for the new layout here.
+      this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG | SP_TEXT_LAYOUT_MODIFIED_FLAG);
       return;
     }
     if (key === SPAttr.SODIPODI_LINESPACING) {
@@ -346,6 +351,7 @@ export class SPText extends SPItem {
     // it doesn't matter if we change the x,y for role=line spans because we'll just overwrite them anyway
     if (item instanceof SPTSpan || item instanceof SPText) item.attributes.transform(m, ex, ex, is_root);
     else if (item instanceof SPTextPath) item.attributes.transform(m, ex, ex, is_root);
+    else if (item instanceof SPTRef) item.attributes.transform(m, ex, ex, is_root);
     else return;
     for (const o of item.children) if (o instanceof SPItem) SPText._adjustCoordsRecursive(o, m, ex, false);
   }
@@ -623,8 +629,9 @@ export class SPText extends SPItem {
       object.attributes.mergeInto(optional_attrs, parent_optional_attrs, parent_attrs_offset, false, true);
       optional_attrs.x = []; // Hmm, you can use x with horizontal text. So this is probably wrong.
       optional_attrs.y = [];
+    } else if (object instanceof SPTRef) {
+      object.attributes.mergeInto(optional_attrs, parent_optional_attrs, parent_attrs_offset, true, true);
     } else {
-      // TODO: tref.
       optional_attrs = parent_optional_attrs;
       child_attrs_offset = parent_attrs_offset;
     }

@@ -18,6 +18,7 @@ import { SPItem } from './object/sp-item.ts';
 import { SP_OBJECT_MODIFIED_FLAG, type SPObject } from './object/sp-object.ts';
 import { SPString } from './object/sp-string.ts';
 import { SPText } from './object/sp-text.ts';
+import { SPTRef } from './object/sp-tref.ts';
 import { SP_TSPAN_ROLE_LINE, SP_TSPAN_ROLE_UNSPECIFIED, SPTSpan } from './object/sp-tspan.ts';
 import { TextTagAttributes } from './object/text-tag-attributes.ts';
 import { SP_STYLE_FLAG_ALWAYS, type SPStyle, SPStyle as SPStyleClass } from './style.ts';
@@ -124,7 +125,8 @@ export function is_line_break_object(object: SPObject | null): boolean {
 
 /** The attributes of a text, tspan, tref or textpath object, or null. */
 function attributes_for_object(object: SPObject | null): TextTagAttributes | null {
-  if (object instanceof SPTSpan || object instanceof SPText) return object.attributes;
+  if (object instanceof SPTSpan || object instanceof SPText || object instanceof SPTRef)
+    return object.attributes;
   return null;
 }
 

@@ -6,8 +6,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
 | Tools | 24 | 26 | 92 |
-| Dialogs | 25 | 29 | 86 |
-| Actions | 338 | 409 | 83 |
+| Dialogs | 28 | 29 | 97 |
+| Actions | 344 | 409 | 84 |
 | Live path effects | 24 | 56 | 43 |
 | Internal import/export modules | 7 | 35 | 20 |
 | Python extensions | 154 | 160 | 96 |
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (25/29)</summary>
+<details><summary>Dialogs (28/29)</summary>
 
 - [x] `AlignDistribute`
 - [x] `CloneTiler`
@@ -56,15 +56,15 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `FilterEffects`
 - [x] `FilterGallery`
 - [x] `Find`
-- [ ] `FontBrowser`
-- [ ] `FontCollections`
+- [x] `FontBrowser`
+- [x] `FontCollections`
 - [x] `IconPreview`
 - [x] `LivePathEffect`
 - [x] `ObjectProperties`
 - [x] `Objects`
 - [x] `Preferences`
 - [ ] `Prototype`
-- [ ] `SVGFonts`
+- [x] `SVGFonts`
 - [x] `Selectors`
 - [x] `Spellcheck`
 - [x] `Swatches`
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (338/409)</summary>
+<details><summary>Actions (344/409)</summary>
 
 - [x] `app.about`
 - [x] `app.action-list`
@@ -148,9 +148,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.object-add-corners-lpe`
 - [x] `app.object-align`
 - [ ] `app.object-align-on-canvas`
-- [ ] `app.object-align-text`
+- [x] `app.object-align-text`
 - [x] `app.object-distribute`
-- [ ] `app.object-distribute-text`
+- [x] `app.object-distribute-text`
 - [x] `app.object-flip-horizontal`
 - [x] `app.object-flip-vertical`
 - [x] `app.object-get-attribute`
@@ -293,7 +293,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `doc.insert-hatch-polyfill`
 - [x] `doc.insert-mesh-polyfill`
 - [x] `doc.insert-path-data`
-- [ ] `doc.insert-text-fallback`
+- [x] `doc.insert-text-fallback`
 - [x] `doc.lock-all-guides`
 - [x] `doc.normalize-all-paths`
 - [x] `doc.page-delete`
@@ -475,9 +475,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.snap-text-baseline`
 - [x] `win.tab-next`
 - [x] `win.tab-previous`
-- [ ] `win.text-decoration-line-line-through`
-- [ ] `win.text-decoration-line-overline`
-- [ ] `win.text-decoration-line-underline`
+- [x] `win.text-decoration-line-line-through`
+- [x] `win.text-decoration-line-overline`
+- [x] `win.text-decoration-line-underline`
 - [x] `win.tool-switch`
 - [ ] `win.tool-toggle`
 - [x] `win.transform-grow-screen`
