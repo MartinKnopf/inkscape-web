@@ -143,4 +143,24 @@ describe('DrawingPaintServers', () => {
       '150',
     ]);
   });
+
+  it('mirrors a hatch as a pattern of stroked strips with the hatch transform', () => {
+    const doc = SPDocument.createNewDocFromMem(
+      '<svg xmlns="http://www.w3.org/2000/svg"><defs>' +
+        '<hatch id="h" hatchUnits="userSpaceOnUse" pitch="15" rotate="90" style="stroke:#ff0000;stroke-width:2;overflow:visible">' +
+        '<hatchpath offset="5" d="M 0,0 5,10"/></hatch></defs><rect id="a" width="100" height="50" style="fill:url(#h)"/></svg>',
+    )!;
+    doc.ensureUpToDate();
+    const { drawing, element } = show(doc);
+    const id = /url\(#(.+)\)/.exec(element('a').style.getPropertyValue('fill'))?.[1];
+    const mirror = drawing.defs.querySelector(`#${id}`);
+    expect(mirror?.tagName).toBe('pattern');
+    expect(
+      ['patternUnits', 'width', 'height', 'patternTransform'].map((a) => mirror?.getAttribute(a)),
+    ).toEqual(['userSpaceOnUse', '15', '10', 'matrix(0,1,-1,0,0,0)']);
+    const paths = [...(mirror?.querySelectorAll('path') ?? [])];
+    // The path (x 0..5 at offset 5, stroke 2) reaches into the tile only from the strip at 0.
+    expect(paths.map((p) => p.getAttribute('transform'))).toEqual(['translate(5,0)']);
+    expect(paths[0]?.getAttribute('style')).toContain('stroke:#ff0000');
+  });
 });

@@ -15,12 +15,17 @@ import {
   type SPGradientPatch,
   SPGradientSpread,
   SPGradientUnits,
+  SPHatch,
+  type SPHatchPath,
   SPItem,
   SPMeshGradient,
+  SPOverflow,
   type SPPaintServer,
   SPPattern,
+  type SPStyle,
+  sp_svg_write_path,
 } from '@inkscape-web/core';
-import { type Point, Rect } from '@inkscape-web/geom';
+import { Interval, type Point, Rect, Rotate, Translate } from '@inkscape-web/geom';
 import { matrixString, type SvgDrawingItem } from './drawing-item.ts';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -50,7 +55,9 @@ interface Mirror {
  * rasterizeMesh() (Chromium has no mesh gradients; upstream renders cairo mesh patterns). The tile
  * is three times the mesh size, with the mesh in the middle, so that the repetition stays outside
  * of the objects that use the mesh.
- * TODO: hatches.
+ * A hatch becomes an svg:pattern too (Chromium has no hatches; upstream renders the strips with
+ * Cairo): one tile is one pitch wide and as high as the repeat of the hatch paths, which are
+ * drawn as stroked svg:path elements (see renderHatch()).
  */
 export class DrawingPaintServers {
   readonly defs: SVGDefsElement;
@@ -72,11 +79,14 @@ export class DrawingPaintServers {
       type !== PaintServerType.LINEAR_GRADIENT &&
       type !== PaintServerType.RADIAL_GRADIENT &&
       type !== PaintServerType.PATTERN &&
-      type !== PaintServerType.MESH_GRADIENT
+      type !== PaintServerType.MESH_GRADIENT &&
+      type !== PaintServerType.HATCH_PATTERN
     ) {
       return null;
     }
-    if (type === PaintServerType.PATTERN && !server.isValid()) return null;
+    if ((type === PaintServerType.PATTERN || type === PaintServerType.HATCH_PATTERN) && !server.isValid()) {
+      return null;
+    }
     let mirror = this.#mirrors.get(server);
     if (!mirror) {
       const tag =
@@ -84,7 +94,7 @@ export class DrawingPaintServers {
           ? 'linearGradient'
           : type === PaintServerType.RADIAL_GRADIENT
             ? 'radialGradient'
-            : 'pattern'; // patterns and meshes
+            : 'pattern'; // patterns, meshes and hatches
       const element = this.defs.ownerDocument.createElementNS(SVG_NS, tag) as SVGElement;
       element.id = `${this.#prefix}${++this.#counter}`;
       this.defs.append(element);
@@ -126,6 +136,10 @@ export class DrawingPaintServers {
     }
     if (server instanceof SPMeshGradient) {
       renderMesh(server, element);
+      return;
+    }
+    if (server instanceof SPHatch) {
+      renderHatch(server, element);
       return;
     }
     const gradient = server as SPGradient;
@@ -228,6 +242,93 @@ export class DrawingPaintServers {
     }
     mirror.shown = undefined;
     mirror.key = undefined;
+  }
+}
+
+/** The stroke properties of a hatch path for its svg:path. */
+function hatchPathStyle(style: SPStyle): string {
+  const css = ['fill:none'];
+  const stroke = style.stroke;
+  css.push(`stroke:${stroke.isColor() ? stroke.getColor().toString(false) : 'none'}`);
+  css.push(`stroke-width:${style.stroke_width.computed}`);
+  css.push(`stroke-opacity:${style.stroke_opacity.as_double()}`);
+  const dashes = style.stroke_dasharray.values.map((d) => d.value);
+  if (dashes.length) {
+    css.push(`stroke-dasharray:${dashes.join(' ')}`, `stroke-dashoffset:${style.stroke_dashoffset.value}`);
+  }
+  css.push(`stroke-linecap:${['butt', 'round', 'square'][style.stroke_linecap.computed] ?? 'butt'}`);
+  css.push(`stroke-linejoin:${['miter', 'round', 'bevel'][style.stroke_linejoin.computed] ?? 'miter'}`);
+  css.push(`stroke-miterlimit:${style.stroke_miterlimit.value}`);
+  return css.join(';');
+}
+
+/** A common multiple of the repeat lengths of the paths (1 if no path repeats). */
+function hatchRepeat(paths: readonly SPHatchPath[]): number {
+  let h = 0;
+  for (const p of paths) {
+    const r = p.curve() ? p._repeatLength() : 0;
+    if (r <= 0) continue;
+    if (h === 0) {
+      h = r;
+      continue;
+    }
+    // The smallest multiple of h that is a multiple of r (within 1e-6), at most 64 repeats.
+    let m = h;
+    for (let k = 1; k <= 64; k++, m = h * k) {
+      const q = m / r;
+      if (Math.abs(q - Math.round(q)) < 1e-6) break;
+    }
+    h = m;
+  }
+  return h || 1;
+}
+
+/**
+ * Write the hatch mirror (upstream SPHatch::_updateView and DrawingPattern): a user space
+ * pattern with the transform of the strips; the tile is pitch wide and repeats vertically with
+ * the hatch paths. With overflow:visible the paths of the neighbouring strips are drawn too.
+ * TODO: hatchUnits and hatchContentUnits objectBoundingBox (they need the bounding box of each
+ * object; they are drawn as userSpaceOnUse).
+ */
+export function renderHatch(hatch: SPHatch, element: SVGElement): void {
+  const doc = element.ownerDocument;
+  const pitch = hatch.pitch();
+  const paths = hatch.hatchPaths();
+  const height = hatchRepeat(paths);
+  element.replaceChildren();
+  element.setAttribute('patternUnits', 'userSpaceOnUse');
+  element.setAttribute('x', '0');
+  element.setAttribute('y', '0');
+  element.setAttribute('width', String(pitch));
+  element.setAttribute('height', String(height));
+  const ps2user = Translate(hatch.x(), hatch.y())
+    .multiply(Rotate.from_degrees(hatch.rotate()))
+    .multiply(hatch.hatchTransform());
+  const transform = matrixString(ps2user);
+  if (transform) element.setAttribute('patternTransform', transform);
+  else element.removeAttribute('patternTransform');
+
+  // The strip x positions that reach into the tile [0, pitch] (one without overflow).
+  const shifts = [0];
+  if (hatch.style.overflow.computed === SPOverflow.SP_CSS_OVERFLOW_VISIBLE) {
+    const bounds = hatch.bounds();
+    shifts.length = 0;
+    for (let k = Math.ceil(-bounds.max() / pitch); k <= Math.floor((pitch - bounds.min()) / pitch); k++) {
+      shifts.push(k * pitch);
+    }
+  }
+  // One tile height above and below, so that strokes cross the tile edges.
+  const extents = new Interval(-height, 2 * height);
+  for (const path of paths) {
+    const d = sp_svg_write_path(path.calculateRenderCurve(extents));
+    const style = hatchPathStyle(path.style);
+    for (const shift of shifts) {
+      const el = doc.createElementNS(SVG_NS, 'path');
+      el.setAttribute('d', d);
+      el.setAttribute('transform', `translate(${shift + path.offset.computed},0)`);
+      el.setAttribute('style', style);
+      element.append(el);
+    }
   }
 }
 
