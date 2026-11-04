@@ -13,6 +13,7 @@ import { ExportDialog } from './export.tsx';
 import { ExtensionsGalleryDialog, FilterGalleryDialog } from './extensions-gallery.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
 import { FilterEffectsDialog } from './filter-effects-dialog.tsx';
+import { FontCollectionsManagerDialog } from './font-collections-manager.tsx';
 import { IconPreviewDialog } from './icon-preview.tsx';
 import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
@@ -21,7 +22,7 @@ import { ObjectsDialog } from './objects.tsx';
 import { SelectorsDialog } from './selectorsdialog.tsx';
 import { SwatchesDialog } from './swatches.tsx';
 import { SymbolsDialog } from './symbols.tsx';
-import { TextEditDialog } from './text-edit.tsx';
+import { FontBrowserDialog, TextEditDialog } from './text-edit.tsx';
 import { TraceDialog } from './tracedialog.tsx';
 import { TransformationDialog } from './transformation.tsx';
 import { UndoHistoryDialog } from './undo-history.tsx';
@@ -49,6 +50,8 @@ const DIALOGS: Record<string, DialogData> = {
   DocumentResources: { label: _('_Document Resources'), component: DocumentResourcesDialog, width: 480 },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
+  FontBrowser: { label: _('_Font Browser'), component: FontBrowserDialog, width: 360 },
+  FontCollections: { label: _('_Font Collections'), component: FontCollectionsManagerDialog, width: 480 },
   ExtensionsGallery: { label: _('_Extension Gallery'), component: ExtensionsGalleryDialog, width: 480 },
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
   FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },

@@ -171,5 +171,6 @@ export * from './ui/widget/messages.ts';
 export * from './ui/widget/object-composite-settings.ts';
 export * from './ui/widget/scalar-unit.ts';
 export * from './ui/widget/style/marker-combo-box.ts';
+export * from './util/font-collections.ts';
 export * from './util/transform-objects.ts';
 export * from './vanishing-point.ts';

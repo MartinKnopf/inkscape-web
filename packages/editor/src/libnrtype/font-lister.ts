@@ -28,6 +28,13 @@ import {
   spReprCssSetProperty,
 } from '@inkscape-web/core';
 
+import {
+  DOCUMENT_FONTS,
+  FontCollections,
+  RECENTLY_USED_FONTS,
+  RecentlyUsedFonts,
+} from '../util/font-collections.ts';
+
 /** The styles of a family without information from the system (upstream default_styles). */
 const DEFAULT_STYLES = ['Normal', 'Italic', 'Bold', 'Bold Italic'];
 
@@ -115,10 +122,37 @@ export class FontLister {
 
   constructor() {
     FontFactory.get().changedSignal.connect(() => this.changedSignal.emit());
+    const collections = FontCollections.get();
+    collections.selection_update_signal.connect(() => this.changedSignal.emit());
+    collections.update_signal.connect(() => this.changedSignal.emit());
   }
 
   /** The families: those of the document, then the system ones. */
   families(): string[] {
+    const collected = this.apply_collections();
+    if (collected) return collected;
+    return this.all_families();
+  }
+
+  /**
+   * The fonts of the selected font collections, sorted, or null if no collection is selected
+   * (upstream apply_collections fills the font list with them).
+   */
+  apply_collections(): string[] | null {
+    const collections = FontCollections.get();
+    const selected = collections.get_selected_collections();
+    if (!selected.size) return null;
+    const fonts = new Set<string>();
+    for (const col of selected) {
+      if (col === DOCUMENT_FONTS) for (const f of this.#document_families) fonts.add(f);
+      else if (col === RECENTLY_USED_FONTS) for (const f of RecentlyUsedFonts.get().get_fonts()) fonts.add(f);
+      else for (const f of collections.get_fonts(col)) fonts.add(f);
+    }
+    return [...fonts].sort((a, b) => a.localeCompare(b));
+  }
+
+  /** All families, without the collection filter: those of the document first. */
+  all_families(): string[] {
     const doc = new Set(this.#document_families);
     const system = [...new Set([...this.#system_families, ...FontFactory.get().GetUIFamilies()])].sort(
       (a, b) => a.localeCompare(b),

@@ -55,6 +55,8 @@ import {
 } from '@inkscape-web/editor';
 import { Point } from '@inkscape-web/geom';
 import { useEffect, useReducer } from 'react';
+import { openDialog } from '../dialog/dialog-manager.ts';
+import { FontCollectionSelector } from '../widget/font-collection-selector.tsx';
 import { SpinButton } from '../widget/spinbutton.tsx';
 import { IconButton, useSelectionUpdates } from './toolbar.tsx';
 
@@ -308,6 +310,10 @@ export function TextToolbar({ desktop }: { desktop: SPDesktop }) {
           ))}
         </datalist>
       </label>
+      <details className="font-list-popover toolbar-collections">
+        <summary title={_('Font collections')}>{_('Collections')}</summary>
+        <FontCollectionSelector onEdit={() => openDialog('FontCollections')} />
+      </details>
       <select
         title={_('Font style')}
         aria-label={_('Font Style')}

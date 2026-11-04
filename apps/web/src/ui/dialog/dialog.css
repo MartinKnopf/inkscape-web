@@ -1198,3 +1198,134 @@
   padding: 4px;
   border-top: 1px solid #ccc;
 }
+
+/* Font Browser, font collections */
+.font-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+.font-list-popover {
+  position: relative;
+}
+
+.font-list-popover > summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.font-collection-selector {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 12px;
+}
+
+.font-collection-selector hr {
+  width: 100%;
+  margin: 2px 0;
+}
+
+.font-collection-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.font-list-items {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  border: 1px solid #ccc;
+}
+
+.font-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  align-content: start;
+}
+
+.font-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.font-list-grid .font-list-item {
+  align-items: center;
+}
+
+.font-list-item[aria-selected="true"],
+.font-collections-tree [aria-current="true"] {
+  background: #cfe2f7;
+}
+
+.font-list-name {
+  font-size: 11px;
+  color: #555;
+}
+
+.font-list-count {
+  font-size: 11px;
+  color: #555;
+}
+
+.font-collections-manager {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+  padding: 8px;
+  background: #fff;
+}
+
+.font-collections-fonts,
+.font-collections-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.font-collections-tree {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 0 0 0 4px;
+  border: 1px solid #ccc;
+  list-style: none;
+  font-size: 12px;
+}
+
+.font-collections-tree ul {
+  margin: 0;
+  padding-left: 14px;
+  list-style: none;
+}
+
+.font-collections-tree button {
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+.font-collections-system {
+  color: #777;
+}

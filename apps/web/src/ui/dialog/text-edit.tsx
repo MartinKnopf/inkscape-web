@@ -33,6 +33,9 @@ import {
 } from '@inkscape-web/editor';
 import { type ReactNode, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
+import { FontCollectionSelector } from '../widget/font-collection-selector.tsx';
+import { FontList } from '../widget/font-list.tsx';
+import { openDialog } from './dialog-manager.ts';
 import { useReprVersion, useSelectionVersion } from './use-repr.ts';
 
 /** Remove the mnemonic underscore of a label. */
@@ -43,15 +46,26 @@ const label = (s: string) => s.replace('_', '');
  * size with a preview, the OpenType features and variation axes, and the
  * text of the selected text; Apply sets them, Set as default makes the font
  * the style of new text.
- * TODO: font collections, spell checking, East Asian features.
+ * TODO: spell checking, East Asian features.
  */
 export function TextEditDialog() {
   const desktop = useActiveDesktop();
   if (!desktop) return null;
-  return <TextEdit desktop={desktop} />;
+  return <TextEdit desktop={desktop} browser={false} />;
 }
 
-function TextEdit({ desktop }: { desktop: SPDesktop }) {
+/**
+ * The Font Browser (dialog key "FontBrowser", upstream TextEdit with
+ * use_browser): the font list with previews instead of the font selector;
+ * a chosen font is applied at once.
+ */
+export function FontBrowserDialog() {
+  const desktop = useActiveDesktop();
+  if (!desktop) return null;
+  return <TextEdit desktop={desktop} browser={true} />;
+}
+
+function TextEdit({ desktop, browser }: { desktop: SPDesktop; browser: boolean }) {
   const selectionVersion = useSelectionVersion(desktop);
   const reprVersion = useReprVersion(desktop.doc.rroot);
   const [listVersion, update] = useReducer((n: number) => n + 1, 0);
@@ -79,6 +93,16 @@ function TextEdit({ desktop }: { desktop: SPDesktop }) {
     setDirty(true);
   };
   const changeVariants = (v: Partial<FontVariantsState>) => change({ variants: { ...font.variants, ...v } });
+  /** The font browser applies font changes at once (upstream apply_changes). */
+  const changeFont = (f: Partial<TextEditFont>) => {
+    if (!browser) {
+      change(f);
+      return;
+    }
+    const next = { ...font, ...f };
+    setFont(next);
+    onApply(desktop, next, null);
+  };
 
   // The OpenType tables and the variation axes of the chosen face.
   // biome-ignore lint/correctness/useExhaustiveDependencies: listVersion: faces finished loading
@@ -125,60 +149,70 @@ function TextEdit({ desktop }: { desktop: SPDesktop }) {
       </div>
       {tab === 'font' && (
         <div className="text-edit-font">
-          <div className="text-edit-row">
-            <input
-              type="search"
-              className="text-edit-search"
-              placeholder={_('Search fonts')}
-              aria-label={_('Search fonts')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <button
-              type="button"
-              title={_('Fonts installed on this computer (Local Font Access)')}
-              onClick={() => void lister.loadLocalFonts()}
-            >
-              {_('System fonts')}
-            </button>
-            <button
-              type="button"
-              title={_('Add the fonts of a font file')}
-              onClick={() => fileInput.current?.click()}
-            >
-              {_('Add font file…')}
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              hidden
-              accept=".ttf,.otf,.ttc,.otc,font/ttf,font/otf,font/collection"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                const added = await lister.addFontFile(new Uint8Array(await file.arrayBuffer()));
-                if (added[0]) change({ family: added[0], style: 'Normal' });
-              }}
-            />
-          </div>
-          <select
-            className="text-edit-families"
-            size={10}
-            aria-label={_('Font family')}
-            value={font.family}
-            onChange={(e) => change({ family: e.target.value })}
-          >
-            {families.map((f) => (
-              <option key={f} value={f} style={{ fontFamily: `'${f}'` }}>
-                {f}
-              </option>
-            ))}
-          </select>
+          {browser ? (
+            <FontList family={font.family} onChange={(f) => changeFont({ family: f })} />
+          ) : (
+            <>
+              <div className="text-edit-row">
+                <input
+                  type="search"
+                  className="text-edit-search"
+                  placeholder={_('Search fonts')}
+                  aria-label={_('Search fonts')}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <details className="font-list-popover">
+                  <summary title={_('Font collections')}>{_('Collections')}</summary>
+                  <FontCollectionSelector onEdit={() => openDialog('FontCollections')} />
+                </details>
+                <button
+                  type="button"
+                  title={_('Fonts installed on this computer (Local Font Access)')}
+                  onClick={() => void lister.loadLocalFonts()}
+                >
+                  {_('System fonts')}
+                </button>
+                <button
+                  type="button"
+                  title={_('Add the fonts of a font file')}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  {_('Add font file…')}
+                </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  hidden
+                  accept=".ttf,.otf,.ttc,.otc,font/ttf,font/otf,font/collection"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const added = await lister.addFontFile(new Uint8Array(await file.arrayBuffer()));
+                    if (added[0]) change({ family: added[0], style: 'Normal' });
+                  }}
+                />
+              </div>
+              <select
+                className="text-edit-families"
+                size={10}
+                aria-label={_('Font family')}
+                value={font.family}
+                onChange={(e) => change({ family: e.target.value })}
+              >
+                {families.map((f) => (
+                  <option key={f} value={f} style={{ fontFamily: `'${f}'` }}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <div className="text-edit-row">
             <select
               aria-label={_('Font style')}
               value={font.style}
-              onChange={(e) => change({ style: e.target.value })}
+              onChange={(e) => changeFont({ style: e.target.value })}
             >
               {[...new Set([font.style, ...lister.styles(font.family)])].map((s) => (
                 <option key={s} value={s}>
@@ -195,7 +229,7 @@ function TextEdit({ desktop }: { desktop: SPDesktop }) {
                 value={Number(font.size.toFixed(3))}
                 onChange={(e) => {
                   const v = Number.parseFloat(e.target.value);
-                  if (v > 0) change({ size: v });
+                  if (v > 0) changeFont({ size: v });
                 }}
               />{' '}
               {unit}
@@ -244,7 +278,7 @@ function TextEdit({ desktop }: { desktop: SPDesktop }) {
           }}
         />
       )}
-      <div className="dialog-toolbar text-edit-buttons">
+      <div className="dialog-toolbar text-edit-buttons" hidden={browser && tab === 'font'}>
         <button type="button" disabled={!has_text} onClick={() => onSetDefault(font)}>
           {label(_('Set as _default'))}
         </button>
