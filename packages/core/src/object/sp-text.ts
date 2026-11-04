@@ -86,6 +86,7 @@ import {
   SP_IS_TEXT_TEXTPATH,
   SP_TEXT_CONTENT_MODIFIED_FLAG,
   SP_TEXT_LAYOUT_MODIFIED_FLAG,
+  SP_TSPAN_ROLE_LINE,
   SP_TSPAN_ROLE_UNSPECIFIED,
   SPTextPath,
   SPTSpan,
@@ -772,6 +773,14 @@ export class SPText extends SPItem {
     return [];
   }
 
+  /** Prepare multi-line text for putting on path: newlines become spaces (upstream remove_newlines). */
+  remove_newlines(): void {
+    remove_newlines_recursive(this, this.has_shape_inside() || this.has_inline_size());
+    this.style.inline_size.clear();
+    this.style.shape_inside.clear();
+    this.updateRepr();
+  }
+
   /** The outlines of the glyphs (upstream getNormalizedBpath). */
   getNormalizedBpath(): PathVector {
     return this.layout.convertToCurves();
@@ -818,6 +827,35 @@ export function create_text_at_position(
   spReprCssSet(text_repr, style, 'style');
 
   return text_item instanceof SPText ? text_item : null;
+}
+
+/** Replace newlines by spaces, and end role="line" tspans with a space (upstream remove_newlines_recursive). */
+function remove_newlines_recursive(object: SPObject, is_svg2: boolean): void {
+  // Replace '\n' by space.
+  if (object instanceof SPString) {
+    object.string = object.string.replace(/\n+/g, ' ');
+    object.getRepr().setContent(object.string);
+  }
+
+  for (const child of object.childList()) remove_newlines_recursive(child, is_svg2);
+
+  // Add space at end of a line if line is created by sodipodi:role="line".
+  if (
+    object instanceof SPTSpan &&
+    object.role === SP_TSPAN_ROLE_LINE &&
+    object.getNext() !== null && // Don't add space at end of last line.
+    !is_svg2 // SVG2 uses newlines, should not have sodipodi:role.
+  ) {
+    // Find last string (could be more than one if there is tspan in the middle of a tspan).
+    const string = object
+      .childList()
+      .reverse()
+      .find((c) => c instanceof SPString);
+    if (string instanceof SPString) {
+      string.string += ' ';
+      string.getRepr().setContent(string.string);
+    }
+  }
 }
 
 /** Create a text flowed into a new rectangle doc_rect (document coordinates) in the defs (upstream create_text_in_rectangle). */
