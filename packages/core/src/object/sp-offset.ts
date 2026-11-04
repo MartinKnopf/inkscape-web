@@ -292,7 +292,7 @@ export function sp_offset_get_source(offset: SPOffset): SPItem | null {
  */
 export function sp_offset_distance_to_original(offset: SPOffset, px: Point): number {
   const original = offset.originalPath;
-  if (!original || !original.some((p) => p.size() > 0)) return 1.0;
+  if (!original?.some((p) => p.size() > 0)) return 1.0;
   // The distance to the polygon of the original; the winding says if the point is inside.
   let dist = Number.POSITIVE_INFINITY;
   let winding = 0;
