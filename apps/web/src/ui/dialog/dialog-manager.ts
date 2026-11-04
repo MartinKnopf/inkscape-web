@@ -8,6 +8,7 @@ import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
 import { CloneTilerDialog } from './clonetiler.tsx';
 import { DebugDialog } from './debug.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
+import { DocumentResourcesDialog } from './document-resources.tsx';
 import { ExportDialog } from './export.tsx';
 import { ExtensionsGalleryDialog, FilterGalleryDialog } from './extensions-gallery.tsx';
 import { FillAndStrokeDialog } from './fill-and-stroke.tsx';
@@ -44,6 +45,7 @@ const DIALOGS: Record<string, DialogData> = {
   DebugWindow: { label: _('_Debugger'), component: DebugDialog },
   DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
   CloneTiler: { label: _('Tiled Clones'), component: CloneTilerDialog, width: 440 },
+  DocumentResources: { label: _('_Document Resources'), component: DocumentResourcesDialog, width: 480 },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   ExtensionsGallery: { label: _('_Extension Gallery'), component: ExtensionsGalleryDialog, width: 480 },
