@@ -450,6 +450,20 @@ EMSCRIPTEN_BINDINGS(cairo)
     function("patternSetFilter", +[](ptr p, int filter) { cairo_pattern_set_filter(P<cairo_pattern_t>(p), cairo_filter_t(filter)); });
     function("patternSetMatrix", &pattern_set_matrix);
     function("patternDestroy", +[](ptr p) { cairo_pattern_destroy(P<cairo_pattern_t>(p)); });
+    function("patternCreateMesh", +[]() { return ptr(cairo_pattern_create_mesh()); });
+    function("meshPatternBeginPatch", +[](ptr p) { cairo_mesh_pattern_begin_patch(P<cairo_pattern_t>(p)); });
+    function("meshPatternEndPatch", +[](ptr p) { cairo_mesh_pattern_end_patch(P<cairo_pattern_t>(p)); });
+    function("meshPatternMoveTo", +[](ptr p, double x, double y) { cairo_mesh_pattern_move_to(P<cairo_pattern_t>(p), x, y); });
+    function("meshPatternLineTo", +[](ptr p, double x, double y) { cairo_mesh_pattern_line_to(P<cairo_pattern_t>(p), x, y); });
+    function("meshPatternCurveTo", +[](ptr p, double x1, double y1, double x2, double y2, double x3, double y3) {
+        cairo_mesh_pattern_curve_to(P<cairo_pattern_t>(p), x1, y1, x2, y2, x3, y3);
+    });
+    function("meshPatternSetControlPoint", +[](ptr p, unsigned point, double x, double y) {
+        cairo_mesh_pattern_set_control_point(P<cairo_pattern_t>(p), point, x, y);
+    });
+    function("meshPatternSetCornerColorRgba", +[](ptr p, unsigned corner, double r, double g, double b, double a) {
+        cairo_mesh_pattern_set_corner_color_rgba(P<cairo_pattern_t>(p), corner, r, g, b, a);
+    });
 
     // Fonts
     function("ftFontFaceCreate", &ft_font_face_create);

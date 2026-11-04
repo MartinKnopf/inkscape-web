@@ -236,6 +236,29 @@ export interface CairoBackend {
   patternSetFilter(pattern: CairoHandle, filter: CairoFilter): void;
   patternSetMatrix(pattern: CairoHandle, matrix: CairoMatrix): void;
   patternDestroy(pattern: CairoHandle): void;
+  patternCreateMesh(): CairoHandle;
+  meshPatternBeginPatch(pattern: CairoHandle): void;
+  meshPatternEndPatch(pattern: CairoHandle): void;
+  meshPatternMoveTo(pattern: CairoHandle, x: number, y: number): void;
+  meshPatternLineTo(pattern: CairoHandle, x: number, y: number): void;
+  meshPatternCurveTo(
+    pattern: CairoHandle,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    x3: number,
+    y3: number,
+  ): void;
+  meshPatternSetControlPoint(pattern: CairoHandle, point: number, x: number, y: number): void;
+  meshPatternSetCornerColorRgba(
+    pattern: CairoHandle,
+    corner: number,
+    r: number,
+    g: number,
+    b: number,
+    a: number,
+  ): void;
 
   // Fonts
   /** A FreeType font face for a font file (index: face in a collection); 0 if it is no font. */

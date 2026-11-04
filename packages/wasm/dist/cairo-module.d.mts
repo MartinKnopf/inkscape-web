@@ -78,6 +78,14 @@ interface EmbindModule {
   patternSetFilter(_0: number, _1: number): void;
   patternSetMatrix(_0: number, _1: any): void;
   patternDestroy(_0: number): void;
+  patternCreateMesh(): number;
+  meshPatternBeginPatch(_0: number): void;
+  meshPatternEndPatch(_0: number): void;
+  meshPatternMoveTo(_0: number, _1: number, _2: number): void;
+  meshPatternLineTo(_0: number, _1: number, _2: number): void;
+  meshPatternCurveTo(_0: number, _1: number, _2: number, _3: number, _4: number, _5: number, _6: number): void;
+  meshPatternSetControlPoint(_0: number, _1: number, _2: number, _3: number): void;
+  meshPatternSetCornerColorRgba(_0: number, _1: number, _2: number, _3: number, _4: number, _5: number): void;
   ftFontFaceCreate(_0: any, _1: number): number;
   ftFontFaceGlyphIndices(_0: number, _1: any): any;
   fontFaceDestroy(_0: number): void;

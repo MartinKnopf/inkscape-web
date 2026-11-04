@@ -129,6 +129,19 @@ describe('CairoRenderContext', () => {
     expect(content).toMatch(/\/PatternType 1/);
     expect(content).toContain('0.666667 0 0.666667 rg'); // the circle of the tile
   });
+
+  it('renders a mesh gradient as a PDF patch mesh shading', async () => {
+    const it = item(
+      '<defs><meshgradient id="m" x="0" y="0" gradientUnits="userSpaceOnUse"><meshrow><meshpatch>' +
+        '<stop path="l 40,0" style="stop-color:#ff0000"/><stop path="l 0,40" style="stop-color:#00ff00"/>' +
+        '<stop path="l -40,0" style="stop-color:#0000ff"/><stop path="l 0,-40" style="stop-color:#ffffff"/>' +
+        '</meshpatch></meshrow></meshgradient></defs><rect id="r" width="40" height="40" style="fill:url(#m)"/>',
+      'r',
+    );
+    const ctx = pdfContext();
+    await ctx.renderPathVector([Path.fromRect(new Rect(0, 0, 40, 40))], it.style, it.geometricBounds());
+    expect(pdfText(finish(ctx))).toMatch(/\/ShadingType 7/);
+  });
 });
 
 describe('compute_final_page_dimensions', () => {

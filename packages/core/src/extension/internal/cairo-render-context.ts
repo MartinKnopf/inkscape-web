@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// Upstream: src/extension/internal/cairo-render-context.cpp, src/extension/internal/cairo-render-context.h
+// Upstream: src/extension/internal/cairo-render-context.cpp, src/extension/internal/cairo-render-context.h, src/display/drawing-paintserver.cpp
 /*
  * Rendering with Cairo.
  *
@@ -11,6 +11,7 @@
  * Copyright (C) 2006 Miklos Erdelyi
  */
 import { Affine, type OptRect, type PathVector, Point, Scale } from '@inkscape-web/geom';
+import { SpaceType } from '../../colors/spaces/enum.ts';
 import {
   feed_pathvector_to_cairo,
   ink_cairo_pattern_add_color_stop,
@@ -30,6 +31,7 @@ import { SPImage } from '../../object/sp-image.ts';
 import { SPItem } from '../../object/sp-item.ts';
 import { SPLinearGradient } from '../../object/sp-linear-gradient.ts';
 import type { SPMask } from '../../object/sp-mask.ts';
+import { SPMeshGradient } from '../../object/sp-mesh-gradient.ts';
 import type { SPPaintServer } from '../../object/sp-paint-server.ts';
 import { SPGradientSpread, SPGradientUnits } from '../../object/sp-paint-server-data.ts';
 import { PatternUnits, SPPattern } from '../../object/sp-pattern.ts';
@@ -1019,14 +1021,16 @@ export class CairoRenderContext {
       for (const stop of rg.vector.stops) {
         if (stop.color) ink_cairo_pattern_add_color_stop(pattern, stop.offset, stop.color.withOpacity(alpha));
       }
+    } else if (paintserver instanceof SPMeshGradient) {
+      pattern = mesh_create_pattern(paintserver, pbox, 1.0);
     } else if (paintserver instanceof SPPattern) {
       pattern = await this._createPatternPainter(paintserver, pbox);
     } else {
-      // TODO: mesh gradients (DrawingMeshGradient::create_pattern) and hatches.
+      // TODO: hatches (the core has no SPHatch yet).
       return 0;
     }
 
-    if (pattern && paintserver instanceof SPGradient) {
+    if (pattern && paintserver instanceof SPGradient && !(paintserver instanceof SPMeshGradient)) {
       const g = paintserver;
 
       // set extend type
@@ -1470,6 +1474,63 @@ export class CairoRenderContext {
   addPathVector(pv: PathVector): void {
     feed_pathvector_to_cairo(this._cr, pv);
   }
+}
+
+/** Upstream DrawingMeshGradient::create_pattern(): a cairo mesh pattern of the patches. */
+function mesh_create_pattern(mg: SPMeshGradient, bbox: OptRect, opacity: number): CairoHandle {
+  const c = cairoBackend();
+  const pat = c.patternCreateMesh();
+
+  for (const row of mg.getGradientPatches()) {
+    for (const data of row) {
+      c.meshPatternBeginPatch(pat);
+      const p0 = data.points[0]![0]!;
+      c.meshPatternMoveTo(pat, p0.x, p0.y);
+
+      for (let k = 0; k < 4; k++) {
+        const side = data.points[k]!;
+        switch (data.pathtype[k]) {
+          case 'l':
+          case 'L':
+          case 'z':
+          case 'Z':
+            c.meshPatternLineTo(pat, side[3]!.x, side[3]!.y);
+            break;
+          case 'c':
+          case 'C':
+            c.meshPatternCurveTo(pat, side[1]!.x, side[1]!.y, side[2]!.x, side[2]!.y, side[3]!.x, side[3]!.y);
+            break;
+          default:
+            // Shouldn't happen
+            console.error('sp_mesh_create_pattern: path error');
+        }
+
+        if (data.tensorIsSet[k]) {
+          const t = data.tensorpoints[k]!;
+          c.meshPatternSetControlPoint(pat, k, t.x, t.y);
+        }
+
+        const color = data.color[k] ?? null;
+        const rgb = color?.withOpacity(opacity).converted(SpaceType.RGB);
+        if (rgb) {
+          c.meshPatternSetCornerColorRgba(pat, k, rgb.get(0), rgb.get(1), rgb.get(2), rgb.getOpacity());
+        } else {
+          console.error(`Bad mesh color at pos ${k}`);
+          c.meshPatternSetCornerColorRgba(pat, k, 0, 0, 0, opacity);
+        }
+      }
+
+      c.meshPatternEndPatch(pat);
+    }
+  }
+
+  // set pattern transform matrix
+  let gs2user = mg.gradientTransform_set ? mg.gradientTransform : Affine.identity();
+  if (mg.getUnits() === SPGradientUnits.SP_GRADIENT_UNITS_OBJECTBOUNDINGBOX && bbox) {
+    gs2user = gs2user.multiply(new Affine(bbox.width(), 0, 0, bbox.height(), bbox.left(), bbox.top()));
+  }
+  ink_cairo_pattern_set_matrix(pat, gs2user.inverse());
+  return pat;
 }
 
 /**
