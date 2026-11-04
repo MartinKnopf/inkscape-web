@@ -1010,17 +1010,17 @@ export function clonetiler_status(desktop: SPDesktop): CloneTilerStatus {
   return { kind: 'clones', count: number_of_clones(items[0] as SPItem) };
 }
 
-/** The status line, as plain text. */
+/** The status line (pango markup). */
 export function clonetiler_status_text(s: CloneTilerStatus): string {
   switch (s.kind) {
     case 'nothing':
-      return _('Nothing selected.');
+      return _('<small>Nothing selected.</small>');
     case 'many':
-      return _('More than one object selected.');
+      return _('<small>More than one object selected.</small>');
     case 'clones':
       return s.count > 0
-        ? _('Object has %1 tiled clones.').replace('%1', String(s.count))
-        : _('Object has no tiled clones.');
+        ? _('<small>Object has <b>%d</b> tiled clones.</small>').replace('%d', String(s.count))
+        : _('<small>Object has no tiled clones.</small>');
   }
 }
 

@@ -12,6 +12,7 @@ import {
   clonetiler_remove,
   clonetiler_reset,
   clonetiler_status,
+  clonetiler_status_text,
   clonetiler_unclump,
   get_transform,
   PickType,
@@ -260,6 +261,9 @@ describe('clonetiler_apply', () => {
     const { dt, clones, item } = tiler(2, 2);
     await clonetiler_apply(dt);
     expect(clonetiler_status(dt)).toEqual({ kind: 'clones', count: 4 });
+    expect(clonetiler_status_text(clonetiler_status(dt))).toBe(
+      '<small>Object has <b>4</b> tiled clones.</small>',
+    );
     item('r').setAttribute('width', '30');
     await clonetiler_apply(dt);
     expect(clones()).toHaveLength(4);
@@ -294,8 +298,8 @@ describe('clonetiler_apply', () => {
     expect(c2).toBeUndefined();
     expect(c0?.attribute('style') ?? '').not.toContain('filter');
     expect(c1?.attribute('style')).toMatch(/filter:url\(#/);
-    expect(c0?.attribute('fill')).toBeTruthy();
-    expect(c1?.attribute('fill')).not.toBe(c0?.attribute('fill'));
+    expect(c0?.attribute('fill')).toBe('hsla(0, 100%, 50%, 1)');
+    expect(c1?.attribute('fill')).toBe('hsla(180, 100%, 50%, 1)'); // 50% of the hue circle
     expect(c1?.attribute('stroke')).toBe(c1?.attribute('fill'));
   });
 

@@ -5,6 +5,7 @@ import type { DockviewApi, IDockviewPanelProps } from 'dockview-react';
 import type { FunctionComponent } from 'react';
 import { getDocumentAnchor } from '../../app/documents.ts';
 import { AlignAndDistributeDialog } from './align-and-distribute.tsx';
+import { CloneTilerDialog } from './clonetiler.tsx';
 import { DocumentPropertiesDialog } from './document-properties.tsx';
 import { ExportDialog } from './export.tsx';
 import { FilterGalleryDialog } from './extensions-gallery.tsx';
@@ -39,6 +40,7 @@ interface DialogData {
 const DIALOGS: Record<string, DialogData> = {
   AlignDistribute: { label: _('_Align and Distribute'), component: AlignAndDistributeDialog },
   DocumentProperties: { label: _('_Document Properties'), component: DocumentPropertiesDialog },
+  CloneTiler: { label: _('Tiled Clones'), component: CloneTilerDialog, width: 440 },
   Export: { label: _('_Export'), component: ExportDialog },
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
