@@ -167,6 +167,32 @@ export async function document_close(panelId: string): Promise<boolean> {
   return true;
 }
 
+/** Activate the tab step places after the focused one (negative: before), wrapping around (actions win.tab-next/-previous). */
+export function document_tab_step(step: number): void {
+  const ids = [...windows.keys()];
+  if (ids.length < 2 || !activeId) return;
+  const next = ids[(ids.indexOf(activeId) + step + ids.length) % ids.length];
+  if (next) dock?.getPanel(next)?.api.setActive();
+}
+
+/** Close the focused tab without the data loss check (action app.window-close); the last tab gets a new document. */
+export async function document_close_unchecked(): Promise<void> {
+  if (!activeId) return;
+  const id = activeId;
+  if (windows.size === 1) await document_new();
+  dock?.getPanel(id)?.api.close();
+}
+
+/** Close the tab of doc without the data loss check. */
+export async function document_close_unchecked_of(doc: SPDocument): Promise<void> {
+  for (const [id, win] of windows) {
+    if (win.doc !== doc) continue;
+    if (windows.size === 1) await document_new();
+    dock?.getPanel(id)?.api.close();
+    return;
+  }
+}
+
 /** Close the focused tab (action win.document-close). */
 export async function document_close_active(): Promise<void> {
   if (activeId) await document_close(activeId);
