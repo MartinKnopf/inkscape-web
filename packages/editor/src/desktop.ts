@@ -53,7 +53,7 @@ import { CanvasItemGridXY } from './display/control/canvas-item-grid.ts';
 import { CanvasItemGuideLine } from './display/control/canvas-item-guideline.ts';
 import { CanvasPage } from './display/control/canvas-page.ts';
 import { SnapIndicator } from './display/control/snap-indicator.ts';
-import { SvgDrawing } from './display/drawing.ts';
+import { RenderMode, SvgDrawing } from './display/drawing.ts';
 import { SvgDrawingItem } from './display/drawing-item.ts';
 import { LayerManager } from './layer-manager.ts';
 import { SnapManager } from './snap.ts';
@@ -66,6 +66,15 @@ export const SP_DESKTOP_ZOOM_MIN = 0.01;
 
 /** Upstream default of the desk color (sp-namedview.cpp default_desk_color). */
 const DEFAULT_DESK_COLOR = 0xd1d1d1ff;
+
+/** How the canvas shows an outline view beside the normal drawing (upstream Inkscape::SplitMode). */
+export enum SplitMode {
+  NORMAL,
+  /** The right half of the window in outline mode. */
+  SPLIT,
+  /** A circle around the pointer in outline mode. */
+  XRAY,
+}
 
 /** The flip of the canvas (upstream SPDesktop::CanvasFlip, a bit set). */
 export enum CanvasFlip {
@@ -204,6 +213,10 @@ export class SPDesktop {
   readonly _canvas_group_controls: SVGGElement;
 
   readonly #drawing: SvgDrawing;
+  /** A second view of the document in outline mode for the split modes, shown through a clip. */
+  #outline: { drawing: SvgDrawing; key: number; group: SVGGElement; clip: SVGPathElement } | null = null;
+  #splitMode = SplitMode.NORMAL;
+  #disconnectSplit: (() => void)[] = [];
   readonly #pages_bg: CanvasItemGroup;
   readonly #pages_fg: CanvasItemGroup;
   /** The document viewport, drawn as a page when no page covers it (upstream SPNamedView::_viewport). */
@@ -442,6 +455,7 @@ export class SPDesktop {
     const ai = doc.getRoot().invokeShow(this.#drawing, this.dkey, SP_ITEM_SHOW_DISPLAY);
     if (ai) this.#drawing.root.appendChild(ai);
     this.#drawing.root.setTransform(this.doc2dt());
+    if (this.#splitMode !== SplitMode.NORMAL) this.setSplitMode(this.#splitMode);
     this.#layerManager._setDocument(doc);
     this.#updateLayersFromDocument();
     this.#updatePage();
@@ -500,6 +514,7 @@ export class SPDesktop {
     this.#hideNamedView();
     for (const view of this.#page_views.values()) view.remove();
     this.#page_views.clear();
+    this.#hideOutline();
     this.doc.getRoot().invokeHide(this.dkey);
     this.#drawing.paintServers.clear();
   }
@@ -856,6 +871,111 @@ export class SPDesktop {
   clear_transform_history(): void {
     this.#transforms_past.length = 0;
     this.#transforms_future.length = 0;
+  }
+
+  /** Render the drawing in the mode (upstream setRenderMode). */
+  setRenderMode(mode: RenderMode): void {
+    this.#drawing.setRenderMode(mode);
+  }
+  getRenderMode(): RenderMode {
+    return this.#drawing.getRenderMode();
+  }
+
+  getSplitMode(): SplitMode {
+    return this.#splitMode;
+  }
+
+  /**
+   * Show part of the canvas in outline mode (upstream Canvas::set_split_mode): the outline view is
+   * a second view of the document, clipped to the right half of the window or to a circle around
+   * the pointer.
+   */
+  setSplitMode(mode: SplitMode): void {
+    this.#splitMode = mode;
+    if (mode === SplitMode.NORMAL) {
+      this.#hideOutline();
+      return;
+    }
+    this.#showOutline();
+    this.#updateSplitClip();
+  }
+
+  #showOutline(): void {
+    if (this.#outline || !this.doc) return;
+    const dom = this.canvas.svg.ownerDocument;
+    const drawing = new SvgDrawing(dom);
+    drawing.setRenderMode(RenderMode.OUTLINE);
+    const key = SPItem.displayKeyNew(1);
+    const ai = this.doc.getRoot().invokeShow(drawing, key, SP_ITEM_SHOW_DISPLAY);
+    if (ai) drawing.root.appendChild(ai);
+    drawing.root.setTransform(this.doc2dt());
+    const group = dom.createElementNS('http://www.w3.org/2000/svg', 'g') as SVGGElement;
+    // The outline view hides the normal one below it: it needs the page color behind its lines.
+    const clipPath = dom.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    const clip = dom.createElementNS('http://www.w3.org/2000/svg', 'path') as SVGPathElement;
+    const id = drawing.uniqueId('split');
+    clipPath.setAttribute('id', id);
+    clipPath.append(clip);
+    group.setAttribute('clip-path', `url(#${id})`);
+    const backdrop = dom.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    backdrop.setAttribute('x', '-1e6');
+    backdrop.setAttribute('y', '-1e6');
+    backdrop.setAttribute('width', '2e6');
+    backdrop.setAttribute('height', '2e6');
+    backdrop.setAttribute('fill', '#fff');
+    group.append(clipPath, drawing.defs, backdrop, drawing.root.element);
+    this._canvas_group_drawing.after(group);
+    this.#outline = { drawing, key, group, clip };
+    this.#disconnectSplit = [
+      this.canvas.connectAffine(() => this.#updateSplitClip()),
+      this.canvas.connectPos(() => this.#updateSplitClip()),
+      this.canvas.connectResize(() => this.#updateSplitClip()),
+    ];
+    const move = () => this.#updateSplitClip();
+    this.canvas.svg.addEventListener('pointermove', move);
+    this.#disconnectSplit.push(() => this.canvas.svg.removeEventListener('pointermove', move));
+  }
+
+  #hideOutline(): void {
+    for (const f of this.#disconnectSplit) f();
+    this.#disconnectSplit = [];
+    const outline = this.#outline;
+    if (!outline) return;
+    this.doc?.getRoot().invokeHide(outline.key);
+    outline.group.remove();
+    this.#outline = null;
+  }
+
+  /** The clip of the outline view in desktop coordinates: the window area for the mode mapped by w2d. */
+  #updateSplitClip(): void {
+    const outline = this.#outline;
+    if (!outline) return;
+    const size = this.canvas.get_dimensions();
+    const toDesktop = (p: Point) => this.w2d(this.canvas.canvas_to_world(p));
+    const poly = (pts: Point[]) => `M ${pts.map((p) => `${toDesktop(p).x},${toDesktop(p).y}`).join(' L ')} Z`;
+    if (this.#splitMode === SplitMode.SPLIT) {
+      outline.clip.setAttribute(
+        'd',
+        poly([
+          new Point(size.x / 2, 0),
+          new Point(size.x, 0),
+          new Point(size.x, size.y),
+          new Point(size.x / 2, size.y),
+        ]),
+      );
+    } else {
+      const radius = Preferences.get().getDouble('/options/rendering/xray-radius', 100);
+      const c = this.canvas.get_last_mouse() ?? size.div(2);
+      const n = 48;
+      outline.clip.setAttribute(
+        'd',
+        poly(
+          Array.from({ length: n }, (_, i) =>
+            c.add(new Point(Math.cos((2 * Math.PI * i) / n), Math.sin((2 * Math.PI * i) / n)).mul(radius)),
+          ),
+        ),
+      );
+    }
   }
 
   /** The rotation of the canvas in radians. */

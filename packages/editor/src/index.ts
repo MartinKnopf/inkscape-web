@@ -3,6 +3,7 @@
 // Uses the DOM, but not React.
 export * from './actions/action-map.ts';
 export * from './actions/actions-base.ts';
+export * from './actions/actions-canvas-mode.ts';
 export * from './actions/actions-canvas-snapping.ts';
 export * from './actions/actions-canvas-transform.ts';
 export * from './actions/actions-edit.ts';

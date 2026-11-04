@@ -17,6 +17,41 @@ import { DrawingFilters } from './nr-filter.ts';
 
 let drawingCount = 0;
 
+/** How the drawing is rendered (upstream Inkscape::RenderMode; the values are those of win.canvas-display-mode). */
+export enum RenderMode {
+  NORMAL,
+  OUTLINE,
+  NO_FILTERS,
+  VISIBLE_HAIRLINES,
+  OUTLINE_OVERLAY,
+}
+
+/** The number of render modes (upstream RenderMode::size). */
+export const RENDER_MODE_COUNT = 5;
+
+/** The elements that draw shapes, text and images; the groups of the display tree have no paint. */
+const PAINTED = ':is(path, rect, circle, ellipse, line, polyline, polygon, text, tspan, image)';
+
+/**
+ * The style sheet of the render modes: the mode is the attribute data-render-mode of the root
+ * element of the drawing. Outline shows the paths of the objects as 1 px lines in black, without
+ * fill, filters and opacity; the overlay mode does that over a translucent drawing; no filters only
+ * drops the filters. TODO: the thin lines mode (CSS cannot set a least stroke width).
+ */
+const RENDER_MODE_CSS =
+  `[data-render-mode="outline"] ${PAINTED}{fill:none!important;stroke:#000!important;stroke-width:1px!important;stroke-opacity:1!important;stroke-dasharray:none!important;vector-effect:non-scaling-stroke;filter:none!important;mask:none!important;opacity:1!important;marker:none!important}` +
+  `[data-render-mode="outline"] image{opacity:.3!important}` +
+  `[data-render-mode="overlay"] ${PAINTED}{fill-opacity:.4!important;stroke:#000!important;stroke-width:1px!important;stroke-dasharray:none!important;vector-effect:non-scaling-stroke}` +
+  `[data-render-mode="nofilters"] *{filter:none!important}`;
+
+const RENDER_MODE_ATTRIBUTE: Record<RenderMode, string | null> = {
+  [RenderMode.NORMAL]: null,
+  [RenderMode.OUTLINE]: 'outline',
+  [RenderMode.NO_FILTERS]: 'nofilters',
+  [RenderMode.VISIBLE_HAIRLINES]: null,
+  [RenderMode.OUTLINE_OVERLAY]: 'overlay',
+};
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The region of the svg:mask elements, in user space: large enough to not cut the mask. */
@@ -55,6 +90,26 @@ export class SvgDrawing implements Drawing {
     this.root = this.#own(new SvgDrawingGroup(doc));
     // The browser loads the images that are no data: URIs (blob:, http:).
     Pixbuf.urlLoader ??= (url) => loadImageSize(doc, url);
+  }
+
+  #renderMode = RenderMode.NORMAL;
+  #renderModeStyle: SVGStyleElement | null = null;
+
+  getRenderMode(): RenderMode {
+    return this.#renderMode;
+  }
+
+  /** Render the drawing in the mode (upstream Drawing::setRenderMode). */
+  setRenderMode(mode: RenderMode): void {
+    this.#renderMode = mode;
+    const value = RENDER_MODE_ATTRIBUTE[mode];
+    if (value && !this.#renderModeStyle) {
+      this.#renderModeStyle = this.#doc.createElementNS(SVG_NS, 'style') as SVGStyleElement;
+      this.#renderModeStyle.textContent = RENDER_MODE_CSS;
+      this.defs.prepend(this.#renderModeStyle);
+    }
+    if (value) this.root.element.setAttribute('data-render-mode', value);
+    else this.root.element.removeAttribute('data-render-mode');
   }
 
   /** The <defs> with the paint servers, filters, clip paths and masks. */
