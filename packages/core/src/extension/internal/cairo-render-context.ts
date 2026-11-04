@@ -10,7 +10,7 @@
  *
  * Copyright (C) 2006 Miklos Erdelyi
  */
-import { Affine, type OptRect, type PathVector, Point, Scale } from '@inkscape-web/geom';
+import { Affine, type OptRect, type PathVector, Point, Scale, Translate } from '@inkscape-web/geom';
 import { SpaceType } from '../../colors/spaces/enum.ts';
 import {
   feed_pathvector_to_cairo,
@@ -27,6 +27,7 @@ import type { SPDocument } from '../../document.ts';
 import type { SPClipPath } from '../../object/sp-clippath.ts';
 import { SPFlowtext } from '../../object/sp-flowtext.ts';
 import { SPGradient } from '../../object/sp-gradient.ts';
+import { SPHatch } from '../../object/sp-hatch.ts';
 import { SPImage } from '../../object/sp-image.ts';
 import { SPItem } from '../../object/sp-item.ts';
 import { SPLinearGradient } from '../../object/sp-linear-gradient.ts';
@@ -972,6 +973,62 @@ export class CairoRenderContext {
     return result;
   }
 
+  async _createHatchPainter(hatch: SPHatch, pbox: OptRect): Promise<CairoHandle> {
+    const c = this.#c;
+    // Upstream shows the hatch in a drawing for pbox; here the render info comes from pbox.
+    const render_info = hatch.calculateRenderInfo(pbox);
+    const extents = hatch.calculateStripExtents(pbox);
+    const tile_rect = render_info.tile_rect;
+
+    // Cairo requires an integer pattern surface width/height.
+    // Subtract 0.5 to prevent small rounding errors from increasing pattern size by one pixel.
+    // Multiply by SUBPIX_SCALE to allow for less than a pixel precision
+    const subpix_scale = 10;
+    const surface_width = Math.max(Math.ceil(subpix_scale * tile_rect.width() - 0.5), 1);
+    const surface_height = Math.max(Math.ceil(subpix_scale * tile_rect.height() - 0.5), 1);
+    const drawing_scale = Scale(surface_width / tile_rect.width(), surface_height / tile_rect.height());
+    const drawing_transform = Translate(tile_rect.min().neg()).multiply(drawing_scale);
+
+    const child_transform = render_info.child_transform.multiply(drawing_transform);
+
+    //The rendering of hatch overflow is implemented by repeated drawing
+    //of hatch paths over one strip. Within each iteration paths are moved by pitch value.
+    //The movement progresses from right to left. This gives the same result
+    //as drawing whole strips in left-to-right order.
+    let overflow_right_strip = 0.0;
+    let overflow_steps = 1;
+    let overflow_transform = Affine.identity();
+    if (hatch.style.overflow.computed === SPOverflow.SP_CSS_OVERFLOW_VISIBLE) {
+      const bounds = hatch.bounds();
+      overflow_right_strip = Math.floor(bounds.max() / hatch.pitch()) * hatch.pitch();
+      overflow_steps = Math.ceil((overflow_right_strip - bounds.min()) / hatch.pitch()) + 1;
+      overflow_transform = Translate(hatch.pitch(), 0.0);
+    }
+
+    const pattern_ctx = this.createSimilar(surface_width, surface_height);
+    pattern_ctx.setTransform(child_transform);
+    pattern_ctx.transform(Translate(-overflow_right_strip, 0.0));
+    pattern_ctx.pushState();
+
+    const children = hatch.hatchPaths();
+    for (let i = 0; i < overflow_steps; i++) {
+      for (const path of children) await this._renderer.renderHatchPath(pattern_ctx, path, extents);
+      pattern_ctx.transform(overflow_transform);
+    }
+
+    pattern_ctx.popState();
+
+    // setup a cairo_pattern_t
+    const result = c.patternCreateForSurface(pattern_ctx.getSurface());
+    c.patternSetExtend(result, CairoExtend.REPEAT);
+
+    const pattern_transform = render_info.pattern_to_user_transform.inverse().multiply(drawing_transform);
+    ink_cairo_pattern_set_matrix(result, pattern_transform);
+
+    pattern_ctx.destroy();
+    return result;
+  }
+
   async _createPatternForPaintServer(
     paintserver: SPPaintServer,
     pbox: OptRect,
@@ -1025,8 +1082,9 @@ export class CairoRenderContext {
       pattern = mesh_create_pattern(paintserver, pbox, 1.0);
     } else if (paintserver instanceof SPPattern) {
       pattern = await this._createPatternPainter(paintserver, pbox);
+    } else if (paintserver instanceof SPHatch) {
+      pattern = await this._createHatchPainter(paintserver, pbox);
     } else {
-      // TODO: hatches (the core has no SPHatch yet).
       return 0;
     }
 

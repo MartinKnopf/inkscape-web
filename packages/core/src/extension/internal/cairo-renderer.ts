@@ -12,6 +12,7 @@
  */
 import {
   Affine,
+  type Interval,
   intersect,
   type OptRect,
   Point,
@@ -29,6 +30,7 @@ import type { FontInstance } from '../../libnrtype/font-instance.ts';
 import { InputStreamTextSource, type Layout } from '../../libnrtype/Layout-TNG.ts';
 import { SPClipPath } from '../../object/sp-clippath.ts';
 import { SPFlowtext } from '../../object/sp-flowtext.ts';
+import type { SPHatchPath } from '../../object/sp-hatch-path.ts';
 import { SPImage } from '../../object/sp-image.ts';
 import { i2anc_affine, SPItem } from '../../object/sp-item.ts';
 import { SPGroup } from '../../object/sp-item-group.ts';
@@ -425,6 +427,22 @@ export class CairoRenderer {
     if (saved_ctm) ctx.setTransform(saved_ctm);
 
     ctx.setRenderMode(saved_mode);
+  }
+
+  /** Render a hatch path over the strip extents (upstream: the extents of the view with key). */
+  async renderHatchPath(
+    ctx: CairoRenderContext,
+    hatchPath: SPHatchPath,
+    extents: Interval | null,
+  ): Promise<void> {
+    ctx.pushState();
+    ctx.setStateForStyle(hatchPath.style);
+    ctx.transform(Translate(hatchPath.offset.computed, 0));
+
+    const pathv = hatchPath.calculateRenderCurve(extents);
+    if (pathv.length) await ctx.renderPathVector(pathv, hatchPath.style, null);
+
+    ctx.popState();
   }
 
   /** Apply an SVG mask. */
