@@ -93,6 +93,15 @@ interface EmbindModule {
   setFontMatrix(_0: number, _1: any): void;
   showGlyphs(_0: number, _1: any): void;
   glyphPath(_0: number, _1: any): void;
+  pdfOpen(_0: any): number;
+  pdfClose(_0: number): void;
+  pdfPageCount(_0: number): number;
+  pdfFonts(_0: number): any;
+  pdfAutoFontStrategies(_0: number, _1: number): any;
+  pdfSetLocalFonts(_0: any): void;
+  pdfImport(_0: number, _1: any, _2: any): string;
+  pdfRenderPage(_0: number, _1: number, _2: number, _3: number): any;
+  pdfCairoImport(_0: number, _1: number): string;
 }
 
 export type MainModule = WasmModule & EmbindModule;

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// cairo-module.wasm: cairo, pixman, FreeType, libpng and zlib for PDF, PS and EPS export (see
-// build.sh and bindings/cairo.cpp). It is a separate module from geom-module.wasm: the app
-// loads it only when the user exports. The module matches CairoBackend of @inkscape-web/core.
+// cairo-module.wasm: cairo, pixman, FreeType, libpng and zlib for PDF, PS and EPS export, and
+// poppler with the upstream PDF import (see build.sh, bindings/cairo.cpp, bindings/pdf.cpp).
+// It is a separate module from geom-module.wasm: the app loads it only when the user exports
+// or opens a PDF. The module matches CairoBackend of @inkscape-web/core.
 import type { MainModule } from '../dist/cairo-module.mjs';
 
 export type CairoModule = MainModule;
