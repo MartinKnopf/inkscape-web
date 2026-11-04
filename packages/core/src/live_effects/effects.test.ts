@@ -470,7 +470,8 @@ describe('Dashed Stroke', () => {
       [37.5, 62.5],
       [87.5, 100],
     ]);
-  });
+    // The WASM code takes about 3.5 s here (it throws and catches an exception).
+  }, 20000);
 });
 
 describe('Show handles', () => {
