@@ -5,14 +5,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 22 | 26 | 85 |
-| Dialogs | 19 | 29 | 66 |
+| Tools | 24 | 26 | 92 |
+| Dialogs | 20 | 29 | 69 |
 | Actions | 139 | 409 | 34 |
 | Live path effects | 23 | 56 | 41 |
 | Internal import/export modules | 2 | 35 | 6 |
-| Python extensions | 1 | 160 | 1 |
+| Python extensions | 154 | 160 | 96 |
 
-<details><summary>Tools (22/26)</summary>
+<details><summary>Tools (24/26)</summary>
 
 - [x] `arc-tool.cpp`
 - [ ] `booleans-tool.cpp`
@@ -24,11 +24,11 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `flood-tool.cpp`
 - [x] `gradient-tool.cpp`
 - [ ] `lpe-tool.cpp`
-- [ ] `marker-tool.cpp`
+- [x] `marker-tool.cpp`
 - [x] `measure-tool.cpp`
 - [x] `mesh-tool.cpp`
 - [x] `node-tool.cpp`
-- [ ] `object-picker-tool.cpp`
+- [x] `object-picker-tool.cpp`
 - [x] `pages-tool.cpp`
 - [x] `pen-tool.cpp`
 - [x] `pencil-tool.cpp`
@@ -43,10 +43,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (19/29)</summary>
+<details><summary>Dialogs (20/29)</summary>
 
 - [x] `AlignDistribute`
-- [ ] `CloneTiler`
+- [x] `CloneTiler`
 - [ ] `DebugWindow`
 - [x] `DocumentProperties`
 - [ ] `DocumentResources`
@@ -592,167 +592,167 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Python extensions (1/160)</summary>
+<details><summary>Python extensions (154/160)</summary>
 
-- [ ] `com.activdesign.export.scribus`
-- [ ] `com.kaioa.export_gimp_palette`
-- [ ] `com.kaioa.lorem_ipsum`
+- [x] `com.activdesign.export.scribus`
+- [x] `com.kaioa.export_gimp_palette`
+- [x] `com.kaioa.lorem_ipsum`
 - [ ] `com.vaxxine.print.print_win32_vector`
-- [ ] `effect.color_markers`
-- [ ] `effect.distribute_along_path`
-- [ ] `effect.draw_from_triangle`
-- [ ] `effect.extrude`
-- [ ] `effect.interpolate`
-- [ ] `effect.long_shadow`
-- [ ] `effect.merge_styles`
-- [ ] `effect.pattern_along_path`
-- [ ] `effect.voronoi`
-- [ ] `effect.voronoi_fill`
-- [ ] `frame`
-- [ ] `jessyink.core.video`
-- [ ] `jessyink.export`
-- [ ] `jessyink.install`
-- [ ] `jessyink.summary`
-- [ ] `jessyink.transitions`
-- [ ] `jessyink.uninstall`
-- [ ] `jessyink.view`
-- [ ] `math.triangle`
-- [ ] `mcepl.ungroup_deep`
-- [ ] `org.cutlings.clean_up_path`
-- [ ] `org.ekips.filter.flatten`
-- [ ] `org.ekips.filter.gears`
-- [ ] `org.ekips.filter.handles`
-- [ ] `org.ekips.filter.perspective`
-- [ ] `org.ekips.filter.plot`
-- [ ] `org.ekips.filter.spirograph`
-- [ ] `org.ekips.filter.turtle.lindenmayer`
-- [ ] `org.ekips.filter.turtle_rtree`
-- [ ] `org.ekips.filter.twirl`
-- [ ] `org.ekips.output.dxf_outlines`
-- [ ] `org.ekips.output.gimp_xcf`
-- [ ] `org.ekips.output.hpgl_output`
-- [ ] `org.evilmad.text.hershey`
-- [ ] `org.greygreen.inkscape.effects.nup`
-- [ ] `org.inkscape.color.black_and_white`
-- [ ] `org.inkscape.color.brighter`
-- [ ] `org.inkscape.color.custom`
-- [ ] `org.inkscape.color.darker`
-- [ ] `org.inkscape.color.desaturate`
-- [ ] `org.inkscape.color.grayscale`
-- [ ] `org.inkscape.color.hsl_adjust`
-- [ ] `org.inkscape.color.less_hue`
-- [ ] `org.inkscape.color.less_light`
-- [ ] `org.inkscape.color.less_saturation`
-- [ ] `org.inkscape.color.list_colours`
-- [ ] `org.inkscape.color.more_hue`
-- [ ] `org.inkscape.color.more_light`
-- [ ] `org.inkscape.color.more_saturation`
-- [ ] `org.inkscape.color.negative`
-- [ ] `org.inkscape.color.randomize`
-- [ ] `org.inkscape.color.remove_blue`
-- [ ] `org.inkscape.color.remove_green`
-- [ ] `org.inkscape.color.remove_red`
-- [ ] `org.inkscape.color.replace_color`
-- [ ] `org.inkscape.color.rgb_barrel`
-- [ ] `org.inkscape.doc_ai_convert`
-- [ ] `org.inkscape.doc_info`
-- [ ] `org.inkscape.dpi90to96`
-- [ ] `org.inkscape.dpi96to90`
-- [ ] `org.inkscape.effect.func_plot`
-- [ ] `org.inkscape.effect.guides_creator`
-- [ ] `org.inkscape.effect.image_attributes`
-- [ ] `org.inkscape.effect.param_curves`
-- [ ] `org.inkscape.effects.inset_shadow`
-- [ ] `org.inkscape.effects.perfect_bound_cover`
+- [x] `effect.color_markers`
+- [x] `effect.distribute_along_path`
+- [x] `effect.draw_from_triangle`
+- [x] `effect.extrude`
+- [x] `effect.interpolate`
+- [x] `effect.long_shadow`
+- [x] `effect.merge_styles`
+- [x] `effect.pattern_along_path`
+- [x] `effect.voronoi`
+- [x] `effect.voronoi_fill`
+- [x] `frame`
+- [x] `jessyink.core.video`
+- [x] `jessyink.export`
+- [x] `jessyink.install`
+- [x] `jessyink.summary`
+- [x] `jessyink.transitions`
+- [x] `jessyink.uninstall`
+- [x] `jessyink.view`
+- [x] `math.triangle`
+- [x] `mcepl.ungroup_deep`
+- [x] `org.cutlings.clean_up_path`
+- [x] `org.ekips.filter.flatten`
+- [x] `org.ekips.filter.gears`
+- [x] `org.ekips.filter.handles`
+- [x] `org.ekips.filter.perspective`
+- [x] `org.ekips.filter.plot`
+- [x] `org.ekips.filter.spirograph`
+- [x] `org.ekips.filter.turtle.lindenmayer`
+- [x] `org.ekips.filter.turtle_rtree`
+- [x] `org.ekips.filter.twirl`
+- [x] `org.ekips.output.dxf_outlines`
+- [x] `org.ekips.output.gimp_xcf`
+- [x] `org.ekips.output.hpgl_output`
+- [x] `org.evilmad.text.hershey`
+- [x] `org.greygreen.inkscape.effects.nup`
+- [x] `org.inkscape.color.black_and_white`
+- [x] `org.inkscape.color.brighter`
+- [x] `org.inkscape.color.custom`
+- [x] `org.inkscape.color.darker`
+- [x] `org.inkscape.color.desaturate`
+- [x] `org.inkscape.color.grayscale`
+- [x] `org.inkscape.color.hsl_adjust`
+- [x] `org.inkscape.color.less_hue`
+- [x] `org.inkscape.color.less_light`
+- [x] `org.inkscape.color.less_saturation`
+- [x] `org.inkscape.color.list_colours`
+- [x] `org.inkscape.color.more_hue`
+- [x] `org.inkscape.color.more_light`
+- [x] `org.inkscape.color.more_saturation`
+- [x] `org.inkscape.color.negative`
+- [x] `org.inkscape.color.randomize`
+- [x] `org.inkscape.color.remove_blue`
+- [x] `org.inkscape.color.remove_green`
+- [x] `org.inkscape.color.remove_red`
+- [x] `org.inkscape.color.replace_color`
+- [x] `org.inkscape.color.rgb_barrel`
+- [x] `org.inkscape.doc_ai_convert`
+- [x] `org.inkscape.doc_info`
+- [x] `org.inkscape.dpi90to96`
+- [x] `org.inkscape.dpi96to90`
+- [x] `org.inkscape.effect.func_plot`
+- [x] `org.inkscape.effect.guides_creator`
+- [x] `org.inkscape.effect.image_attributes`
+- [x] `org.inkscape.effect.param_curves`
+- [x] `org.inkscape.effects.inset_shadow`
+- [x] `org.inkscape.effects.perfect_bound_cover`
 - [x] `org.inkscape.filter.add_nodes`
-- [ ] `org.inkscape.filter.alphabet_soup`
-- [ ] `org.inkscape.filter.dashit`
-- [ ] `org.inkscape.filter.embed_image`
-- [ ] `org.inkscape.filter.extract_image`
-- [ ] `org.inkscape.filter.fractalize`
-- [ ] `org.inkscape.filter.interp_att_g`
-- [ ] `org.inkscape.filter.jitter_nodes`
-- [ ] `org.inkscape.filter.multiple.extract_image`
-- [ ] `org.inkscape.filter.nice_chart`
-- [ ] `org.inkscape.filter.number_nodes`
-- [ ] `org.inkscape.filter.pixel_snap`
-- [ ] `org.inkscape.filter.restack`
-- [ ] `org.inkscape.filter.segment_straightener`
-- [ ] `org.inkscape.filter.selected.embed_image`
-- [ ] `org.inkscape.follow_link`
-- [ ] `org.inkscape.generate.grid_polar`
-- [ ] `org.inkscape.generate.pdf_latex`
-- [ ] `org.inkscape.generate.printing_marks`
-- [ ] `org.inkscape.generate.typst_formula`
-- [ ] `org.inkscape.guillotine`
+- [x] `org.inkscape.filter.alphabet_soup`
+- [x] `org.inkscape.filter.dashit`
+- [x] `org.inkscape.filter.embed_image`
+- [x] `org.inkscape.filter.extract_image`
+- [x] `org.inkscape.filter.fractalize`
+- [x] `org.inkscape.filter.interp_att_g`
+- [x] `org.inkscape.filter.jitter_nodes`
+- [x] `org.inkscape.filter.multiple.extract_image`
+- [x] `org.inkscape.filter.nice_chart`
+- [x] `org.inkscape.filter.number_nodes`
+- [x] `org.inkscape.filter.pixel_snap`
+- [x] `org.inkscape.filter.restack`
+- [x] `org.inkscape.filter.segment_straightener`
+- [x] `org.inkscape.filter.selected.embed_image`
+- [x] `org.inkscape.follow_link`
+- [x] `org.inkscape.generate.grid_polar`
+- [x] `org.inkscape.generate.pdf_latex`
+- [x] `org.inkscape.generate.printing_marks`
+- [x] `org.inkscape.generate.typst_formula`
+- [x] `org.inkscape.guillotine`
 - [ ] `org.inkscape.input.aisvg`
-- [ ] `org.inkscape.input.cgm_input`
-- [ ] `org.inkscape.input.dhw_input`
-- [ ] `org.inkscape.input.dxf_input`
-- [ ] `org.inkscape.input.eps`
-- [ ] `org.inkscape.input.fig_input`
-- [ ] `org.inkscape.input.hpgl2_input`
-- [ ] `org.inkscape.input.postscript_input`
-- [ ] `org.inkscape.jessyink.add_mouse_handler`
-- [ ] `org.inkscape.jessyink.auto_texts`
-- [ ] `org.inkscape.jessyink.jessyink_effects`
-- [ ] `org.inkscape.jessyink.key_bindings`
-- [ ] `org.inkscape.jessyink.master_slide`
-- [ ] `org.inkscape.meshes.mesh_to_path`
-- [ ] `org.inkscape.meshes.path_to_mesh`
-- [ ] `org.inkscape.output.compressed_media`
-- [ ] `org.inkscape.output.dxf_twelve`
-- [ ] `org.inkscape.output.export_slices`
+- [x] `org.inkscape.input.cgm_input`
+- [x] `org.inkscape.input.dhw_input`
+- [x] `org.inkscape.input.dxf_input`
+- [x] `org.inkscape.input.eps`
+- [x] `org.inkscape.input.fig_input`
+- [x] `org.inkscape.input.hpgl2_input`
+- [x] `org.inkscape.input.postscript_input`
+- [x] `org.inkscape.jessyink.add_mouse_handler`
+- [x] `org.inkscape.jessyink.auto_texts`
+- [x] `org.inkscape.jessyink.jessyink_effects`
+- [x] `org.inkscape.jessyink.key_bindings`
+- [x] `org.inkscape.jessyink.master_slide`
+- [x] `org.inkscape.meshes.mesh_to_path`
+- [x] `org.inkscape.meshes.path_to_mesh`
+- [x] `org.inkscape.output.compressed_media`
+- [x] `org.inkscape.output.dxf_twelve`
+- [x] `org.inkscape.output.export_slices`
 - [ ] `org.inkscape.output.fxg`
-- [ ] `org.inkscape.output.html5canvas`
-- [ ] `org.inkscape.output.scour_inkscape`
-- [ ] `org.inkscape.output.synfig_export`
-- [ ] `org.inkscape.output.tar_layers`
-- [ ] `org.inkscape.path.envelope`
-- [ ] `org.inkscape.path.rubber_stretch`
-- [ ] `org.inkscape.path.to_absolute`
-- [ ] `org.inkscape.qr_code`
-- [ ] `org.inkscape.raster.jpg_output`
-- [ ] `org.inkscape.raster.png_output`
-- [ ] `org.inkscape.raster.tiff_output`
-- [ ] `org.inkscape.raster.webp_output`
-- [ ] `org.inkscape.render.barcode`
-- [ ] `org.inkscape.render.calendar`
-- [ ] `org.inkscape.render.data_matrix`
-- [ ] `org.inkscape.render.foldable_box`
-- [ ] `org.inkscape.render.grid_cartesian`
-- [ ] `org.inkscape.render.grid_isometric`
-- [ ] `org.inkscape.render.poly_3d`
-- [ ] `org.inkscape.render.rack_gear`
-- [ ] `org.inkscape.render.wireframe_sphere`
-- [ ] `org.inkscape.replace_font`
+- [x] `org.inkscape.output.html5canvas`
+- [x] `org.inkscape.output.scour_inkscape`
+- [x] `org.inkscape.output.synfig_export`
+- [x] `org.inkscape.output.tar_layers`
+- [x] `org.inkscape.path.envelope`
+- [x] `org.inkscape.path.rubber_stretch`
+- [x] `org.inkscape.path.to_absolute`
+- [x] `org.inkscape.qr_code`
+- [x] `org.inkscape.raster.jpg_output`
+- [x] `org.inkscape.raster.png_output`
+- [x] `org.inkscape.raster.tiff_output`
+- [x] `org.inkscape.raster.webp_output`
+- [x] `org.inkscape.render.barcode`
+- [x] `org.inkscape.render.calendar`
+- [x] `org.inkscape.render.data_matrix`
+- [x] `org.inkscape.render.foldable_box`
+- [x] `org.inkscape.render.grid_cartesian`
+- [x] `org.inkscape.render.grid_isometric`
+- [x] `org.inkscape.render.poly_3d`
+- [x] `org.inkscape.render.rack_gear`
+- [x] `org.inkscape.render.wireframe_sphere`
+- [x] `org.inkscape.replace_font`
 - [ ] `org.inkscape.template.business_card`
 - [ ] `org.inkscape.template.dvd_cover`
 - [ ] `org.inkscape.template.seamless_pattern`
-- [ ] `org.inkscape.text.braille`
-- [ ] `org.inkscape.text.extract`
-- [ ] `org.inkscape.text.flip_case`
-- [ ] `org.inkscape.text.lowercase`
-- [ ] `org.inkscape.text.merge`
-- [ ] `org.inkscape.text.mojibake`
-- [ ] `org.inkscape.text.random_case`
-- [ ] `org.inkscape.text.sentence_case`
-- [ ] `org.inkscape.text.title_case`
-- [ ] `org.inkscape.text.uppercase`
-- [ ] `org.inkscape.text_split`
-- [ ] `org.inkscape.typography.layers_to_svg_font`
-- [ ] `org.inkscape.typography.new_glyph_layer`
-- [ ] `org.inkscape.typography.next_layer`
-- [ ] `org.inkscape.typography.previous_layer`
-- [ ] `org.inkscape.typography.setup_typography_canvas`
-- [ ] `org.inkscape.typography.svg_font_to_layers`
-- [ ] `org.inkscape.visualise.measure_length`
-- [ ] `org.inkscape.web.set_attribute`
-- [ ] `org.inkscape.web.slicer.create_group`
-- [ ] `org.inkscape.web.slicer.create_rect`
-- [ ] `org.inkscape.web.slicer.export`
-- [ ] `org.inkscape.web.transmit_attribute`
-- [ ] `org.inkscape.webdesign.interactive_mockup`
-- [ ] `se.lewerin.filter.dimension`
+- [x] `org.inkscape.text.braille`
+- [x] `org.inkscape.text.extract`
+- [x] `org.inkscape.text.flip_case`
+- [x] `org.inkscape.text.lowercase`
+- [x] `org.inkscape.text.merge`
+- [x] `org.inkscape.text.mojibake`
+- [x] `org.inkscape.text.random_case`
+- [x] `org.inkscape.text.sentence_case`
+- [x] `org.inkscape.text.title_case`
+- [x] `org.inkscape.text.uppercase`
+- [x] `org.inkscape.text_split`
+- [x] `org.inkscape.typography.layers_to_svg_font`
+- [x] `org.inkscape.typography.new_glyph_layer`
+- [x] `org.inkscape.typography.next_layer`
+- [x] `org.inkscape.typography.previous_layer`
+- [x] `org.inkscape.typography.setup_typography_canvas`
+- [x] `org.inkscape.typography.svg_font_to_layers`
+- [x] `org.inkscape.visualise.measure_length`
+- [x] `org.inkscape.web.set_attribute`
+- [x] `org.inkscape.web.slicer.create_group`
+- [x] `org.inkscape.web.slicer.create_rect`
+- [x] `org.inkscape.web.slicer.export`
+- [x] `org.inkscape.web.transmit_attribute`
+- [x] `org.inkscape.webdesign.interactive_mockup`
+- [x] `se.lewerin.filter.dimension`
 
 </details>
