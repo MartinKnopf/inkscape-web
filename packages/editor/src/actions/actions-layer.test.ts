@@ -3,6 +3,8 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from 'vitest';
 import { InkscapeApplication } from '../inkscape-application.ts';
+import { LayerRelativePosition } from '../layer-manager.ts';
+import { type LayerPropertiesRequest, setLayerPropertiesPresenter } from '../ui/dialog/layer-properties.ts';
 import { setupDesktop } from '../ui/tools/tool-test-utils.ts';
 
 const SVG =
@@ -75,5 +77,81 @@ describe('layer actions', () => {
     expect(dt.getSelection().singleItem()?.getId()).toBe('l1');
     run('win.layer-from-group');
     expect(item('l1').getAttribute('inkscape:groupmode')).toBe('layer');
+  });
+});
+
+describe('layer dialogs', () => {
+  /** Run the action and return the request that it makes to the dialog. */
+  function ask(run: (a: string) => void, action: string): LayerPropertiesRequest {
+    let request: LayerPropertiesRequest | undefined;
+    const off = setLayerPropertiesPresenter((r) => {
+      request = r;
+    });
+    run(action);
+    off();
+    if (!request) throw new Error('no dialog');
+    return request;
+  }
+
+  it('win.layer-new proposes the next free name and adds the layer at the chosen position', () => {
+    const { dt, item, current, order, run, undoSteps } = setup();
+    dt.layerManager().setCurrentLayer(item('l2'));
+    const request = ask(run, 'win.layer-new');
+    expect(request).toMatchObject({ type: 'create', name: 'Two 1', position_visible: true });
+    if (request.type !== 'create') return;
+    request.apply('Two', LayerRelativePosition.LPOS_BELOW);
+    // The name is made unique, the new layer is below the current one and current.
+    expect(item(current() ?? '').label()).toBe('Two 1');
+    expect(order().indexOf(current() ?? '')).toBe(1);
+    expect(undoSteps()).toEqual(['Add layer']);
+  });
+
+  it('win.layer-rename renames the current layer', () => {
+    const { dt, item, run, undoSteps } = setup();
+    dt.layerManager().setCurrentLayer(item('l3'));
+    const request = ask(run, 'win.layer-rename');
+    expect(request).toMatchObject({ type: 'rename', name: 'Three' });
+    if (request.type !== 'rename') return;
+    request.apply('Top');
+    expect(item('l3').label()).toBe('Top');
+    expect(undoSteps()).toEqual(['Rename layer']);
+  });
+
+  it('win.selection-move-to-layer lists the layers and moves the selection into the chosen one', () => {
+    const { dt, item, current, run, undoSteps } = setup();
+    dt.layerManager().setCurrentLayer(item('l1'));
+    dt.getSelection().set(item('a'));
+    const request = ask(run, 'win.selection-move-to-layer');
+    expect(request).toMatchObject({ type: 'move' });
+    if (request.type !== 'move') return;
+    expect(request.layers.map((l) => l.label)).toEqual(['One', 'Two', 'Three']);
+    request.apply(item('l3'));
+    expect(item('a').parent).toBe(item('l3'));
+    expect(current()).toBe('l3');
+    expect(undoSteps()).toEqual(['Move selection to layer']);
+  });
+
+  it('win.selection-move-to-layer-above moves to the next layer, and stops at the last', () => {
+    const { dt, item, current, run, undoSteps } = setup();
+    dt.layerManager().setCurrentLayer(item('l1'));
+    dt.getSelection().set(item('a'));
+    run('win.selection-move-to-layer-above');
+    expect(item('a').parent).toBe(item('l2'));
+    expect(current()).toBe('l2');
+    run('win.selection-move-to-layer-above');
+    run('win.selection-move-to-layer-above'); // no more layers above
+    expect(item('a').parent).toBe(item('l3'));
+    expect(undoSteps()).toEqual(['Raise to next layer', 'Raise to next layer']);
+    run('win.selection-move-to-layer-below');
+    expect(item('a').parent).toBe(item('l2'));
+  });
+
+  it('win.layer-duplicate duplicates the selected layer', () => {
+    const { dt, item, order, run, undoSteps } = setup();
+    dt.layerManager().setCurrentLayer(item('l1'));
+    dt.getSelection().set(item('l1'));
+    run('win.layer-duplicate');
+    expect(order()).toHaveLength(4);
+    expect(undoSteps()).toEqual(['Duplicate layer']);
   });
 });

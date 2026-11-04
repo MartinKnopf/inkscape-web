@@ -27,13 +27,35 @@ import {
 import type { SPDesktop } from '../desktop.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 import { create_layer, LayerRelativePosition, next_layer, previous_layer } from '../layer-manager.ts';
+import { LayerPropertiesDialog } from '../ui/dialog/layer-properties.ts';
 import { show_output } from './actions-helper.ts';
 
 const SECTION_LAYER = NC_('Action Section', 'Layer');
 const SECTION_SELECT = NC_('Action Section', 'Select');
 
-/** Action id, label, section and tooltip (untranslated). TODO: layer-new, layer-rename, selection-move-to-layer (they open the layer dialog), layer-duplicate, selection-move-to-layer-above/below. */
+/** Action id, label, section and tooltip (untranslated). */
 export const raw_data_layer: readonly (readonly [string, string, string, string])[] = [
+  ['win.layer-new', N_('Add Layer'), SECTION_LAYER, N_('Create a new layer')],
+  ['win.layer-duplicate', N_('Duplicate Current Layer'), SECTION_LAYER, N_('Duplicate the current layer')],
+  ['win.layer-rename', N_('Rename Layer'), SECTION_LAYER, N_('Rename the current layer')],
+  [
+    'win.selection-move-to-layer-above',
+    N_('Move Selection to Layer Above'),
+    SECTION_LAYER,
+    N_('Move selection to the layer above the current'),
+  ],
+  [
+    'win.selection-move-to-layer-below',
+    N_('Move Selection to Layer Below'),
+    SECTION_LAYER,
+    N_('Move selection to the layer below the current'),
+  ],
+  [
+    'win.selection-move-to-layer',
+    N_('Move Selection to Layer...'),
+    SECTION_LAYER,
+    N_('Move selection to layer'),
+  ],
   ['win.layer-new-above', N_('Add Layer Above'), SECTION_LAYER, N_('Create a new layer above current')],
   ['win.layer-delete', N_('Delete Current Layer'), SECTION_LAYER, N_('Delete the current layer')],
 
@@ -124,6 +146,61 @@ export function add_actions_layer(app: InkscapeApplication): void {
       else run(dt, layer);
     });
 
+  // The dialogs are shown by the web app (LayerPropertiesDialog).
+  add('layer-new', (dt) => LayerPropertiesDialog.showCreate(dt, dt.layerManager().currentLayer()));
+  add('layer-rename', (dt) => LayerPropertiesDialog.showRename(dt, dt.layerManager().currentLayer()));
+  add('selection-move-to-layer', (dt) =>
+    LayerPropertiesDialog.showMove(dt, dt.layerManager().currentLayer()),
+  );
+
+  add('layer-duplicate', (dt) => {
+    if (dt.layerManager().isRoot()) {
+      no_layer();
+      return;
+    }
+    dt.getSelection().duplicate(true, true); // This requires the selection to be a layer!
+    DocumentUndo.done(dt.getDocument(), C_('Undo', 'Duplicate layer'), 'layer-duplicate');
+    flash(_('Duplicated layer.'));
+  });
+
+  /** Move the selection to the layer after (or before) the current one, and make it the current layer. */
+  const move_to_layer = (
+    name: string,
+    find: typeof next_layer,
+    undo: string,
+    icon: string,
+    no_more: string,
+  ) =>
+    add(name, (dt) => {
+      const manager = dt.layerManager();
+      const selection = dt.getSelection();
+      const root = manager.currentRoot();
+      const current = manager.currentLayer();
+      // TODO: flash "Select <b>object(s)</b> to move to the layer above/below."
+      if (selection.isEmpty() || !root || !current) return;
+      const target = find(root, current);
+      if (!target) {
+        flash(no_more);
+        return;
+      }
+      selection.toLayer(target);
+      DocumentUndo.done(dt.getDocument(), undo, icon);
+    });
+  move_to_layer(
+    'selection-move-to-layer-above',
+    next_layer,
+    C_('Undo', 'Raise to next layer'),
+    'selection-move-to-layer-above',
+    _('No more layers above.'),
+  );
+  move_to_layer(
+    'selection-move-to-layer-below',
+    previous_layer,
+    C_('Undo', 'Lower to previous layer'),
+    'selection-move-to-layer-below',
+    _('No more layers below.'),
+  );
+
   add('layer-new-above', (dt) => {
     const manager = dt.layerManager();
     const document = dt.getDocument();
@@ -132,7 +209,7 @@ export function add_actions_layer(app: InkscapeApplication): void {
     if (!current) return;
     const new_layer = create_layer(root, current, LayerRelativePosition.LPOS_ABOVE);
     if (!new_layer) return;
-    new_layer.setAttribute('inkscape:label', current.label() ?? '');
+    manager.renameLayer(new_layer, current.label() ?? '', true);
     dt.getSelection().clear();
     manager.setCurrentLayer(new_layer);
     DocumentUndo.done(document, C_('Undo', 'Add layer'), 'layer-new');

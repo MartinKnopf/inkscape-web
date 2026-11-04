@@ -11,6 +11,7 @@ import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
 import { MenuBar } from '../ui/desktop/menubar.tsx';
 import { dialogComponents, setDialogDock } from '../ui/dialog/dialog-manager.ts';
 import { GuidelineDialogHost } from '../ui/dialog/guides.tsx';
+import { LayerPropertiesDialogHost } from '../ui/dialog/layer-properties.tsx';
 import { MessageDialogHost } from '../ui/dialog/message-dialog.tsx';
 import { SnapToolbar } from '../ui/toolbar/snap-toolbar.tsx';
 import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
@@ -108,6 +109,7 @@ export function App() {
       <GuidelineDialogHost />
       <PrefDialogHost />
       <PdfImportDialogHost />
+      <LayerPropertiesDialogHost />
       <MessageDialogHost />
     </div>
   );

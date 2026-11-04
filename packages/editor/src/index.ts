@@ -104,6 +104,7 @@ export * as FilterEffectsDialog from './ui/dialog/filter-effects-dialog.ts';
 export * from './ui/dialog/global-palettes.ts';
 export * from './ui/dialog/guides.ts';
 export * from './ui/dialog/icon-preview.ts';
+export * from './ui/dialog/layer-properties.ts';
 // Functions of the Path Effects dialog (upstream class LivePathEffectEditor).
 export * as LivePathEffectEditor from './ui/dialog/livepatheffect-editor.ts';
 export * from './ui/dialog/object-properties.ts';
