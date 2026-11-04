@@ -26,7 +26,14 @@ export async function setupTextLayout(): Promise<void> {
     });
   }
   // The tests use DejaVu Sans; other faces load when a test asks for them.
-  await factory.preload({ family: 'DejaVu Sans', style: 0, weight: 400, stretch: 4, variant: 0, variations: '' });
+  await factory.preload({
+    family: 'DejaVu Sans',
+    style: 0,
+    weight: 400,
+    stretch: 4,
+    variant: 0,
+    variations: '',
+  });
   await factory.whenLoaded();
 }
 
