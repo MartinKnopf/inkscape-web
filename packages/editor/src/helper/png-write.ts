@@ -27,6 +27,8 @@ export interface RenderOptions {
   background?: Colors.Color | null;
   /** Only draw these objects (and their children); everything else is hidden. */
   only?: readonly SPObject[] | null;
+  /** Hide the elements of the serialized document for which this returns true (and their children). */
+  hide?: ((element: Element) => boolean) | null;
 }
 
 /**
@@ -42,6 +44,7 @@ export function render_svg_source(
   width: number,
   height: number,
   only: readonly SPObject[] | null = null,
+  hide: ((element: Element) => boolean) | null = null,
 ): string {
   const parsed = new DOMParser().parseFromString(saveBuf(doc.rdoc, SVG_NS_URI), 'image/svg+xml');
   const root = parsed.documentElement;
@@ -54,6 +57,11 @@ export function render_svg_source(
   root.setAttribute('height', String(dims.y));
   root.setAttribute('overflow', 'visible');
   if (only) hide_all_except(root, new Set(only.map((o) => o.getId()).filter((id): id is string => !!id)));
+  if (hide) {
+    for (const el of [...root.querySelectorAll('*')]) {
+      if (hide(el)) el.setAttribute('style', `${el.getAttribute('style') ?? ''};display:none`);
+    }
+  }
   const inner = new XMLSerializer().serializeToString(root);
   const viewBox = `${area.left()} ${area.top()} ${area.width()} ${area.height()}`;
   return `<svg xmlns="${SVG_NS_URI}" width="${width}" height="${height}" viewBox="${viewBox}">${inner}</svg>`;
@@ -100,7 +108,7 @@ export async function sp_export_canvas(
     ctx.fillStyle = rgbaCss(bg.toRGBA());
     ctx.fillRect(0, 0, width, height);
   }
-  const svg = render_svg_source(doc, area, width, height, options.only ?? null);
+  const svg = render_svg_source(doc, area, width, height, options.only ?? null, options.hide ?? null);
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
   try {
     const img = new Image(width, height);

@@ -27,6 +27,7 @@ import {
   colorToRgba8,
   DASH_PATTERNS,
   deleteGradientStop,
+  edit_marker,
   get_stock_pattern,
   gradientStops,
   type Hsva,
@@ -1014,6 +1015,14 @@ function MarkerComboBox(props: {
           ))}
         </div>
       )}
+      <button
+        type="button"
+        title={_('Edit the marker on the canvas')}
+        disabled={!current}
+        onClick={() => edit_marker(loc, desktop)}
+      >
+        {_('Edit')}
+      </button>
     </div>
   );
 }

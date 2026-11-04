@@ -850,3 +850,74 @@
 .filter-empty {
   color: #777;
 }
+
+/* Clone Tiler */
+.clonetiler {
+  font-size: 12px;
+}
+
+.clonetiler-page {
+  overflow: auto;
+}
+
+.clonetiler-table {
+  display: grid;
+  grid-template-columns: auto repeat(3, auto);
+  gap: 4px 8px;
+  align-items: center;
+  justify-content: start;
+}
+
+.clonetiler-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.clonetiler-cell .spinbutton input {
+  width: 70px;
+}
+
+.clonetiler-trace {
+  margin-top: 6px;
+}
+
+.clonetiler-trace[aria-disabled="true"] {
+  opacity: 0.6;
+}
+
+.clonetiler-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.clonetiler-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid #ccc;
+}
+
+.clonetiler-size {
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  gap: 4px 6px;
+  align-items: center;
+  justify-content: start;
+}
+
+.clonetiler-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.clonetiler-buttons button:first-child {
+  margin-right: auto;
+}
+
+.clonetiler-warning {
+  color: #a00;
+}

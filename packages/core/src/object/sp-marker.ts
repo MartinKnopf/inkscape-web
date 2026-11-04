@@ -25,7 +25,7 @@ import { SVGAngle } from '../svg/svg-angle.ts';
 import { SVGLength, SVGLengthUnit } from '../svg/svg-length.ts';
 import type { XmlDocument } from '../xml/document.ts';
 import type { Node } from '../xml/node.ts';
-import { SP_ITEM_REFERENCE_FLAGS, type SPItemCtx, SPItemKey } from './sp-item.ts';
+import { SP_ITEM_REFERENCE_FLAGS, SPItem, type SPItemCtx, SPItemKey } from './sp-item.ts';
 import { SPGroup } from './sp-item-group.ts';
 import {
   SP_OBJECT_MODIFIED_FLAG,
@@ -34,7 +34,7 @@ import {
   type SPCtx,
   type SPObject,
 } from './sp-object.ts';
-import { SPViewBox } from './viewbox.ts';
+import { SPAspect, SPViewBox } from './viewbox.ts';
 
 export enum markerOrient {
   MARKER_ORIENT_ANGLE,
@@ -132,7 +132,6 @@ export class SPMarker extends SPGroup {
         this.orient_set = false;
         this.orient_mode = markerOrient.MARKER_ORIENT_ANGLE;
         this.orient.assign(0.0);
-        this.orient._set = false;
         if (value === 'auto') {
           this.orient_mode = markerOrient.MARKER_ORIENT_AUTO;
           this.orient_set = true;
@@ -335,3 +334,70 @@ export function sp_marker_hide(marker: SPMarker, key: number): void {
 }
 
 SPMarkerReference.isMarker = (obj: SPObject) => obj instanceof SPMarker;
+
+/**
+ * The visual bounds of the children of the marker in document coordinates (the marker is not
+ * shown itself, so the children are measured on the desktop and mapped back), or null if it has
+ * none. Upstream does this inline in sp_validate_marker and getMarkerBounds.
+ */
+export function sp_marker_content_bounds(marker: SPMarker, doc: SPDocument): Rect | null {
+  let r: Rect | null = null;
+  for (const child of marker.children) {
+    if (!(child instanceof SPItem)) continue;
+    const b = child.desktopVisualBounds();
+    if (b) r = r ? r.unionWith(b) : b;
+  }
+  if (!r) return null;
+  const dt2doc = doc.dt2doc();
+  return new Rect(r.min().transformed(dt2doc), r.max().transformed(dt2doc));
+}
+
+/**
+ * Set the properties of the marker that the marker tool needs before editing starts: refX, refY,
+ * orient, viewBox from the bounds of the content, markerWidth and markerHeight with a uniform scale
+ * unless preserveAspectRatio is none, and preserveAspectRatio.
+ */
+export function sp_validate_marker(sp_marker: SPMarker, doc: SPDocument | null): void {
+  if (!doc) return;
+  doc.ensureUpToDate();
+
+  // calculate the marker bounds to set any missing viewBox information
+  const bounds = sp_marker_content_bounds(sp_marker, doc);
+  if (!bounds) return;
+
+  if (!sp_marker.refX._set) sp_marker.setAttribute('refX', '0.0');
+  if (!sp_marker.refY._set) sp_marker.setAttribute('refY', '0.0');
+  if (!sp_marker.orient._set) sp_marker.setAttribute('orient', '0.0');
+
+  const vb = sp_marker.vb;
+  let xScale = 1;
+  let yScale = 1;
+  if (vb.viewBox_set) {
+    // check if the X direction has any existing scale factor
+    if (vb.viewBox.width() > 0) {
+      const existingXScale = sp_marker.markerWidth.computed / vb.viewBox.width();
+      xScale = existingXScale >= 0 ? existingXScale : 1;
+    }
+    // check if the Y direction has any existing scale factor
+    if (vb.viewBox.height() > 0) {
+      const existingYScale = sp_marker.markerHeight.computed / vb.viewBox.height();
+      yScale = existingYScale >= 0 ? existingYScale : 1;
+    }
+    // only enforce uniform scale if the preserveAspectRatio is not set yet or if it does not equal "none"
+    if (!vb.aspect_set || vb.aspect_align !== SPAspect.SP_ASPECT_NONE) {
+      // set the scale to the smaller option if both xScale and yScale exist
+      if (xScale > yScale) xScale = yScale;
+      else yScale = xScale;
+    }
+  } else {
+    sp_marker.setAttribute('viewBox', `0 0 ${cssNumber(bounds.width())} ${cssNumber(bounds.height())}`);
+  }
+
+  sp_marker.setAttribute('markerWidth', svgNumber(vb.viewBox.width() * xScale));
+  sp_marker.setAttribute('markerHeight', svgNumber(vb.viewBox.height() * yScale));
+
+  if (!vb.aspect_set) {
+    // uniform scaling is the default
+    sp_marker.setAttribute('preserveAspectRatio', 'xMidYMid');
+  }
+}

@@ -79,6 +79,12 @@ export class Preferences {
     return Number.isNaN(v) ? def : v;
   }
 
+  /** The value if it is in [min, max], else def (upstream getDoubleLimited). */
+  getDoubleLimited(path: string, def: number, min: number, max: number): number {
+    const v = this.getDouble(path, def);
+    return v >= min && v <= max ? v : def;
+  }
+
   /** The paths of the groups directly in path ("/tools/calligraphic/preset/cp0", ...), in order. */
   getAllDirs(path: string): string[] {
     const prefix = `${path}/`;

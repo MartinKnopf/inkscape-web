@@ -13,11 +13,13 @@ import {
   NodeSatelliteArrayParam,
   type SPItem,
   SPLPEItem,
+  SPMarker,
   SPPattern,
 } from '@inkscape-web/core';
 import type { Affine } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
 import { KnotHolder } from './knot/knot-holder.ts';
+import { MarkerKnotHolder } from './shape-editor-knotholders.ts';
 
 /**
  * The knot holder of the current path effect of the item, or null (upstream createLPEKnotHolder).
@@ -32,10 +34,16 @@ export function createLPEKnotHolder(item: SPItem, desktop: SPDesktop): KnotHolde
 }
 
 /**
- * The knot holder of the item (upstream createKnotHolder): the knots of the patterns of its fill
- * and stroke, or null. TODO: the knot holders of shapes (rect, ellipse, star, spiral, ...).
+ * The knot holder of the item (upstream createKnotHolder): the knots of a marker, or of the
+ * patterns of its fill and stroke, or null. TODO: the knot holders of shapes (rect, ellipse, star, spiral, ...).
  */
-export function createKnotHolder(item: SPItem, desktop: SPDesktop): KnotHolder | null {
+export function createKnotHolder(
+  item: SPItem,
+  desktop: SPDesktop,
+  edit_rotation = 0,
+  edit_marker_mode = -1,
+): KnotHolder | null {
+  if (item instanceof SPMarker) return new MarkerKnotHolder(desktop, item, edit_rotation, edit_marker_mode);
   if (
     !(item.style.getFillPaintServer() instanceof SPPattern) &&
     !(item.style.getStrokePaintServer() instanceof SPPattern)
@@ -54,6 +62,9 @@ export function createKnotHolder(item: SPItem, desktop: SPDesktop): KnotHolder |
 export class ShapeEditor {
   readonly desktop: SPDesktop;
   readonly #edit_transform: Affine | null;
+  /** The tangent angle of the path at the marker being edited, and its SPMarkerLoc (-1: none). */
+  readonly #edit_rotation: number;
+  readonly #edit_marker_mode: number;
   lpeknotholder: KnotHolder | null = null;
   knotholder: KnotHolder | null = null;
   #item: SPItem | null = null;
@@ -67,16 +78,23 @@ export class ShapeEditor {
     },
   };
 
-  constructor(desktop: SPDesktop, edit_transform: Affine | null = null) {
+  constructor(
+    desktop: SPDesktop,
+    edit_transform: Affine | null = null,
+    edit_rotation = 0,
+    edit_marker_mode = -1,
+  ) {
     this.desktop = desktop;
     this.#edit_transform = edit_transform;
+    this.#edit_rotation = edit_rotation;
+    this.#edit_marker_mode = edit_marker_mode;
   }
 
   set_item(item: SPItem): void {
     this.unset_item();
     this.#item = item;
     this.lpeknotholder = createLPEKnotHolder(item, this.desktop);
-    this.knotholder = createKnotHolder(item, this.desktop);
+    this.knotholder = createKnotHolder(item, this.desktop, this.#edit_rotation, this.#edit_marker_mode);
     // Parameters whose knots change with the path rebuild the holder (upstream
     // NodeSatelliteArrayParam::reloadKnots resets the shape editors of the node tool).
     const lpe = item instanceof SPLPEItem ? item.getCurrentLPE() : null;
@@ -86,10 +104,15 @@ export class ShapeEditor {
       }
     }
     if (this.lpeknotholder && this.#edit_transform) this.lpeknotholder.setEditTransform(this.#edit_transform);
+    if (this.knotholder && this.#edit_transform) {
+      this.knotholder.setEditTransform(this.#edit_transform);
+      this.knotholder.update_knots();
+    }
     this.#repr = item.getRepr();
     this.#repr.addObserver(this.#observer);
     this.#disconnect = item.modifiedSignal.connect(() => {
       this.lpeknotholder?.update_knots();
+      this.knotholder?.update_knots();
       this.onItemChanged?.();
     });
   }

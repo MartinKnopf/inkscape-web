@@ -89,6 +89,12 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     N_('Select symbol from a symbols palette'),
   ],
   [
+    "win.dialog-open('CloneTiler')",
+    N_('Open Clone Tiler'),
+    SECTION_DIALOG,
+    N_('Create multiple clones of selected object, arranging them into a pattern or scattering'),
+  ],
+  [
     "win.dialog-open('XMLEditor')",
     N_('Open XML Editor'),
     SECTION_DIALOG,
