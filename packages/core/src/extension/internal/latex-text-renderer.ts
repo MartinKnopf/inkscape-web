@@ -414,11 +414,26 @@ export class LaTeXTextRenderer {
     // Check item's visibility
     if (item.isHidden()) return;
 
-    if (item instanceof SPRoot) return this.sp_root_render(item);
-    if (item instanceof SPGroup) return this.sp_group_render(item);
-    if (item instanceof SPUse) return this.sp_use_render(item);
-    if (item instanceof SPText) return this.sp_text_render(item);
-    if (item instanceof SPFlowtext) return this.sp_flowtext_render(item);
+    if (item instanceof SPRoot) {
+      this.sp_root_render(item);
+      return;
+    }
+    if (item instanceof SPGroup) {
+      this.sp_group_render(item);
+      return;
+    }
+    if (item instanceof SPUse) {
+      this.sp_use_render(item);
+      return;
+    }
+    if (item instanceof SPText) {
+      this.sp_text_render(item);
+      return;
+    }
+    if (item instanceof SPFlowtext) {
+      this.sp_flowtext_render(item);
+      return;
+    }
     // Only PDFLaTeX supports importing a single page of a graphics file,
     // so only PDF backend gets interleaved text/graphics
     if (
