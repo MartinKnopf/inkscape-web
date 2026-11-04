@@ -17,6 +17,7 @@ export * from './extension/internal/cairo-backend.ts';
 export * from './extension/internal/cairo-render-context.ts';
 export * from './extension/internal/cairo-renderer.ts';
 export * from './extension/internal/gdkpixbuf-input.ts';
+export * from './extension/internal/latex-text-renderer.ts';
 export * from './filter-chemistry.ts';
 export * from './filter-enums.ts';
 export * from './gradient-chemistry.ts';
