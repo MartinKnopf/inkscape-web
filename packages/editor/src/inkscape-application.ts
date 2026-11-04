@@ -14,6 +14,7 @@ import { add_actions_edit_document } from './actions/actions-edit-document.ts';
 import { add_actions_edit_window } from './actions/actions-edit-window.ts';
 import { add_actions_effect } from './actions/actions-effect.ts';
 import { InkActionExtraData } from './actions/actions-extra-data.ts';
+import { add_actions_hide_lock } from './actions/actions-hide-lock.ts';
 import { add_actions_node_tool } from './actions/actions-node-tool.ts';
 import { add_actions_object } from './actions/actions-object.ts';
 import { add_actions_object_align } from './actions/actions-object-align.ts';
@@ -56,6 +57,7 @@ export class InkscapeApplication {
     // ======================== Actions =========================
     add_actions_edit(this); // actions for editing
     add_actions_effect(this); // actions for Filters and Extensions
+    add_actions_hide_lock(this); // actions for hiding and locking
     add_actions_object(this); // actions for object manipulation
     add_actions_object_align(this); // actions for object alignment
     add_actions_path(this); // actions for Paths
