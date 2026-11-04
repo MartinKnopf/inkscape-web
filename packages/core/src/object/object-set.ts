@@ -962,6 +962,13 @@ export class ObjectSet {
     this.#lastAffine = cached;
   }
 
+  /** Remove the transform attribute of the items, with an undo step. */
+  removeTransform(): void {
+    for (const repr of this.xmlNodes()) repr.removeAttribute('transform');
+    const document = this.document();
+    if (document) DocumentUndo.done(document, C_('Undo', 'Remove transform'), '');
+  }
+
   clearLastAffine(): void {
     this.#lastAffine = Affine.identity();
   }
