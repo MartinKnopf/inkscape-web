@@ -1329,3 +1329,80 @@
 .font-collections-system {
   color: #777;
 }
+
+/* SVG Font Editor */
+.svg-fonts-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 8px;
+  overflow: auto;
+  background: #fff;
+}
+
+.svg-fonts-fontlist {
+  display: flex;
+  flex-direction: column;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px solid #ccc;
+}
+
+.svg-fonts-fontname {
+  border: 0;
+  padding: 2px 4px;
+}
+
+.svg-fonts-fontname[aria-selected="true"] {
+  background: #dbe8ff;
+}
+
+.svg-fonts-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.svg-fonts-attr {
+  display: grid;
+  grid-template-columns: 11em 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.svg-fonts-glyphs {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.svg-fonts-glyphs td,
+.svg-fonts-glyphs th {
+  padding: 1px 4px;
+  text-align: left;
+}
+
+.svg-fonts-glyphs input {
+  width: 100%;
+  min-width: 3em;
+}
+
+.svg-fonts-glyphs tr[aria-selected="true"] {
+  background: #dbe8ff;
+}
+
+.svg-fonts-text {
+  overflow: visible;
+  fill: currentColor;
+}
+
+.svg-fonts-preview {
+  border-top: 1px solid #ddd;
+  padding-top: 6px;
+  overflow-x: auto;
+}
+
+.svg-fonts-message {
+  margin: 0;
+  color: #a00;
+}

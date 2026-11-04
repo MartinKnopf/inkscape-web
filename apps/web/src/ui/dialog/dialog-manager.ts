@@ -20,6 +20,7 @@ import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
 import { SelectorsDialog } from './selectorsdialog.tsx';
+import { SvgFontsDialog } from './svg-fonts-dialog.tsx';
 import { SwatchesDialog } from './swatches.tsx';
 import { SymbolsDialog } from './symbols.tsx';
 import { FontBrowserDialog, TextEditDialog } from './text-edit.tsx';
@@ -52,6 +53,7 @@ const DIALOGS: Record<string, DialogData> = {
   FillStroke: { label: _('_Fill and Stroke'), component: FillAndStrokeDialog },
   FontBrowser: { label: _('_Font Browser'), component: FontBrowserDialog, width: 360 },
   FontCollections: { label: _('_Font Collections'), component: FontCollectionsManagerDialog, width: 480 },
+  SVGFonts: { label: _('SVG Font Editor'), component: SvgFontsDialog, width: 480 },
   ExtensionsGallery: { label: _('_Extension Gallery'), component: ExtensionsGalleryDialog, width: 480 },
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
   FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },
