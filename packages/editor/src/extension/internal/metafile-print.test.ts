@@ -73,4 +73,17 @@ describe('dash_pathv (FixPPTDashLine)', () => {
       ],
     ]);
   });
+
+  it('joins the last dash with the first one when they meet within 0.01', () => {
+    // the path ends 0.005 from its start: the last dash (10-20) ends there, the first (0-5) starts at 0;
+    // they become one path through the end point
+    const out = points(dash_pathv(parse_svg_path('M0 0 L10 0 L0.005 0'), [5, 5, 20, 5]));
+    expect(out).toEqual([
+      [
+        [10, 0],
+        [0.005, 0],
+        [5, 0],
+      ],
+    ]);
+  });
 });

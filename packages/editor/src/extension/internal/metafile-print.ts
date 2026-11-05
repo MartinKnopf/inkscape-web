@@ -531,7 +531,8 @@ export function dash_pathv(pathv: PathVector, dashes: readonly number[]): PathVe
   const last = out.at(-1);
   const first = first_frag[0];
   if (last && first && are_near(last.finalPoint(), first.initialPoint(), 0.01)) {
-    for (const c of first.openCurves()) last.appendCurve(c);
+    // the dashes are line segments: the first one starts at the end of the last one
+    for (const c of first.openCurves()) last.appendCurve(new LineSegment(last.finalPoint(), c.finalPoint()));
     first_frag = first_frag.slice(1);
   }
   out.push(...first_frag);
