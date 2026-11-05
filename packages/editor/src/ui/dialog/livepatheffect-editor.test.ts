@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import { EffectType, LPECategory } from '@inkscape-web/core';
+import { EffectType, LPECategory, Preferences } from '@inkscape-web/core';
 import { describe, expect, it } from 'vitest';
 import { filter_lpes, get_list_of_applicable_lpes } from './livepatheffect-editor.ts';
 
@@ -15,6 +15,15 @@ describe('Path Effects gallery', () => {
     expect(keys).toEqual(sorted);
     expect(lpes[0]?.category).toBe(LPECategory.EditTools);
     expect(lpes.find((l) => l.type === EffectType.MIRROR_SYMMETRY)?.icon_name).toBe('mirror-symmetry');
+  });
+
+  it('lists the experimental effects only with the preference', () => {
+    const prefs = Preferences.get();
+    const has_extrude = () => get_list_of_applicable_lpes(null).some((l) => l.type === EffectType.EXTRUDE);
+    expect(has_extrude()).toBe(false);
+    prefs.setBool('/dialogs/livepatheffect/showexperimental', true);
+    expect(has_extrude()).toBe(true);
+    prefs.remove('/dialogs/livepatheffect/showexperimental');
   });
 
   it('searches labels and descriptions', () => {

@@ -27,6 +27,7 @@ import {
   type PathArrayParam,
   type PathEffectSharedPtr,
   type PathParam,
+  Preferences,
   SPFlowtext,
   SPGroup,
   SPItem,
@@ -91,7 +92,8 @@ function get_tooltip(type: EffectType, untranslated_label: string): string {
 
 /**
  * The effects that can be applied to item, sorted by category and label (upstream
- * get_list_of_applicable_lpes with can_apply). TODO: favorites, experimental effects.
+ * get_list_of_applicable_lpes with can_apply). Experimental effects only with the preference
+ * /dialogs/livepatheffect/showexperimental. TODO: favorites.
  */
 export function get_list_of_applicable_lpes(item: SPLPEItem | null): LPEMetadata[] {
   const item_type =
@@ -102,11 +104,12 @@ export function get_list_of_applicable_lpes(item: SPLPEItem | null): LPEMetadata
         : item instanceof SPShape
           ? 'shape'
           : '';
+  const include_experimental = Preferences.get().getBool('/dialogs/livepatheffect/showexperimental', false);
   const lpes: LPEMetadata[] = [];
   for (let i = 0; i < LPETypeConverter._length; i++) {
     const data = LPETypeConverter.data(i);
     const type = data.id;
-    if (data.experimental) continue;
+    if (!include_experimental && data.category === LPECategory.Experimental) continue;
     const untranslated_label = data.label;
     const label = C_('path effect', untranslated_label);
     const description = _(data.description);

@@ -8,7 +8,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Tools | 26 | 26 | 100 |
 | Dialogs | 29 | 29 | 100 |
 | Actions | 378 | 409 | 92 |
-| Live path effects | 24 | 56 | 43 |
+| Live path effects | 39 | 56 | 70 |
 | Internal import/export modules | 7 | 35 | 20 |
 | Python extensions | 154 | 160 | 96 |
 
@@ -491,12 +491,12 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (24/56)</summary>
+<details><summary>Live path effects (39/56)</summary>
 
 - [ ] `angle_bisector`
-- [ ] `attach_path`
+- [x] `attach_path`
 - [x] `bend_path`
-- [ ] `bool_op`
+- [x] `bool_op`
 - [x] `bounding_box`
 - [x] `bspline`
 - [ ] `circle_3pts`
@@ -506,22 +506,22 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `copy_rotate`
 - [ ] `curvestitching`
 - [x] `dashed_stroke`
-- [ ] `doeffectstacktest`
-- [ ] `dynastroke`
+- [x] `doeffectstacktest`
+- [x] `dynastroke`
 - [ ] `ellipse_5pts`
-- [ ] `embrodery_stitch`
+- [x] `embrodery_stitch`
 - [x] `envelope`
-- [ ] `extrude`
+- [x] `extrude`
 - [x] `fill_between_many`
 - [x] `fill_between_strokes`
 - [x] `fillet_chamfer`
-- [ ] `gears`
+- [x] `gears`
 - [x] `interpolate`
 - [ ] `interpolate_points`
 - [x] `join_type`
-- [ ] `knot`
-- [ ] `lattice`
-- [ ] `lattice2`
+- [x] `knot`
+- [x] `lattice`
+- [x] `lattice2`
 - [ ] `line_segment`
 - [ ] `measure_segments`
 - [x] `mirror_symmetry`
@@ -529,12 +529,12 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `parallel`
 - [ ] `path_length`
 - [ ] `perp_bisector`
-- [ ] `powerclip`
+- [x] `powerclip`
 - [x] `powermask`
 - [x] `powerstroke`
 - [ ] `pts2ellipse`
-- [ ] `recursive_skeleton`
-- [ ] `rough_hatches`
+- [x] `recursive_skeleton`
+- [x] `rough_hatches`
 - [x] `roughen`
 - [ ] `ruler`
 - [x] `show_handles`
@@ -546,9 +546,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `tangent_to_curve`
 - [x] `taper_stroke`
 - [ ] `text_label`
-- [ ] `tiling`
+- [x] `tiling`
 - [ ] `transform_2pts`
-- [ ] `vonkoch`
+- [x] `vonkoch`
 
 </details>
 

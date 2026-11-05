@@ -64,8 +64,6 @@ describe('lpesubtools', () => {
     ]);
     expect(lpetool_type_is_available(EffectType.INVALID_LPE)).toBe(true);
     expect(lpetool_type_is_available(EffectType.MIRROR_SYMMETRY)).toBe(true);
-    // Not a construction, and not in the registry.
-    expect(lpetool_type_is_available(EffectType.DOEFFECTSTACK_TEST)).toBe(false);
   });
 });
 
