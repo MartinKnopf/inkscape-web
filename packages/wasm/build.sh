@@ -482,7 +482,7 @@ done | xargs -P "$JOBS" -n 2 sh -c 'em++ $UEMF_FLAGS -c "$0" -o "$1"'
 UEMF_OBJS=""
 for s in $UEMF_C_SRCS $UEMF_SRCS; do UEMF_OBJS="$UEMF_OBJS $(uobj "$s")"; done
 # shellcheck disable=SC2086
-em++ $UEMF_FLAGS -lembind bindings/uemf.cpp $UEMF_OBJS "$B/libinkgeom.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" \
+em++ $UEMF_FLAGS -lembind bindings/uemf.cpp bindings/uwmf.cpp $UEMF_OBJS "$B/libinkgeom.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" \
     "$P/lib/libdouble-conversion.a" -sUSE_ZLIB=1 \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd uemf-module.d.mts -o dist/uemf-module.mjs
