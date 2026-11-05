@@ -39,7 +39,6 @@ import {
   Affine,
   are_near,
   CubicBezier,
-  type Curve,
   distance,
   dot,
   LineSegment,
@@ -55,7 +54,14 @@ import { INKSCAPE_VERSION } from '../../actions/actions-base.ts';
 import { INKSCAPE_EXTENSION_URI } from '../prefdialog/widget.ts';
 import type { Print } from '../print.ts';
 import { build_from_mem } from '../system.ts';
-import { type FontfixParams, MFDrawMode, PrintMetafile, toColorRef } from './metafile-print.ts';
+import {
+  closed_curves,
+  dash_pathv,
+  type FontfixParams,
+  MFDrawMode,
+  PrintMetafile,
+  toColorRef,
+} from './metafile-print.ts';
 import {
   cvt_to_font,
   logbrush_set,
@@ -129,71 +135,6 @@ const EMF_FILE = '/tmp/print.emf';
 const round = (v: number) => (v < 0 ? -Math.round(-v) : Math.round(v));
 /** printf("%.1f") */
 const f1 = (v: number) => v.toFixed(1);
-
-/** The curves up to end_closed() (with a non-degenerate closing segment). */
-function closed_curves(p: Path): readonly Curve[] {
-  return p.sizeClosed() > p.sizeOpen() ? [...p.openCurves(), p.closingSegment()] : p.openCurves();
-}
-
-/**
- * Break the paths into dashes (FixPPTDashLine). Upstream measures the path with an arc length
- * parametrization of its SBasis form; here the curves are measured by sampling (0.01 px is
- * the tolerance of upstream path_from_piecewise) and the dashes are made of line segments.
- */
-function dash_pathv(pathv: PathVector, dashes: readonly number[]): PathVector {
-  // the whole path as one polyline (upstream concatenates the pieces of all paths)
-  const pts: Point[] = [];
-  for (const p of pathv) {
-    for (const c of closed_curves(p)) {
-      const n = is_straight_curve(c) ? 1 : 64;
-      if (!pts.length) pts.push(c.initialPoint());
-      for (let i = 1; i <= n; i++) pts.push(c.pointAt(i / n));
-    }
-  }
-  const cum = [0];
-  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + distance(pts[i - 1]!, pts[i]!));
-  const tlength = cum.at(-1) ?? 0;
-  const pointAt = (s: number): [Point, number] => {
-    const i = cum.findIndex((c) => c >= s);
-    if (i <= 0) return [pts[0]!, 0];
-    const t = (s - cum[i - 1]!) / (cum[i]! - cum[i - 1]! || 1);
-    return [pts[i - 1]!.lerp(t, pts[i]!), i];
-  };
-  const portion = (from: number, to: number): Path | null => {
-    if (to <= from) return null;
-    const [a, ia] = pointAt(from);
-    const [b, ib] = pointAt(to);
-    const out = new Path(a);
-    let last = a;
-    for (let i = Math.max(ia, 1); i < ib; i++) {
-      out.appendCurve(new LineSegment(last, pts[i]!));
-      last = pts[i]!;
-    }
-    out.appendCurve(new LineSegment(last, b));
-    return out;
-  };
-
-  const out: PathVector = [];
-  let first_frag: Path | null = null;
-  let i = 0; //dash index
-  let slength = 0.0; // start of fragment
-  // go around the dash array repeatedly until the entire path is consumed (but not beyond).
-  while (slength < tlength && dashes.length) {
-    let elength = slength + dashes[i++]!;
-    if (elength > tlength) elength = tlength;
-    const fragment = portion(slength, elength);
-    if (slength) {
-      if (fragment) out.push(fragment);
-    } else {
-      first_frag = fragment;
-    }
-    slength = elength;
-    slength += dashes[i++] ?? 0; // the gap
-    if (i >= dashes.length) i = 0;
-  }
-  if (first_frag) out.push(first_frag); // may merge line around start point
-  return out;
-}
 
 /** The EMF print (upstream PrintEmf). */
 export class PrintEmf extends PrintMetafile {

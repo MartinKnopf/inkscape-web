@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
 import type { Input } from '../input.ts';
 import type { Output } from '../output.ts';
-import { SHAPES_SVG } from './emf-inout.test.ts';
+import { SHAPES_SVG } from './fixtures/shapes.ts';
 import { setUemfBackendLoader } from './uemf-backend.ts';
 import { Wmf } from './wmf-inout.ts';
 

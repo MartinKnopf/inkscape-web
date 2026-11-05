@@ -8,6 +8,7 @@ import { db } from '../db.ts';
 import type { Input } from '../input.ts';
 import type { Output } from '../output.ts';
 import { Emf } from './emf-inout.ts';
+import { SHAPES_SVG } from './fixtures/shapes.ts';
 import { setUemfBackendLoader } from './uemf-backend.ts';
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`fixtures/${name}`, import.meta.url)));
@@ -25,15 +26,6 @@ function emf_records(bytes: Uint8Array): [number, Uint8Array][] {
   }
   return out;
 }
-
-/** testfiles/cli_tests/testcases/shapes.svg of upstream (shapes_expected.* are its EMF and WMF). */
-export const SHAPES_SVG = `<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
- <g stroke="#000">
-  <rect x="10" y="5" width="160" height="130" fill="#00f" stroke-width="2"/>
-  <ellipse cx="275" cy="130" rx="120" ry="100" fill="#f00" stroke-width="4"/>
-  <path d="m95 290 9.9517-87.343-74.468-46.716 86.143-17.526 21.418-85.259 43.288 76.511 87.704-5.9771-59.39 64.812 32.787 81.565-79.993-36.455z" fill="#ff0" stroke-width="6"/>
- </g>
-</svg>`;
 
 const U_EMR_HEADER = 1;
 const U_EMR_EOF = 14;

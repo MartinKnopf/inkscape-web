@@ -13,6 +13,7 @@
 import {
   Colors,
   FillRule,
+  is_straight_curve,
   SPCSSFontWeight,
   type SPGradient,
   SPImage,
@@ -23,7 +24,16 @@ import {
   type SPStyle,
   SPWindRule,
 } from '@inkscape-web/core';
-import { Affine, LineSegment, Path, type PathVector, Point, parse_svg_path } from '@inkscape-web/geom';
+import {
+  Affine,
+  type Curve,
+  distance,
+  LineSegment,
+  Path,
+  type PathVector,
+  Point,
+  parse_svg_path,
+} from '@inkscape-web/geom';
 import type { PrintImagePixels } from '../../print.ts';
 import { Implementation } from '../implementation/implementation.ts';
 import type { Print } from '../print.ts';
@@ -436,4 +446,69 @@ export function SP_STYLE_FILL_SERVER(style: SPStyle) {
 /** The stroke paint server (upstream SP_STYLE_STROKE_SERVER). */
 export function SP_STYLE_STROKE_SERVER(style: SPStyle) {
   return style.getStrokePaintServer();
+}
+
+/** The curves up to end_closed() (with a non-degenerate closing segment). */
+export function closed_curves(p: Path): readonly Curve[] {
+  return p.sizeClosed() > p.sizeOpen() ? [...p.openCurves(), p.closingSegment()] : p.openCurves();
+}
+
+/**
+ * Break the paths into dashes (FixPPTDashLine). Upstream measures the path with an arc length
+ * parametrization of its SBasis form; here the curves are measured by sampling (0.01 px is
+ * the tolerance of upstream path_from_piecewise) and the dashes are made of line segments.
+ */
+export function dash_pathv(pathv: PathVector, dashes: readonly number[]): PathVector {
+  // the whole path as one polyline (upstream concatenates the pieces of all paths)
+  const pts: Point[] = [];
+  for (const p of pathv) {
+    for (const c of closed_curves(p)) {
+      const n = is_straight_curve(c) ? 1 : 64;
+      if (!pts.length) pts.push(c.initialPoint());
+      for (let i = 1; i <= n; i++) pts.push(c.pointAt(i / n));
+    }
+  }
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + distance(pts[i - 1]!, pts[i]!));
+  const tlength = cum.at(-1) ?? 0;
+  const pointAt = (s: number): [Point, number] => {
+    const i = cum.findIndex((c) => c >= s);
+    if (i <= 0) return [pts[0]!, 0];
+    const t = (s - cum[i - 1]!) / (cum[i]! - cum[i - 1]! || 1);
+    return [pts[i - 1]!.lerp(t, pts[i]!), i];
+  };
+  const portion = (from: number, to: number): Path | null => {
+    if (to <= from) return null;
+    const [a, ia] = pointAt(from);
+    const [b, ib] = pointAt(to);
+    const out = new Path(a);
+    let last = a;
+    for (let i = Math.max(ia, 1); i < ib; i++) {
+      out.appendCurve(new LineSegment(last, pts[i]!));
+      last = pts[i]!;
+    }
+    out.appendCurve(new LineSegment(last, b));
+    return out;
+  };
+
+  const out: PathVector = [];
+  let first_frag: Path | null = null;
+  let i = 0; //dash index
+  let slength = 0.0; // start of fragment
+  // go around the dash array repeatedly until the entire path is consumed (but not beyond).
+  while (slength < tlength && dashes.length) {
+    let elength = slength + dashes[i++]!;
+    if (elength > tlength) elength = tlength;
+    const fragment = portion(slength, elength);
+    if (slength) {
+      if (fragment) out.push(fragment);
+    } else {
+      first_frag = fragment;
+    }
+    slength = elength;
+    slength += dashes[i++] ?? 0; // the gap
+    if (i >= dashes.length) i = 0;
+  }
+  if (first_frag) out.push(first_frag); // may merge line around start point
+  return out;
 }
