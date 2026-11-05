@@ -17,6 +17,8 @@ import {
   C_,
   closepath_current,
   DocumentUndo,
+  Effect,
+  EffectType,
   is_closed,
   type Node,
   Preferences,
@@ -93,9 +95,20 @@ export class FreehandBase extends ToolBase {
   red_curve_is_valid = false;
   anchor_statusbar = false;
 
+  /** The path effect to apply to the next path drawn (the constructions of the LPE tool). */
+  waiting_LPE_type = EffectType.INVALID_LPE;
+
+  /**
+   * Called after the waiting path effect was applied to a new path. The pen tool reads its
+   * polyline mode again, the LPE tool switches back to "inactive" mode.
+   */
+  waiting_LPE_applied(): void {}
+
   readonly #disconnect: (() => void)[];
   /** The last button press, to count the presses of a double click. */
   #lastPress: { time: number; button: number; w: Point } | null = null;
+  /** The last event given to _numPress() and its result. */
+  #numPressOf: { event: PointerEvent; num: number } | null = null;
 
   constructor(desktop: SPDesktop, prefsPath: string) {
     super(desktop, prefsPath);
@@ -135,9 +148,17 @@ export class FreehandBase extends ToolBase {
 
   /**
    * The number of presses of a button press: 2 for the second press of a
-   * double click (upstream ButtonPressEvent::num_press), else 1.
+   * double click (upstream ButtonPressEvent::num_press), else 1. Asking again for the same
+   * event gives the same answer (the LPE tool asks before the pen tool).
    */
   protected _numPress(event: PointerEvent): number {
+    if (this.#numPressOf?.event === event) return this.#numPressOf.num;
+    const num = this.#countPress(event);
+    this.#numPressOf = { event, num };
+    return num;
+  }
+
+  #countPress(event: PointerEvent): number {
     const w = this._windowPoint(event);
     const last = this.#lastPress;
     const double =
@@ -416,6 +437,12 @@ function spdc_check_for_and_apply_waiting_LPE(dc: FreehandBase, item: SPItem): v
   item.transform = layer.i2docAffine().inverse();
   item.updateRepr();
   item.doWriteTransform(item.transform, null, true);
+
+  if (dc.waiting_LPE_type !== EffectType.INVALID_LPE) {
+    Effect.createAndApply(dc.waiting_LPE_type, dc._desktop.getDocument(), item);
+    dc.waiting_LPE_type = EffectType.INVALID_LPE;
+    dc.waiting_LPE_applied();
+  }
 }
 
 /** Returns FIRST active anchor (the activated one). w is a world point. */
