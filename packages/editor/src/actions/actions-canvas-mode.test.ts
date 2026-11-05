@@ -37,6 +37,26 @@ describe('display modes', () => {
     expect(dt.getDrawing().defs.querySelector('style')?.textContent).toContain('data-render-mode="outline"');
   });
 
+  it('marks the strokes thinner than a pixel in the hairlines mode', () => {
+    const { dt, run, attr } = setup();
+    run('win.canvas-display-mode(3)');
+    expect(attr()).toBe('hairlines');
+    expect(dt.getDrawing().defs.querySelector('style')?.textContent).toContain('data-hairline');
+    const path = dt.getDrawing().root.element.querySelector('path, rect') as SVGGraphicsElement;
+    path.style.strokeWidth = '0.4';
+    let zoom = 1;
+    const drawing = dt.getDrawing();
+    drawing.updateHairlines(() => zoom);
+    expect(path.hasAttribute('data-hairline')).toBe(true);
+    zoom = 4;
+    drawing.updateHairlines(() => zoom);
+    expect(path.hasAttribute('data-hairline')).toBe(false);
+    zoom = 1;
+    drawing.updateHairlines(() => zoom);
+    run('win.canvas-display-mode(0)');
+    expect(path.hasAttribute('data-hairline')).toBe(false);
+  });
+
   it('cycles through the modes and toggles between normal and the last other mode', () => {
     const { dt, run } = setup();
     const seen: RenderMode[] = [];

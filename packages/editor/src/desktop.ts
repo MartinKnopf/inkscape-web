@@ -466,7 +466,10 @@ export class SPDesktop {
     this.#updateLayersFromDocument();
     this.#updatePage();
     this.#showNamedView(doc.getNamedView());
-    const disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
+    const disconnectModified = doc.modifiedSignal.connect(() => {
+      this.#updatePage();
+      if (this.#drawing.getRenderMode() === RenderMode.VISIBLE_HAIRLINES) this.#drawing.updateHairlines();
+    });
     const disconnectNamedView = doc.getNamedView().changedSignal.connect(() => this.#updatePage());
     const disconnectPages = doc.getPageManager().connectPagesChanged(() => this.#updatePage());
     const disconnectStart = doc.reconstructionStartSignal.connect(() => this.reconstruction_start());
@@ -891,7 +894,14 @@ export class SPDesktop {
   /** Render the drawing in the mode (upstream setRenderMode). */
   setRenderMode(mode: RenderMode): void {
     this.#drawing.setRenderMode(mode);
+    // The thin strokes depend on the zoom.
+    this.#disconnectHairlines?.();
+    this.#disconnectHairlines =
+      mode === RenderMode.VISIBLE_HAIRLINES
+        ? this.canvas.connectAffine(() => this.#drawing.updateHairlines())
+        : null;
   }
+  #disconnectHairlines: (() => void) | null = null;
   getRenderMode(): RenderMode {
     return this.#drawing.getRenderMode();
   }
