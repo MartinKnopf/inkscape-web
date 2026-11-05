@@ -65,6 +65,13 @@ describe('librevenge input', () => {
     expect(await input('org.inkscape.input.wpg').open('visio.wpg', sample('visio.vsd'))).toBeNull();
   });
 
+  it('opens a VDX file in windows-1252', async () => {
+    const doc = await input('org.inkscape.input.vdx').open('windows_1252.vdx', sample('windows_1252.vdx'));
+    expect(doc).not.toBeNull();
+    const text = doc!.getObjectsByElement('tspan').map((o) => o.getRepr().firstChild()?.content() ?? '');
+    expect(text.join('')).toContain('Grüße €');
+  });
+
   it('opens the first page without a dialog', async () => {
     const doc = await input('org.inkscape.input.vdx').open('two_pages.vdx', sample('two_pages.vdx'));
     expect(doc!.getRoot().getRepr().attribute('width')).toBe('4.0000in');

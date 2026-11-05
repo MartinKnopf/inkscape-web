@@ -348,7 +348,7 @@ fetch_tar https://github.com/unicode-org/icu/releases/download/release-77-1/icu4
     588e431f77327c39031ffbb8843c0e3bc122c211374485fa87dc5f3faff24061 icu
 RV=$B/revenge && mkdir -p "$RV"
 
-# ICU: libcdr and libvisio use only the converters (ucnv) and the charset detection (ucsdet).
+# ICU: libcdr, libvisio and libxml2 use only the converters (ucnv) and the charset detection (ucsdet).
 # The data has only the converter alias table and the code pages that they open by name
 # (windows-125x, 874, 932, 936, 949, 950, with the base tables of the last three). A host build of ICU gives icupkg and genccode for it.
 ICU=$B/vendor/icu/source
@@ -389,12 +389,16 @@ done | xargs -P "$JOBS" -n 2 sh -c 'em++ $ICU_FLAGS -c "$0" -o "$1"'
 [ "$ICU_OBJ/icudt77l_dat.o" -nt "$RV/icudt77l_dat.c" ] || emcc -O2 -I"$ICU/common" -c "$RV/icudt77l_dat.c" -o "$ICU_OBJ/icudt77l_dat.o"
 ICU_OBJS="$ICU_OBJ/icudt77l_dat.o"
 for s in $ICU_SRCS; do ICU_OBJS="$ICU_OBJS $(iobj "$s")"; done
+# shellcheck disable=SC2086
+rm -f "$RV/libicu.a" && emar rcs "$RV/libicu.a" $ICU_OBJS
 
-# libxml2 (libvisio reads VDX and VSDX with its xmlTextReader): UTF-8 and UTF-16 only, no iconv.
+# libxml2 (libvisio reads VDX and VSDX with its xmlTextReader). The encodings that libxml2 does not
+# know itself (windows-1252, ...) go through the ICU converters.
 if [ ! -f "$RV/libxml2/libxml2.a" ]; then
     mkdir -p "$RV/libxml2" && (cd "$RV/libxml2" &&
         emcmake cmake "$B/vendor/libxml2" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-            -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_ICU=OFF -DLIBXML2_WITH_LZMA=OFF -DLIBXML2_WITH_ZLIB=OFF \
+            -DLIBXML2_WITH_ICU=ON -DICU_INCLUDE_DIR="$ICU/common" -DICU_UC_LIBRARY_RELEASE="$RV/libicu.a" \
+            -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_LZMA=OFF -DLIBXML2_WITH_ZLIB=OFF \
             -DLIBXML2_WITH_PYTHON=OFF -DLIBXML2_WITH_PROGRAMS=OFF -DLIBXML2_WITH_TESTS=OFF \
             -DLIBXML2_WITH_THREADS=OFF -DLIBXML2_WITH_HTTP=OFF -DLIBXML2_WITH_MODULES=OFF \
             -DLIBXML2_WITH_CATALOG=OFF -DLIBXML2_WITH_DEBUG=OFF >/dev/null &&
@@ -430,7 +434,7 @@ REVENGE_OBJS=""
 for s in $REVENGE_SRCS; do REVENGE_OBJS="$REVENGE_OBJS $(robj "$s")"; done
 
 # shellcheck disable=SC2086
-em++ $REVENGE_FLAGS -lembind bindings/revenge.cpp $REVENGE_OBJS $ICU_OBJS "$RV/libxml2/libxml2.a" \
+em++ $REVENGE_FLAGS -lembind bindings/revenge.cpp $REVENGE_OBJS "$RV/libxml2/libxml2.a" "$RV/libicu.a" \
     "$P/lib/liblcms2.a" -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd revenge-module.d.mts -o dist/revenge-module.mjs
 for l in librevenge libwpd libwpg libcdr libvisio; do cp "$B/vendor/$l/COPYING.MPL" "dist/licenses/$l-COPYING.MPL"; done
