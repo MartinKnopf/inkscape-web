@@ -5,17 +5,17 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
-| Tools | 24 | 26 | 92 |
+| Tools | 26 | 26 | 100 |
 | Dialogs | 28 | 29 | 97 |
-| Actions | 344 | 409 | 84 |
+| Actions | 346 | 409 | 85 |
 | Live path effects | 24 | 56 | 43 |
 | Internal import/export modules | 7 | 35 | 20 |
 | Python extensions | 154 | 160 | 96 |
 
-<details><summary>Tools (24/26)</summary>
+<details><summary>Tools (26/26)</summary>
 
 - [x] `arc-tool.cpp`
-- [ ] `booleans-tool.cpp`
+- [x] `booleans-tool.cpp`
 - [x] `box3d-tool.cpp`
 - [x] `calligraphic-tool.cpp`
 - [x] `connector-tool.cpp`
@@ -23,7 +23,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `eraser-tool.cpp`
 - [x] `flood-tool.cpp`
 - [x] `gradient-tool.cpp`
-- [ ] `lpe-tool.cpp`
+- [x] `lpe-tool.cpp`
 - [x] `marker-tool.cpp`
 - [x] `measure-tool.cpp`
 - [x] `mesh-tool.cpp`
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (344/409)</summary>
+<details><summary>Actions (346/409)</summary>
 
 - [x] `app.about`
 - [x] `app.action-list`
@@ -440,8 +440,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.selection-move-to-layer`
 - [x] `win.selection-move-to-layer-above`
 - [x] `win.selection-move-to-layer-below`
-- [ ] `win.shape-builder-mode`
-- [ ] `win.shape-builder-replace`
+- [x] `win.shape-builder-mode`
+- [x] `win.shape-builder-replace`
 - [x] `win.simple-snap-alignment`
 - [x] `win.simple-snap-bbox`
 - [x] `win.simple-snap-nodes`

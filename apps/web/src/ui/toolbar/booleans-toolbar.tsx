@@ -15,6 +15,9 @@ import { runAction } from '../../app/actions.ts';
 import { iconUrl } from '../icon-loader.ts';
 import { IconButton, usePreferencesUpdates } from './toolbar.tsx';
 
+/** The radio action of the mode buttons (action-name in toolbar-booleans.ui); the target is the mode. */
+const MODE_ACTION = 'win.shape-builder-mode';
+
 /** The shape builder tool of desktop, or null. */
 function booleans_tool(desktop: SPDesktop): InteractiveBooleansTool | null {
   const tool = desktop.getTool();
@@ -46,13 +49,13 @@ export function BooleansToolbar({ desktop }: { desktop: SPDesktop }) {
         icon="shapebuilder-tool-union"
         tooltip={_('Add to the Shape')}
         active={mode === 0}
-        onClick={() => runAction('win.shape-builder-mode(0)')}
+        onClick={() => runAction(`${MODE_ACTION}(0)`)}
       />
       <IconButton
         icon="shapebuilder-tool-difference"
         tooltip={_('Remove from Shape')}
         active={mode === 1}
-        onClick={() => runAction('win.shape-builder-mode(1)')}
+        onClick={() => runAction(`${MODE_ACTION}(1)`)}
       />
       <span className="toolbar-separator" />
       <span>{_('Finish:')}</span>
