@@ -23,16 +23,19 @@ export function memoryStore<T>(): KeyValueStore<T> {
 
 const DB_NAME = 'inkscape';
 /** Object stores of the database, by the names that indexedDbStore takes. */
-const STORES = ['autosave', 'recent'] as const;
+const STORES = ['autosave', 'recent', 'templates'] as const;
 export type StoreName = (typeof STORES)[number];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    // Version 2 adds the store of the user templates.
+    const request = indexedDB.open(DB_NAME, 2);
     request.onupgradeneeded = () => {
-      for (const name of STORES) request.result.createObjectStore(name);
+      for (const name of STORES) {
+        if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name);
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);

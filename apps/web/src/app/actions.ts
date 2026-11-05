@@ -11,6 +11,8 @@ import {
   show_output,
 } from '@inkscape-web/editor';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
+import { load_new_from_template } from '../ui/dialog/new-from-template.tsx';
+import { save_document_as_template } from '../ui/dialog/save-template-dialog.tsx';
 import {
   app_quit,
   document_close_active,
@@ -164,6 +166,12 @@ const hint_data_app: ActionHintRawData = [
 
 const raw_data_file: readonly (readonly [string, string, string, string])[] = [
   ['app.document-new', N_('New'), SECTION_FILE, N_('Create new document from the default template')],
+  [
+    'app.document-dialog-templates',
+    N_('New from Template'),
+    SECTION_FILE,
+    N_('Create new project from template'),
+  ],
   ['app.document-open', N_('Open File Dialog'), SECTION_FILE, N_('Open an existing document')],
   ['win.document-close', N_('Close'), SECTION_FILE, N_('Close document (unless last document)')],
   ['app.quit', N_('Quit'), SECTION_FILE, N_('Quit Inkscape, check for data loss')],
@@ -174,6 +182,12 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     N_('Save a Copy'),
     SECTION_FILE,
     N_('Save a copy of the document under a new name'),
+  ],
+  [
+    'win.document-save-template',
+    N_('Save Template'),
+    SECTION_FILE,
+    N_('Save a copy of the document as template'),
   ],
   ['win.document-import', N_('Import'), SECTION_FILE, N_('Import a bitmap or SVG image into this document')],
 ];
@@ -189,6 +203,10 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   app.actions.app.add_action('document-new', () => void document_new());
   app.actions.app.add_action('document-open', async () => {
     const doc = await sp_file_open_dialog();
+    if (doc) openDocumentWindow(doc);
+  });
+  app.actions.app.add_action('document-dialog-templates', async () => {
+    const doc = await load_new_from_template();
     if (doc) openDocumentWindow(doc);
   });
   app.actions.app.add_action_with_parameter('open-recent', 's', async (id) => {
@@ -208,6 +226,10 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   app.actions.win.add_action(
     'document-save-copy',
     withDesktop((dt) => sp_file_save_a_copy(dt.doc)),
+  );
+  app.actions.win.add_action(
+    'document-save-template',
+    withDesktop((dt) => save_document_as_template(dt.doc)),
   );
   app.actions.win.add_action(
     'document-import',

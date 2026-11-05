@@ -28,7 +28,7 @@ import {
   SVG_NS_URI,
   saveBuf,
 } from '@inkscape-web/core';
-import { db, file_import, type Input, type Output, type SPDesktop } from '@inkscape-web/editor';
+import { db, file_import, type Input, type Output, type SPDesktop, Template } from '@inkscape-web/editor';
 import { output_prefs } from '../extension/prefdialog/prefdialog.tsx';
 import { decodeSvgBytes, gzip } from './gzip.ts';
 import { getRecentFiles } from './recent-files.ts';
@@ -107,10 +107,16 @@ function moduleFor<T extends Input | Output>(list: readonly T[], name: string): 
  * /templates/default preference.
  */
 export async function sp_file_new_default(): Promise<SPDocument> {
-  const response = await fetch('/share/templates/default.svg');
-  const doc = SPDocument.createNewDocFromMem(await response.text());
+  // The default template of the template folder, which can be the user's (Save Template).
+  const text =
+    Template.files.get('default.svg') ?? (await (await fetch('/share/templates/default.svg')).text());
+  const doc = SPDocument.createNewDocFromMem(text);
   if (!doc) throw new Error('default template is not valid SVG');
-  // Upstream SPDocument::createNewDoc with make_new.
+  return name_new_document(doc);
+}
+
+/** Give a document that is new (made from a template) its name "New document N" (upstream SPDocument::createNewDoc with make_new). */
+export function name_new_document(doc: SPDocument): SPDocument {
   doc.documentName = _('New document %d').replace('%d', String(++docCount));
   return doc;
 }

@@ -13,15 +13,31 @@
  */
 import { _ } from '@inkscape-web/core';
 import {
+  BlurEdge,
   build_from_mem,
   CairoEpsOutput,
   CairoPsOutput,
   CairoRendererPdfOutput,
   ExecutionEnv,
   type Extension,
+  Gif,
+  GimpGrad,
+  Grid,
+  LatexOutput,
+  OdfOutput,
   PdfInput,
+  PngOutput,
+  PovOutput,
   Script,
+  Svgz,
+  TemplateFromFile,
+  TemplateOther,
+  TemplatePaper,
+  TemplateScreen,
+  TemplateSocial,
+  TemplateVideo,
 } from '@inkscape-web/editor';
+import { load_template_files } from '../app/templates.ts';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
 import { PyodideRunner } from './implementation/pyodide-runner.ts';
 import { setWorking } from './prefdialog/prefdialog.tsx';
@@ -36,11 +52,29 @@ export const runner = new PyodideRunner();
  * build_module_from_dir) and set up the Python runner. Python itself loads on the first run.
  */
 export async function load_extensions(): Promise<Extension[]> {
-  // The internal modules (upstream init()): the PDF and AI inputs, the Cairo PDF, PS and EPS outputs.
-  PdfInput.init();
+  // The internal modules (upstream init()). SVG is built into the file functions of the app.
+  Svgz.init();
+  TemplateFromFile.init();
+  TemplatePaper.init();
+  TemplateScreen.init();
+  TemplateVideo.init();
+  TemplateSocial.init();
+  TemplateOther.init();
   CairoRendererPdfOutput.init();
   CairoPsOutput.init();
   CairoEpsOutput.init();
+  PdfInput.init();
+  PngOutput.init();
+  PovOutput.init();
+  OdfOutput.init();
+  LatexOutput.init();
+  Gif.init();
+  // Effects
+  BlurEdge.init();
+  GimpGrad.init();
+  Grid.init();
+  // The template files (the template folder) for the templates that list files.
+  await load_template_files();
 
   Script.runner = runner;
   Script.on_message = (message, data) =>

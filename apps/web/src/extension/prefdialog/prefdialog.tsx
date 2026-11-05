@@ -18,7 +18,6 @@ import {
   type Extension,
   type InxWidget,
   LabelMode,
-  type Output,
   ParamBool,
   ParamColor,
   ParamDescription,
@@ -41,7 +40,7 @@ import './prefdialog.css';
 
 const dialogs: PrefDialog[] = [];
 /** The open option dialogs of outputs (Save As) and the functions that close them. */
-const output_dialogs: { output: Output; done: (ok: boolean) => void }[] = [];
+const output_dialogs: { output: Extension; done: (ok: boolean) => void }[] = [];
 let working: string | null = null;
 const changed = new Signal<[]>();
 let version = 0;
@@ -293,10 +292,11 @@ export function ExtensionWidgets({ module, onChange }: { module: Extension; onCh
 }
 
 /**
- * Ask for the options of an output before saving (upstream Output::prefs). Returns true at
+ * Ask for the options of an output before saving (upstream Output::prefs), or of a template
+ * before it makes a document (upstream Template::prefs). Returns true at
  * once if the output has no options, else when the user presses OK; false on Cancel.
  */
-export function output_prefs(output: Output): Promise<boolean> {
+export function output_prefs(output: Extension): Promise<boolean> {
   if (output.widget_visible_count() === 0) return Promise.resolve(true);
   return new Promise((resolve) => {
     const entry = {
@@ -313,7 +313,7 @@ export function output_prefs(output: Output): Promise<boolean> {
 }
 
 /** The option dialog of an output. */
-function OutputDialog({ output, done }: { output: Output; done: (ok: boolean) => void }) {
+function OutputDialog({ output, done }: { output: Extension; done: (ok: boolean) => void }) {
   return (
     <div
       className="guide-dialog ext-dialog"
