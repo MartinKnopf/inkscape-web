@@ -93,6 +93,7 @@ interface EmbindModule {
   emfImport(_0: EmbindString): string;
   wmfImport(_0: EmbindString): string;
   addFont(_0: EmbindString, _1: EmbindString, _2: EmbindString, _3: EmbindString, _4: number, _5: number): void;
+  requestedFontFamilies(): string;
   copy_in(_0: EmbindString): number;
   read_file(_0: EmbindString): any;
   free(_0: number): void;
