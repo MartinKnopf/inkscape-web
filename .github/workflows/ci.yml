@@ -55,6 +55,8 @@ jobs:
           path: |
             inkscape-web/packages/wasm/build/vendor
             inkscape-web/packages/wasm/build/prefix
+            inkscape-web/packages/wasm/build/icu-host
+            inkscape-web/packages/wasm/build/revenge
           key: wasm-deps-${{ steps.emsdk.outputs.version }}-${{ hashFiles('inkscape-web/packages/wasm/build.sh') }}
 
       - working-directory: inkscape-web
