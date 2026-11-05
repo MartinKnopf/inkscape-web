@@ -8,11 +8,28 @@
  *
  * Copyright (C) 2021 Authors
  */
-import { C_, DocumentUndo, N_, NC_, Preferences, type Selection } from '@inkscape-web/core';
+import {
+  C_,
+  DocumentUndo,
+  N_,
+  NC_,
+  Preferences,
+  type Selection,
+  SPShape,
+  SPWindRule,
+  sp_svg_write_path,
+  spReprCssAttrNew,
+  spReprCssSetProperty,
+  spReprCssSetPropertyDouble,
+} from '@inkscape-web/core';
+import { PathVector } from '@inkscape-web/geom';
+import { sp_desktop_apply_css_recursive } from '../desktop-style.ts';
+import { sp_export_canvas } from '../helper/png-write.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 import { relinkClones, swapFillStroke } from '../selection-chemistry.ts';
 import { ClipboardManager } from '../ui/clipboard.ts';
 import { NodeDeleteMode } from '../ui/tool/path-manipulator.ts';
+import { average_color, color_from_average } from '../ui/tools/dropper-tool.ts';
 import { NodeTool } from '../ui/tools/node-tool.ts';
 
 const SECTION = NC_('Action Section', 'Edit');
@@ -20,7 +37,7 @@ const SECTION = NC_('Action Section', 'Edit');
 /**
  * Action id, label, section and tooltip (untranslated).
  * TODO: object-to-pattern/marker/guides, duplicate-transform, clone-link,
- * path effects, swap-fill-and-stroke, fit-canvas-to-selection, chameleon-fill.
+ * path effects, swap-fill-and-stroke, fit-canvas-to-selection.
  */
 export const raw_data_edit: readonly (readonly [string, string, string, string])[] = [
   ['app.cut', N_('Cut'), SECTION, N_('Cut selection to clipboard')],
@@ -138,6 +155,12 @@ export const raw_data_edit: readonly (readonly [string, string, string, string])
     SECTION,
     N_('Fit the page to the current selection'),
   ],
+  [
+    'app.chameleon-fill',
+    N_('Chameleon Fill'),
+    SECTION,
+    N_("Set each object's color to the average of all colors inside that shape."),
+  ],
   ['app.delete', N_('Delete'), SECTION, N_('Delete selected items, nodes or text.')],
   ['app.delete-selection', N_('Delete Items'), SECTION, N_('Delete selected items')],
 ];
@@ -205,6 +228,72 @@ function duplicate_transform(selection: Selection): void {
   if (document) DocumentUndo.done(document, C_('Undo', 'Duplicate and Transform'), 'edit-duplicate');
 }
 
+/** The size in pixels of the area in which chameleon_fill() averages the colors of each shape. */
+const CHAMELEON_SIZE = 200;
+
+/**
+ * Set the fill of each selected shape to the average color of everything that is drawn below it
+ * (upstream ObjectSet::chameleonFill and Drawing::averageColor). The document is rendered by the
+ * browser without the selected objects, so this is asynchronous; the promise resolves when the
+ * undo step "Chameleon Fill" is done.
+ */
+export async function chameleon_fill(selection: Selection): Promise<void> {
+  const doc = selection.document();
+  if (!doc) return;
+  doc.ensureUpToDate();
+
+  // Hide all *selected* objects from the drawing.
+  const hidden = new Set(selection.items().map((item) => item.getId()));
+  const hide = (element: Element) => hidden.has(element.getAttribute('id'));
+
+  // Now ask for a color to be set for each item.
+  const colors = new Map<SPShape, { fill: string; opacity: number }>();
+  for (const item of selection.items()) {
+    if (!(item instanceof SPShape)) continue;
+    const curve = item.curve();
+    if (!curve) continue;
+    const path = PathVector.transformed(curve, item.i2docAffine());
+    const area = PathVector.boundsExact(path);
+    if (!area || area.hasZeroArea()) {
+      colors.set(item, { fill: '#000000', opacity: 0 }); // Transparent black
+      continue;
+    }
+    const canvas = await sp_export_canvas(doc, area, CHAMELEON_SIZE, CHAMELEON_SIZE, { hide });
+    const data = canvas.getContext('2d')?.getImageData(0, 0, CHAMELEON_SIZE, CHAMELEON_SIZE).data;
+    if (!data) continue;
+    // A mask of the pixels inside the shape; the others are ignored.
+    const mask = document.createElement('canvas');
+    mask.width = CHAMELEON_SIZE;
+    mask.height = CHAMELEON_SIZE;
+    const mask_context = mask.getContext('2d', { willReadFrequently: true });
+    if (!mask_context) continue;
+    mask_context.scale(CHAMELEON_SIZE / area.width(), CHAMELEON_SIZE / area.height());
+    mask_context.translate(-area.left(), -area.top());
+    mask_context.fill(
+      new Path2D(sp_svg_write_path(path)),
+      item.style.fill_rule.computed === SPWindRule.SP_WIND_RULE_EVENODD ? 'evenodd' : 'nonzero',
+    );
+    const mask_data = mask_context.getImageData(0, 0, CHAMELEON_SIZE, CHAMELEON_SIZE).data;
+    const average = average_color(
+      data,
+      CHAMELEON_SIZE,
+      CHAMELEON_SIZE,
+      (x, y) => (mask_data[(y * CHAMELEON_SIZE + x) * 4 + 3] ?? 0) >= 128,
+    );
+    if (!average) continue;
+    const color = color_from_average(average);
+    colors.set(item, { fill: color.toString(false), opacity: average.a });
+  }
+
+  for (const [item, { fill, opacity }] of colors) {
+    const css = spReprCssAttrNew();
+    spReprCssSetPropertyDouble(css, 'fill-opacity', opacity);
+    spReprCssSetProperty(css, 'fill', fill);
+    sp_desktop_apply_css_recursive(item, css, true);
+  }
+  DocumentUndo.done(doc, C_('Undo', 'Chameleon Fill'), '');
+}
+
 export function add_actions_edit(app: InkscapeApplication): void {
   const add = (name: string, run: (selection: Selection) => void) =>
     app.actions.app.add_action(name, () => {
@@ -243,6 +332,7 @@ export function add_actions_edit(app: InkscapeApplication): void {
   add('remove-path-effect', (s) => s.removeLPE());
   add('swap-fill-and-stroke', (s) => swapFillStroke(s, app.get_active_desktop()));
   add('fit-canvas-to-selection', (s) => void s.fitCanvas(true));
+  add('chameleon-fill', (s) => void chameleon_fill(s));
   add('delete', (s) => edit_delete(s, app));
   add('delete-selection', (s) => s.deleteItems());
   app.get_action_extra_data().add_data(raw_data_edit);

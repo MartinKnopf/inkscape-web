@@ -20,8 +20,8 @@ import { RULER_SIZE, Ruler } from './ink-ruler.ts';
  * a corner, the horizontal ruler on top, the vertical ruler on the left and
  * the canvas. The rulers show the display unit, the page and the pointer
  * position; dragging from a ruler creates a guide.
- * TODO: scrollbars, the sticky zoom and lock buttons, the ruler context menu,
- * hiding the rulers (win.canvas-rulers).
+ * TODO: scrollbars (win.canvas-scroll-bars only keeps the preference), the sticky zoom and lock
+ * buttons, the ruler context menu.
  */
 export class CanvasGrid {
   readonly element: HTMLDivElement;
@@ -61,6 +61,8 @@ export class CanvasGrid {
     const htop = cell('ruler-horz');
     const vleft = cell('ruler-vert');
     const canvas_host = cell('canvas-host');
+    // Stays in the second row and column when the rulers are hidden.
+    canvas_host.style.gridArea = '2 / 2';
     this.#hruler = new Ruler(doc, true);
     this.#vruler = new Ruler(doc, false);
     htop.append(this.#hruler.element);
@@ -78,6 +80,19 @@ export class CanvasGrid {
       el.addEventListener('pointerup', (e) => this.#rulerButtonRelease(e, horiz));
       el.addEventListener('pointercancel', (e) => this.#rulerButtonRelease(e, horiz));
     }
+  }
+
+  /** Show or hide the rulers and the corner (upstream CanvasGrid::ShowRulers, win.canvas-rulers). */
+  ShowRulers(visible: boolean): void {
+    const size = visible ? `${RULER_SIZE}px` : '0px';
+    this.element.style.gridTemplateColumns = `${size} 1fr`;
+    this.element.style.gridTemplateRows = `${size} 1fr`;
+    for (const cell of this.element.querySelectorAll<HTMLElement>(
+      '.ruler-corner, .ruler-horz, .ruler-vert',
+    )) {
+      cell.style.display = visible ? '' : 'none';
+    }
+    if (visible) this.updateRulers();
   }
 
   destroy(): void {

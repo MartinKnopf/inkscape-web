@@ -83,6 +83,9 @@ export function tool_toggle(tool: string, desktop: SPDesktop): void {
 
 const SECTION = NC_('Action Section', 'Tool Switch');
 
+/** The radio actions; the detailed names in the raw data add the tool, like "win.tool-toggle('Dropper')". */
+const TOOL_TOGGLE = 'win.tool-toggle';
+
 /**
  * Action id, label, section and tooltip of the tool actions (untranslated).
  * TODO: the other tools.
@@ -118,13 +121,13 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
   ["win.tool-switch('Zoom')", N_('Zoom Tool'), SECTION, N_('Zoom in or out')],
   ["win.tool-switch('Measure')", N_('Measure Tool'), SECTION, N_('Measure objects')],
   [
-    "win.tool-toggle('Dropper')",
+    `${TOOL_TOGGLE}('Dropper')`,
     N_('Toggle Dropper'),
     SECTION,
     N_('Toggle between Dropper tool and last used tool'),
   ],
   [
-    "win.tool-toggle('Select')",
+    `${TOOL_TOGGLE}('Select')`,
     N_('Toggle Selector Tool'),
     SECTION,
     N_('Toggle between Selector tool and last used tool'),

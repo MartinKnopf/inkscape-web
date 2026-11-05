@@ -6,8 +6,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Category | Ported | Total | % |
 |---|---:|---:|---:|
 | Tools | 26 | 26 | 100 |
-| Dialogs | 28 | 29 | 97 |
-| Actions | 346 | 409 | 85 |
+| Dialogs | 29 | 29 | 100 |
+| Actions | 378 | 409 | 92 |
 | Live path effects | 24 | 56 | 43 |
 | Internal import/export modules | 7 | 35 | 20 |
 | Python extensions | 154 | 160 | 96 |
@@ -43,7 +43,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Dialogs (28/29)</summary>
+<details><summary>Dialogs (29/29)</summary>
 
 - [x] `AlignDistribute`
 - [x] `CloneTiler`
@@ -63,7 +63,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `ObjectProperties`
 - [x] `Objects`
 - [x] `Preferences`
-- [ ] `Prototype`
+- [x] `Prototype`
 - [x] `SVGFonts`
 - [x] `Selectors`
 - [x] `Spellcheck`
@@ -77,14 +77,14 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (346/409)</summary>
+<details><summary>Actions (378/409)</summary>
 
 - [x] `app.about`
 - [x] `app.action-list`
 - [x] `app.active-document-file-name`
 - [x] `app.active-window-end`
 - [x] `app.active-window-start`
-- [ ] `app.chameleon-fill`
+- [x] `app.chameleon-fill`
 - [x] `app.clone`
 - [x] `app.clone-link`
 - [x] `app.clone-link-lpe`
@@ -102,9 +102,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.duplicate`
 - [x] `app.duplicate-transform`
 - [x] `app.edit-remove-filter`
-- [ ] `app.element-a-open-link`
-- [ ] `app.element-image-crop`
-- [ ] `app.element-image-edit`
+- [x] `app.element-a-open-link`
+- [x] `app.element-image-crop`
+- [x] `app.element-image-edit`
 - [ ] `app.export-area`
 - [ ] `app.export-area-drawing`
 - [ ] `app.export-area-page`
@@ -137,8 +137,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.file-new`
 - [x] `app.file-open`
 - [x] `app.file-open-window`
-- [ ] `app.file-rebase`
-- [ ] `app.file-rebase-from-saved`
+- [x] `app.file-rebase`
+- [x] `app.file-rebase-from-saved`
 - [x] `app.fit-canvas-to-selection`
 - [x] `app.inkscape-version`
 - [x] `app.last-effect`
@@ -147,7 +147,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.no-convert-baseline`
 - [x] `app.object-add-corners-lpe`
 - [x] `app.object-align`
-- [ ] `app.object-align-on-canvas`
+- [x] `app.object-align-on-canvas`
 - [x] `app.object-align-text`
 - [x] `app.object-distribute`
 - [x] `app.object-distribute-text`
@@ -170,7 +170,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.object-set-inverse-mask`
 - [x] `app.object-set-mask`
 - [x] `app.object-set-property`
-- [ ] `app.object-star-turn-upright`
+- [x] `app.object-star-turn-upright`
 - [x] `app.object-stroke-to-path`
 - [x] `app.object-to-guides`
 - [x] `app.object-to-marker`
@@ -255,7 +255,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.text-unflow-and-keep-shape`
 - [x] `app.text-unkern`
 - [x] `app.transform-grow`
-- [ ] `app.transform-grow-screen`
+- [x] `app.transform-grow-screen`
 - [x] `app.transform-grow-step`
 - [x] `app.transform-reapply`
 - [x] `app.transform-remove`
@@ -281,7 +281,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `app.window-crash`
 - [x] `app.window-open`
 - [x] `app.window-query-geometry`
-- [ ] `app.window-set-geometry`
+- [x] `app.window-set-geometry`
 - [x] `doc.add-strokes-to-paths`
 - [x] `doc.all-clones-to-objects`
 - [x] `doc.all-objects-to-paths`
@@ -317,16 +317,16 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `doc.vacuum-defs`
 - [x] `win.canvas-color-manage`
 - [x] `win.canvas-color-mode`
-- [ ] `win.canvas-command-palette`
-- [ ] `win.canvas-commands-bar`
+- [x] `win.canvas-command-palette`
+- [x] `win.canvas-commands-bar`
 - [x] `win.canvas-display-mode`
 - [x] `win.canvas-display-mode-cycle`
 - [x] `win.canvas-display-mode-toggle`
 - [x] `win.canvas-flip-horizontal`
 - [x] `win.canvas-flip-reset`
 - [x] `win.canvas-flip-vertical`
-- [ ] `win.canvas-interface-mode`
-- [ ] `win.canvas-palette`
+- [x] `win.canvas-interface-mode`
+- [x] `win.canvas-palette`
 - [x] `win.canvas-rotate-absolute-degrees`
 - [x] `win.canvas-rotate-absolute-radians`
 - [x] `win.canvas-rotate-ccw`
@@ -335,15 +335,15 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.canvas-rotate-relative-degrees`
 - [x] `win.canvas-rotate-relative-radians`
 - [x] `win.canvas-rotate-reset`
-- [ ] `win.canvas-rulers`
-- [ ] `win.canvas-scroll-bars`
-- [ ] `win.canvas-snap-controls-bar`
+- [x] `win.canvas-rulers`
+- [x] `win.canvas-scroll-bars`
+- [x] `win.canvas-snap-controls-bar`
 - [x] `win.canvas-snapshot-set`
 - [x] `win.canvas-snapshot-toggle`
 - [x] `win.canvas-split-mode`
-- [ ] `win.canvas-statusbar`
-- [ ] `win.canvas-tool-control-bar`
-- [ ] `win.canvas-toolbox`
+- [x] `win.canvas-statusbar`
+- [x] `win.canvas-tool-control-bar`
+- [x] `win.canvas-toolbox`
 - [x] `win.canvas-zoom-1-1`
 - [x] `win.canvas-zoom-1-2`
 - [x] `win.canvas-zoom-2-1`
@@ -358,8 +358,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.canvas-zoom-prev`
 - [x] `win.canvas-zoom-relative`
 - [x] `win.canvas-zoom-selection`
-- [ ] `win.dialog-open`
-- [ ] `win.dialog-toggle`
+- [x] `win.dialog-open`
+- [x] `win.dialog-toggle`
 - [x] `win.document-cleanup`
 - [x] `win.document-close`
 - [x] `win.document-import`
@@ -396,10 +396,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.layer-rename`
 - [x] `win.layer-to-group`
 - [x] `win.layer-top`
-- [ ] `win.node-align-horizontal`
-- [ ] `win.node-align-vertical`
-- [ ] `win.node-distribute-horizontal`
-- [ ] `win.node-distribute-vertical`
+- [x] `win.node-align-horizontal`
+- [x] `win.node-align-vertical`
+- [x] `win.node-distribute-horizontal`
+- [x] `win.node-distribute-vertical`
 - [x] `win.node-nodes-break`
 - [x] `win.node-nodes-delete`
 - [x] `win.node-nodes-insert`
@@ -418,8 +418,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.page-new`
 - [x] `win.paste`
 - [x] `win.paste-in-place`
-- [ ] `win.paste-on-page`
-- [ ] `win.path-effect-parameter-next`
+- [x] `win.paste-on-page`
+- [x] `win.path-effect-parameter-next`
 - [x] `win.path-inset-screen`
 - [x] `win.path-offset-dynamic`
 - [x] `win.path-offset-linked`
@@ -479,12 +479,12 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.text-decoration-line-overline`
 - [x] `win.text-decoration-line-underline`
 - [x] `win.tool-switch`
-- [ ] `win.tool-toggle`
+- [x] `win.tool-toggle`
 - [x] `win.transform-grow-screen`
 - [x] `win.transform-rotate-screen`
-- [ ] `win.view-focus-toggle`
-- [ ] `win.view-full-screen-focus`
-- [ ] `win.view-fullscreen`
+- [x] `win.view-focus-toggle`
+- [x] `win.view-full-screen-focus`
+- [x] `win.view-fullscreen`
 - [x] `win.window-new`
 - [x] `win.window-next`
 - [x] `win.window-previous`

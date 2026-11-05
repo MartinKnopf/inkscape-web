@@ -9,10 +9,12 @@ import 'dockview-react/dist/styles/dockview.css';
 import { PdfImportDialogHost } from '../extension/internal/pdfinput/pdf-input.tsx';
 import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
 import { MenuBar } from '../ui/desktop/menubar.tsx';
+import { CommandPaletteHost } from '../ui/dialog/command-palette.tsx';
 import { dialogComponents, setDialogDock } from '../ui/dialog/dialog-manager.ts';
 import { GuidelineDialogHost } from '../ui/dialog/guides.tsx';
 import { LayerPropertiesDialogHost } from '../ui/dialog/layer-properties.tsx';
 import { MessageDialogHost } from '../ui/dialog/message-dialog.tsx';
+import { CommandsToolbar } from '../ui/toolbar/commands-toolbar.tsx';
 import { SnapToolbar } from '../ui/toolbar/snap-toolbar.tsx';
 import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
 import { Toolbars } from '../ui/toolbar/toolbars.tsx';
@@ -26,6 +28,7 @@ import {
   warnBeforeUnload,
 } from './documents.ts';
 import { DocumentTab, DrawingPanel } from './drawing-panel.tsx';
+import { useLayout } from './layout.ts';
 import { getRecentFiles } from './recent-files.ts';
 
 const components = { drawing: DrawingPanel, ...dialogComponents } satisfies Record<
@@ -77,6 +80,7 @@ function StatusBar() {
 }
 
 export function App() {
+  const { bars, wide } = useLayout();
   document.title = useDocumentTitle(useActiveDocument());
   useEffect(() => attachActionShortcuts(), []);
   useEffect(() => {
@@ -89,23 +93,30 @@ export function App() {
   return (
     <div className="app">
       <MenuBar />
-      <div className="commandbar">
-        <Toolbars />
-        <SnapToolbar />
-      </div>
-      <div className="workspace">
-        <div className="toolbox">
-          <ToolToolbar />
+      {bars.commands && !wide && <CommandsToolbar />}
+      {(bars.toppanel || bars.snaptoolbox) && (
+        <div className="commandbar">
+          {bars.toppanel ? <Toolbars /> : <div className="toolbars-spacer" />}
+          {bars.snaptoolbox && <SnapToolbar />}
         </div>
+      )}
+      <div className="workspace">
+        {bars.toolbox && (
+          <div className="toolbox">
+            <ToolToolbar />
+          </div>
+        )}
         <DockviewReact
           className="dockview-theme-light"
           components={components}
           tabComponents={tabComponents}
           onReady={onReady}
         />
+        {bars.commands && wide && <CommandsToolbar vertical />}
       </div>
-      <ColorPaletteBar />
-      <StatusBar />
+      {bars.panels && <ColorPaletteBar />}
+      {bars.statusbar && <StatusBar />}
+      <CommandPaletteHost />
       <GuidelineDialogHost />
       <PrefDialogHost />
       <PdfImportDialogHost />

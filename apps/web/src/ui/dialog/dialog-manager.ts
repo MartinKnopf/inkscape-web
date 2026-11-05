@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/dialog/dialog-data.cpp, src/ui/dialog/dialog-data.h, src/ui/dialog/dialog-manager.cpp
 import { _ } from '@inkscape-web/core';
+import { type DialogContainer, set_dialog_container } from '@inkscape-web/editor';
 import type { DockviewApi, IDockviewPanelProps } from 'dockview-react';
 import type { FunctionComponent } from 'react';
 import { getDocumentAnchor } from '../../app/documents.ts';
@@ -19,6 +20,7 @@ import { InkscapePreferencesDialog } from './inkscape-preferences.tsx';
 import { LivePathEffectDialog } from './livepatheffect-editor.tsx';
 import { ObjectPropertiesDialog } from './object-properties.tsx';
 import { ObjectsDialog } from './objects.tsx';
+import { PrototypeDialog } from './prototype.tsx';
 import { SelectorsDialog } from './selectorsdialog.tsx';
 import { SvgFontsDialog } from './svg-fonts-dialog.tsx';
 import { SwatchesDialog } from './swatches.tsx';
@@ -58,6 +60,7 @@ const DIALOGS: Record<string, DialogData> = {
   FilterEffects: { label: _('Filter _Editor'), component: FilterEffectsDialog, width: 400 },
   FilterGallery: { label: _('Filter Gallery'), component: FilterGalleryDialog, width: 480 },
   Preferences: { label: _('P_references'), component: InkscapePreferencesDialog, width: 640 },
+  Prototype: { label: _('Prototype'), component: PrototypeDialog },
   IconPreview: { label: _('Icon Preview'), component: IconPreviewDialog },
   LivePathEffect: { label: _('Path E_ffects'), component: LivePathEffectDialog },
   ObjectProperties: { label: _('_Object Properties'), component: ObjectPropertiesDialog },
@@ -82,6 +85,7 @@ let dockview: DockviewApi | null = null;
 /** Set the dockview that holds the dialogs (upstream DialogContainer of the window). */
 export function setDialogDock(api: DockviewApi | null): void {
   dockview = api;
+  set_dialog_container(api ? dialogContainer : null);
 }
 
 /** Whether a dialog with key exists (the dialogs that are ported). */
@@ -116,3 +120,31 @@ export function openDialog(key: string): void {
   if (!sibling) panel.api.setSize({ width: data.width ?? 320 });
   panel.api.setActive();
 }
+
+/** Whether win.dialog-toggle has hidden the dialogs. */
+let dialogsHidden = false;
+
+/**
+ * Hide all docked dialogs, or show them again if they are hidden (action win.dialog-toggle,
+ * upstream DialogContainer::toggle_dialogs). The dialogs keep their state while hidden.
+ */
+export function toggleDialogs(): void {
+  if (!dockview) return;
+  dialogsHidden = !dialogsHidden;
+  for (const group of dockview.groups) {
+    if (group.panels.length > 0 && group.panels.every((p) => p.id in DIALOGS)) {
+      group.api.setVisible(!dialogsHidden);
+    }
+  }
+}
+
+/** The container that win.dialog-open and win.dialog-toggle use (see the DialogContainer of the editor). */
+const dialogContainer: DialogContainer = {
+  new_dialog: (key) => {
+    // A new dialog is shown even if the dialogs were hidden.
+    if (dialogsHidden) toggleDialogs();
+    openDialog(key);
+  },
+  toggle_dialogs: toggleDialogs,
+  has_dialog: hasDialog,
+};

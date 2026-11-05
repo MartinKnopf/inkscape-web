@@ -164,7 +164,7 @@ const PREV = true;
 /**
  * <sodipodi:star> on svg:path (upstream SPStar).
  *
- * TODO: LPE, snap points, turn_upright(), adjust_gradient in setTransform().
+ * TODO: LPE, snap points, adjust_gradient in setTransform().
  */
 export class SPStar extends SPShape {
   sides = 5;
@@ -453,6 +453,27 @@ export class SPStar extends SPShape {
     }
     this.updateRepr();
     this.requestDisplayUpdate(SP_OBJECT_MODIFIED_FLAG);
+  }
+
+  /** Turn the star or polygon upright: the first point is at the top, and the rotation of the transform is removed. */
+  turn_upright(): void {
+    if (!this.sides) return;
+    let arg1 = this.arg[0];
+    const delta = this.arg[1] - arg1;
+    const top = -Math.PI / 2;
+    const odd = this.sides & 1;
+    arg1 = odd ? top : top - Math.PI / this.sides;
+    const arg2 = arg1 + delta;
+
+    const repr = this.getRepr();
+    repr.setAttributeSvgDouble('sodipodi:arg1', arg1);
+    repr.setAttributeSvgDouble('sodipodi:arg2', arg2);
+
+    // also revert rotation in transform
+    const angle = Math.atan2(this.transform.c1, this.transform.c0) * (180 / Math.PI);
+    this.rotate_rel(Rotate.from_degrees(-angle));
+
+    this.updateRepr();
   }
 }
 

@@ -8,14 +8,16 @@
  *
  * Copyright (C) 2021 Authors
  */
-import { C_, DocumentUndo, N_, NC_ } from '@inkscape-web/core';
+import { _, C_, DocumentUndo, N_, NC_, PathParam, SPLPEItem } from '@inkscape-web/core';
 import type { SPDesktop } from '../desktop.ts';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 import { ClipboardManager } from '../ui/clipboard.ts';
+import { param_editOncanvas } from '../ui/dialog/livepatheffect-editor.ts';
+import { show_output } from './actions-helper.ts';
 
 const SECTION = NC_('Action Section', 'Edit');
 
-/** Action id, label, section and tooltip (untranslated). TODO: paste-on-page, path-effect-parameter-next. */
+/** Action id, label, section and tooltip (untranslated). */
 export const raw_data_edit_window: readonly (readonly [string, string, string, string])[] = [
   ['win.paste', N_('Paste'), SECTION, N_('Paste objects from clipboard to mouse point, or paste text')],
   [
@@ -23,6 +25,18 @@ export const raw_data_edit_window: readonly (readonly [string, string, string, s
     N_('Paste In Place'),
     SECTION,
     N_('Paste objects from clipboard to the original position of the copied objects'),
+  ],
+  [
+    'win.paste-on-page',
+    N_('Paste On Page'),
+    SECTION,
+    N_('Paste objects from clipboard into the same place on the selected page.'),
+  ],
+  [
+    'win.path-effect-parameter-next',
+    N_('Next path effect parameter'),
+    SECTION,
+    N_('Show next editable path effect parameter'),
   ],
 ];
 
@@ -41,6 +55,30 @@ export async function sp_selection_paste(
   }
 }
 
+/**
+ * Edit the next parameter of the path effect of the selected item on the canvas (upstream
+ * sp_selection_next_patheffect_param and SPLPEItem/Effect::editNextParamOncanvas). Only path
+ * parameters can be edited on the canvas (with the node tool).
+ */
+export function sp_selection_next_patheffect_param(desktop: SPDesktop): void {
+  const item = desktop.getSelection().singleItem();
+  if (!(item instanceof SPLPEItem)) return;
+  if (!item.hasPathEffect()) {
+    show_output(_('The selection has no applied path effect.'));
+    return;
+  }
+  const lpe = item.getCurrentLPE();
+  if (!lpe) return;
+  const param = lpe.getNextOncanvasEditableParam();
+  if (param) {
+    // Only path parameters have something to edit (path array parameters do nothing upstream, too).
+    if (param instanceof PathParam) param_editOncanvas(desktop, param, item);
+    show_output(_('Editing parameter <b>%s</b>.').replace('%s', param.param_label), false);
+  } else {
+    show_output(_("None of the applied path effect's parameters can be edited on-canvas."));
+  }
+}
+
 export function add_actions_edit_window(app: InkscapeApplication): void {
   const add = (name: string, run: (dt: SPDesktop) => void) =>
     app.actions.win.add_action(name, () => {
@@ -49,5 +87,7 @@ export function add_actions_edit_window(app: InkscapeApplication): void {
     });
   add('paste', (dt) => void sp_selection_paste(dt, false));
   add('paste-in-place', (dt) => void sp_selection_paste(dt, true));
+  add('paste-on-page', (dt) => void sp_selection_paste(dt, true, true));
+  add('path-effect-parameter-next', sp_selection_next_patheffect_param);
   app.get_action_extra_data().add_data(raw_data_edit_window);
 }

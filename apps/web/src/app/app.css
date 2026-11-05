@@ -171,3 +171,86 @@ body,
 .statusbar .rotation input {
   width: 4.5em;
 }
+
+/* The command palette (command-palette). */
+.cp-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 10%);
+}
+
+.cp {
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 92vw);
+  max-height: 60vh;
+  background: #fff;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 30%);
+}
+
+.cp-filter {
+  margin: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 15px;
+}
+
+.cp-list {
+  margin: 0;
+  padding: 0 0 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.cp-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  grid-template-areas:
+    "group name shortcut"
+    "group description description";
+  column-gap: 8px;
+  padding: 4px 12px;
+}
+
+.cp-row.selected {
+  background: #dbe8f8;
+}
+
+.cp-group {
+  grid-area: group;
+  align-self: center;
+  color: #777;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.cp-name {
+  grid-area: name;
+}
+
+.cp-shortcut {
+  grid-area: shortcut;
+  color: #555;
+  font-size: 11px;
+}
+
+.cp-description {
+  grid-area: description;
+  overflow: hidden;
+  color: #777;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-empty {
+  padding: 8px 12px;
+  color: #777;
+}
