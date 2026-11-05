@@ -46,6 +46,15 @@ const LAYERS = [
   'dashed stroke',
   'show handles',
   'boundingbox',
+  'gears',
+  'von kohtch',
+  'knot',
+  'rough hatches',
+  'lattice deformation II',
+  'attach path',
+  'power clip',
+  'bool',
+  'tiling',
 ];
 
 /**
@@ -68,6 +77,11 @@ const KNOWN_DIFFERENCES = new Set([
   'ellipse228871',
   // Join type: one point of a fitted offset curve is 0.53 away (the threshold is 0.5)
   'path42290',
+  // Boolean operation: the saved data is rounded to 4 digits (a zero-length arc, segments of 0.003)
+  'path38279',
+  'path38319',
+  // A star with its own transform in a group with Bend and Envelope (no Rough hatches on it)
+  'path12605',
 ]);
 
 /** The top-level layer of obj (upstream: the layer label names the tested effect). */

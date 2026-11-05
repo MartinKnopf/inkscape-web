@@ -54,7 +54,7 @@ const DeformationTypeConverter = new EnumDataConverter<number>([
 const sgn = (x: number): number => (x > 0 ? 1 : x < 0 ? -1 : 0);
 
 /** A line through two points (the parts of Geom::Line used here). */
-class Line {
+export class Line {
   constructor(
     public a: Point,
     public b: Point,

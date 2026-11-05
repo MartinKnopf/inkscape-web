@@ -237,6 +237,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Distort,
   ),
   entry(
+    EffectType.GEARS,
+    NC_('path effect', 'Gears'),
+    'gears',
+    'gears',
+    N_('Create interlocking, configurable gears based on the nodes of a path'),
+    LPECategory.Convert,
+  ),
+  entry(
     EffectType.PATTERN_ALONG_PATH,
     NC_('path effect', 'Pattern Along Path'),
     'skeletal',
@@ -245,6 +253,22 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Distort,
   ),
   /* 0.47 */
+  entry(
+    EffectType.VONKOCH,
+    NC_('path effect', 'VonKoch'),
+    'vonkoch',
+    'vonkoch',
+    N_('Create VonKoch fractal'),
+    LPECategory.Generate,
+  ),
+  entry(
+    EffectType.KNOT,
+    NC_('path effect', 'Knot'),
+    'knot',
+    'knot',
+    N_('Create gaps in self-intersections, as in Celtic knots'),
+    LPECategory.EditTools,
+  ),
   entry(
     EffectType.SPIRO,
     NC_('path effect', 'Spiro spline'),
@@ -276,6 +300,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Generate,
     false,
     false,
+  ),
+  entry(
+    EffectType.ROUGH_HATCHES,
+    NC_('path effect', 'Hatches (rough)'),
+    'rough_hatches',
+    'rough-hatches',
+    N_('Fill the object with adjustable hatching'),
+    LPECategory.Generate,
   ),
   entry(
     EffectType.SKETCH,
@@ -314,6 +346,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     'simplify',
     N_("Smoothen and simplify a object. This effect is also available in the Pencil tool's tool controls."),
     LPECategory.EditTools,
+  ),
+  entry(
+    EffectType.LATTICE2,
+    NC_('path effect', 'Lattice Deformation'),
+    'lattice2',
+    'lattice2',
+    N_("Warp an object's shape based on a 5x5 grid"),
+    LPECategory.Distort,
   ),
   entry(
     EffectType.PERSPECTIVE_ENVELOPE,
@@ -392,6 +432,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     LPECategory.Generate,
   ),
   entry(
+    EffectType.ATTACH_PATH,
+    NC_('path effect', 'Attach path'),
+    'attach_path',
+    'attach-path',
+    N_("Glue the current path's ends to a specific position on one or two other paths"),
+    LPECategory.Convert,
+  ),
+  entry(
     EffectType.FILL_BETWEEN_MANY,
     NC_('path effect', 'Fill between many'),
     'fill_between_many',
@@ -423,6 +471,14 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     false,
   ),
   entry(
+    EffectType.POWERCLIP,
+    NC_('path effect', 'Power clip'),
+    'powerclip',
+    'powerclip',
+    N_('Invert, hide or flatten a clip (apply like a Boolean operation)'),
+    LPECategory.Generate,
+  ),
+  entry(
     EffectType.POWERMASK,
     NC_('path effect', 'Power mask'),
     'powermask',
@@ -448,7 +504,37 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
     ),
     LPECategory.Convert,
   ),
+  /* 1.1 */
+  entry(
+    EffectType.BOOL_OP,
+    NC_('path effect', 'Boolean operation'),
+    'bool_op',
+    'bool-op',
+    N_('Cut, union, subtract, intersect and divide a path non-destructively with another path'),
+    LPECategory.Generate,
+  ),
   /* 1.2 */
+  entry(
+    EffectType.TILING,
+    NC_('path effect', 'Tiling'),
+    'tiling',
+    'tiling',
+    N_(
+      'Create multiple copies of an object following a grid layout. Customize size, rotation, distances, style and tiling symmetry.',
+    ),
+    LPECategory.Generate,
+  ),
+  {
+    ...entry(
+      EffectType.EXTRUDE,
+      NC_('path effect', 'Extrude'),
+      'extrude',
+      'experimental',
+      N_('Extrude the path, creating a face for each path segment'),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
   {
     ...entry(
       EffectType.FILL_BETWEEN_STROKES,
@@ -461,6 +547,64 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
       LPECategory.Experimental,
     ),
     experimental: true,
+  },
+  // upstream: only with LPE_ENABLE_TEST_EFFECTS
+  {
+    ...entry(
+      EffectType.DOEFFECTSTACK_TEST,
+      NC_('path effect', 'doEffect stack test'),
+      'doeffectstacktest',
+      'experimental',
+      N_('Test LPE'),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
+  {
+    ...entry(
+      EffectType.DYNASTROKE,
+      NC_('path effect', 'Dynamic stroke'),
+      'dynastroke',
+      'experimental',
+      N_(
+        'Create calligraphic strokes with variably shaped ends, making use of a parameter for the brush angle',
+      ),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
+  {
+    ...entry(
+      EffectType.LATTICE,
+      NC_('path effect', 'Lattice Deformation Legacy'),
+      'lattice',
+      'experimental',
+      N_('Deform an object using a 4x4 grid'),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
+  {
+    ...entry(
+      EffectType.RECURSIVE_SKELETON,
+      NC_('path effect', 'Recursive skeleton'),
+      'recursive_skeleton',
+      'experimental',
+      N_('Draw a path recursively'),
+      LPECategory.Experimental,
+    ),
+    experimental: true,
+  },
+  {
+    ...entry(
+      EffectType.EMBRODERY_STITCH,
+      NC_('path effect', 'Embroidery stitch'),
+      'embrodery_stitch',
+      'embrodery-stitch',
+      N_('Embroidery stitch'),
+      LPECategory.Experimental,
+    ),
+    experimental: false,
   },
 ];
 
