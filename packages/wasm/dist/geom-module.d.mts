@@ -127,6 +127,12 @@ interface EmbindModule {
   TextPathPath: {
     new(_0: EmbindString, _1: any): TextPathPath;
   };
+  pwd2Transformed(_0: EmbindString, _1: any): string;
+  pwd2Samples(_0: EmbindString, _1: any): any;
+  arcLengthSamples(_0: EmbindString, _1: any): any;
+  pwd2Length(_0: EmbindString): number;
+  rulerPath(_0: EmbindString, _1: number, _2: number, _3: number, _4: number, _5: number, _6: number, _7: number, _8: number, _9: number, _10: number, _11: number, _12: number): string;
+  interpolatePoints(_0: any, _1: number): string;
 }
 
 export type MainModule = WasmModule & EmbindModule;

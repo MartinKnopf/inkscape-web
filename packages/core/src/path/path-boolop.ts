@@ -85,6 +85,41 @@ export interface PathBoolopBackend {
     unifysegment: boolean,
   ): string;
   interpolatePath(d: string, trajectory: string, steps: number, equidistant: boolean): string;
+  /**
+   * Effect::doEffect_path with the transform m = [a, b, c, d, e, f] as doEffect_pwd2: every subpath
+   * as pwd2 times m, back to paths with LPE_CONVERSION_TOLERANCE (Transform by 2 points).
+   */
+  pwd2Transformed(d: string, m: readonly number[]): string;
+  /**
+   * For the first subpath of d as pwd2: the end of its domain, then per t the point and the unit
+   * vector of the derivative [x, y, ux, uy]. Empty for an empty path.
+   */
+  pwd2Samples(d: string, ts: readonly number[]): number[];
+  /** Like pwd2Samples for the arc length parametrization of the first subpath (arc_length_parametrization(pwd2, 2, 0.1)). */
+  arcLengthSamples(d: string, ss: readonly number[]): number[];
+  /** Geom::length() of the first subpath as pwd2. */
+  pwd2Length(d: string): number;
+  /**
+   * lpe-ruler.cpp doEffect_pwd2 on the first subpath of d; the lengths are in document units
+   * already (mark_dir: 0 left, 1 right, 2 both; border_marks: 0 none, 1 start, 2 end, 3 both).
+   */
+  rulerPath(
+    d: string,
+    real_mark_distance: number,
+    real_offset: number,
+    offset: number,
+    mark_length: number,
+    minor_mark_length: number,
+    major_mark_gap: number,
+    minor_mark_gap: number,
+    mark_angle: number,
+    mark_dir: number,
+    border_marks: number,
+    mminterval: number,
+    i_shift: number,
+  ): string;
+  /** Geom::Interpolate::Interpolator::create(type)->interpolateToPath() of the points [x0, y0, ...]. */
+  interpolatePoints(xy: readonly number[], type: number): string;
   sketchPath(
     d: string,
     rnd: (k: number) => number,
