@@ -26,6 +26,7 @@ import {
 } from '@inkscape-web/core';
 import {
   Affine,
+  are_near,
   type Curve,
   distance,
   LineSegment,
@@ -454,45 +455,62 @@ export function closed_curves(p: Path): readonly Curve[] {
 }
 
 /**
- * Break the paths into dashes (FixPPTDashLine). Upstream measures the path with an arc length
- * parametrization of its SBasis form; here the curves are measured by sampling (0.01 px is
- * the tolerance of upstream path_from_piecewise) and the dashes are made of line segments.
+ * Break the paths into dashes (FixPPTDashLine). Upstream concatenates the SBasis pieces of all
+ * paths (Path::toPwSb: the closing segment only for closed paths), measures them with an arc
+ * length parametrization and makes paths of the dashes with path_from_piecewise, which starts a
+ * new path where the pieces are not continuous and joins those that are. Here the curves are
+ * measured by sampling and the dashes are made of line segments. The dash phase goes on over
+ * the subpaths, as upstream.
  */
 export function dash_pathv(pathv: PathVector, dashes: readonly number[]): PathVector {
-  // the whole path as one polyline (upstream concatenates the pieces of all paths)
-  const pts: Point[] = [];
+  // the paths as polylines, with their cumulative lengths
+  const polylines: { pts: Point[]; cum: number[] }[] = [];
+  let total = 0;
   for (const p of pathv) {
-    for (const c of closed_curves(p)) {
+    const pts = [p.initialPoint()];
+    const cum = [total];
+    for (const c of p.curves()) {
       const n = is_straight_curve(c) ? 1 : 64;
-      if (!pts.length) pts.push(c.initialPoint());
-      for (let i = 1; i <= n; i++) pts.push(c.pointAt(i / n));
+      for (let i = 1; i <= n; i++) {
+        const q = c.pointAt(i / n);
+        total += distance(pts.at(-1)!, q);
+        pts.push(q);
+        cum.push(total);
+      }
     }
+    if (pts.length > 1) polylines.push({ pts, cum });
   }
-  const cum = [0];
-  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1]! + distance(pts[i - 1]!, pts[i]!));
-  const tlength = cum.at(-1) ?? 0;
-  const pointAt = (s: number): [Point, number] => {
-    const i = cum.findIndex((c) => c >= s);
-    if (i <= 0) return [pts[0]!, 0];
-    const t = (s - cum[i - 1]!) / (cum[i]! - cum[i - 1]! || 1);
-    return [pts[i - 1]!.lerp(t, pts[i]!), i];
-  };
-  const portion = (from: number, to: number): Path | null => {
-    if (to <= from) return null;
-    const [a, ia] = pointAt(from);
-    const [b, ib] = pointAt(to);
-    const out = new Path(a);
-    let last = a;
-    for (let i = Math.max(ia, 1); i < ib; i++) {
-      out.appendCurve(new LineSegment(last, pts[i]!));
-      last = pts[i]!;
+  const tlength = total;
+
+  /** The parts of [from, to] on each polyline (one path for each polyline it touches). */
+  const portion = (from: number, to: number): Path[] => {
+    const out: Path[] = [];
+    if (to <= from) return out;
+    for (const { pts, cum } of polylines) {
+      const s0 = Math.max(from, cum[0]!);
+      const s1 = Math.min(to, cum.at(-1)!);
+      if (s1 <= s0) continue;
+      const at = (s: number): Point => {
+        const i = Math.max(
+          1,
+          cum.findIndex((c) => c >= s),
+        );
+        const t = (s - cum[i - 1]!) / (cum[i]! - cum[i - 1]! || 1);
+        return pts[i - 1]!.lerp(t, pts[i]!);
+      };
+      const path = new Path(at(s0));
+      const lineto = (q: Point) => {
+        if (!are_near(path.finalPoint(), q, 1e-9)) path.appendCurve(new LineSegment(path.finalPoint(), q));
+      };
+      for (let i = 0; i < pts.length; i++) if (cum[i]! > s0 && cum[i]! < s1) lineto(pts[i]!);
+      lineto(at(s1));
+      out.push(path);
     }
-    out.appendCurve(new LineSegment(last, b));
     return out;
   };
 
   const out: PathVector = [];
-  let first_frag: Path | null = null;
+  let first_frag: Path[] = [];
   let i = 0; //dash index
   let slength = 0.0; // start of fragment
   // go around the dash array repeatedly until the entire path is consumed (but not beyond).
@@ -501,7 +519,7 @@ export function dash_pathv(pathv: PathVector, dashes: readonly number[]): PathVe
     if (elength > tlength) elength = tlength;
     const fragment = portion(slength, elength);
     if (slength) {
-      if (fragment) out.push(fragment);
+      out.push(...fragment);
     } else {
       first_frag = fragment;
     }
@@ -509,6 +527,13 @@ export function dash_pathv(pathv: PathVector, dashes: readonly number[]): PathVe
     slength += dashes[i++] ?? 0; // the gap
     if (i >= dashes.length) i = 0;
   }
-  if (first_frag) out.push(first_frag); // may merge line around start point
+  // may merge line around start point (path_from_piecewise joins continuous pieces)
+  const last = out.at(-1);
+  const first = first_frag[0];
+  if (last && first && are_near(last.finalPoint(), first.initialPoint(), 0.01)) {
+    for (const c of first.openCurves()) last.appendCurve(c);
+    first_frag = first_frag.slice(1);
+  }
+  out.push(...first_frag);
   return out;
 }
