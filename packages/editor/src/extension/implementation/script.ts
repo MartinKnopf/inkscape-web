@@ -11,7 +11,7 @@
  *
  * Copyright (C) 2002-2007 Authors
  */
-import { _, readMem, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
+import { _, readMem, SPDocument, type SPPage, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
 import { type SPDesktop, sp_namedview_document_from_window } from '../../desktop.ts';
 import type { Effect } from '../effect.ts';
 import type { ExecutionEnv } from '../execution-env.ts';
@@ -19,6 +19,7 @@ import type { Extension } from '../extension.ts';
 import type { Input } from '../input.ts';
 import type { Output } from '../output.ts';
 import { INKSCAPE_EXTENSION_NS } from '../prefdialog/widget.ts';
+import type { Template } from '../template.ts';
 import { Implementation } from './implementation.ts';
 
 /** The program of a script extension: its interpreter ("python", ...) and script path. */
@@ -56,7 +57,7 @@ export type ScriptMessageHandler = (message: string, data: string) => void;
 /**
  * The implementation of the script extensions (upstream Script): runs the script with the
  * document as a temporary file and replaces the document with the output.
- * TODO: pipe-diffs, templates, raster export, the command line argument file.
+ * TODO: pipe-diffs, raster export, the command line argument file.
  */
 export class Script extends Implementation {
   /** The runner of all scripts; null until the web app sets it. */
@@ -142,6 +143,24 @@ export class Script extends Implementation {
       );
     }
     return result.stdout;
+  }
+
+  /** Run a template script on the template file; its SVG output as a new document (upstream new_from_template). */
+  override async new_from_template(module: Template): Promise<SPDocument | null> {
+    const params: string[] = [];
+    module.paramListString(params);
+    const source = module.get_template_source();
+    if (source === null) return null;
+    const out = await this.execute(module, params, new TextEncoder().encode(source), null);
+    if (!out || out.length === 0) return null;
+    return SPDocument.createNewDocFromMem(new TextDecoder().decode(out));
+  }
+
+  /** Take an existing document and selected page and resize or add items as needed. */
+  override async resize_to_template(module: Template, doc: SPDocument, page: SPPage | null): Promise<void> {
+    // No page means 'resize the svg document'
+    const id = page ? page.getId() : doc.getRoot().getId();
+    await this._change_extension(module, doc, [`--page=${id}`], true);
   }
 
   override async effect(
