@@ -125,6 +125,24 @@ export const raw_data_path: readonly (readonly [string, string, string, string])
     SECTION,
     N_('Reverse the direction of selected paths (useful for flipping markers)'),
   ],
+  [
+    'win.shape-builder-mode(0)',
+    N_('Shape Builder: Add'),
+    SECTION,
+    N_('Add shapes by clicking or clicking and dragging'),
+  ],
+  [
+    'win.shape-builder-mode(1)',
+    N_('Shape Builder: Delete'),
+    SECTION,
+    N_('Remove shapes by clicking or clicking and dragging'),
+  ],
+  [
+    'win.shape-builder-replace',
+    N_('Replace Objects'),
+    SECTION,
+    N_('Remove selected objects when shape building is completed'),
+  ],
 ];
 
 /** Register the app.path-* actions. */
@@ -161,5 +179,20 @@ export function add_actions_path(app: InkscapeApplication): void {
     });
   dynamic('path-offset-dynamic', false);
   dynamic('path-offset-linked', true);
+
+  // The shape builder settings (the state of the radio action is the preference).
+  const prefs = Preferences.get();
+  app.actions.win.add_action_with_parameter('shape-builder-mode', 'i', (value) => {
+    prefs.setInt('/tools/booleans/mode', value);
+  });
+  const replace = app.actions.win.add_action_bool(
+    'shape-builder-replace',
+    () => {
+      const active = !replace.get_state(); // toggle
+      replace.change_state(active);
+      prefs.setBool('/tools/booleans/replace', active);
+    },
+    prefs.getBool('/tools/booleans/replace', true),
+  );
   app.get_action_extra_data().add_data(raw_data_path);
 }

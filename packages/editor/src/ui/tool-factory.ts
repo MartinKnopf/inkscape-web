@@ -10,6 +10,7 @@
  */
 import type { SPDesktop } from '../desktop.ts';
 import { ArcTool } from './tools/arc-tool.ts';
+import { InteractiveBooleansTool } from './tools/booleans-tool.ts';
 import { Box3dTool } from './tools/box3d-tool.ts';
 import { CalligraphicTool } from './tools/calligraphic-tool.ts';
 import { ConnectorTool } from './tools/connector-tool.ts';
@@ -17,6 +18,7 @@ import { DropperTool } from './tools/dropper-tool.ts';
 import { EraserTool } from './tools/eraser-tool.ts';
 import { FloodTool } from './tools/flood-tool.ts';
 import { GradientTool } from './tools/gradient-tool.ts';
+import { LpeTool } from './tools/lpe-tool.ts';
 import { MarkerTool } from './tools/marker-tool.ts';
 import { MeasureTool } from './tools/measure-tool.ts';
 import { MeshTool } from './tools/mesh-tool.ts';
@@ -38,6 +40,7 @@ import { ZoomTool } from './tools/zoom-tool.ts';
 /** The tools by preferences path. TODO: the other tools. */
 const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/nodes': NodeTool,
+  '/tools/booleans': InteractiveBooleansTool,
   '/tools/shapes/arc': ArcTool,
   '/tools/shapes/rect': RectTool,
   '/tools/freehand/pen': PenTool,
@@ -51,6 +54,7 @@ const TOOLS: Readonly<Record<string, new (desktop: SPDesktop) => ToolBase>> = {
   '/tools/mesh': MeshTool,
   '/tools/dropper': DropperTool,
   '/tools/connector': ConnectorTool,
+  '/tools/lpetool': LpeTool,
   '/tools/marker': MarkerTool,
   '/tools/measure': MeasureTool,
   '/tools/pages': PagesTool,

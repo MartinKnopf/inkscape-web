@@ -15,6 +15,7 @@
  */
 import {
   backspace,
+  EffectType,
   get_last_segment,
   last_point_additive_move,
   Preferences,
@@ -101,6 +102,9 @@ export class PenTool extends FreehandBase {
 
   events_disabled = false;
 
+  /** If positive, finish the path after this many clicks (for a waiting path effect). */
+  expecting_clicks_for_LPE = 0;
+
   // NOTE: undoing work in progress always deletes the last added point,
   // so there's no need for an undo stack.
   /** History of undone events */
@@ -181,9 +185,23 @@ export class PenTool extends FreehandBase {
     }
   }
 
+  /** Whether a path effect waits for the path being drawn. TODO: waiting_LPE (a path parameter). */
   hasWaitingLPE(): boolean {
-    // TODO: waiting LPEs.
-    return false;
+    // note: waiting_LPE_type is defined in FreehandBase
+    return this.waiting_LPE_type !== EffectType.INVALID_LPE;
+  }
+
+  /** Apply the path effect to the next path drawn, finished after num_clicks clicks (0: as usual). */
+  waitForLPEMouseClicks(effect_type: EffectType, num_clicks: number, use_polylines = true): void {
+    if (effect_type === EffectType.INVALID_LPE) return;
+    this.waiting_LPE_type = effect_type;
+    this.expecting_clicks_for_LPE = num_clicks;
+    this.polylines_only = use_polylines;
+    this.polylines_paraxial = false; // TODO: think if this is correct for all cases
+  }
+
+  override waiting_LPE_applied(): void {
+    this.setPolylineMode();
   }
 
   /** Snaps new node relative to the previous node. */
@@ -262,7 +280,8 @@ export class PenTool extends FreehandBase {
 
     let ret = false;
 
-    if (event.button === 0) {
+    if (event.button === 0 && this.expecting_clicks_for_LPE !== 1) {
+      // Make sure this is not the last click for a waiting LPE (otherwise we want to finish the path)
       if (!have_viable_layer(this._desktop)) return true;
 
       this.grabCanvasEvents(event);
@@ -350,12 +369,20 @@ export class PenTool extends FreehandBase {
           }
           break;
       }
+    } else if (this.expecting_clicks_for_LPE === 1 && this.npoints !== 0) {
+      // when the last click for a waiting LPE occurs we want to finish the path
+      this._finishSegment(event_dt, event);
+      // finishing at the start anchor closes the curve
+      this._finish(this.green_closed);
+      ret = true;
     } else if (event.button === 2 && this.npoints !== 0 && !this.#button1on) {
       // right click - finish path, but only if the left click isn't pressed.
       this.ea = null; // unset end anchor if set (otherwise crashes)
       this._finish(false);
       ret = true;
     }
+
+    if (this.expecting_clicks_for_LPE > 0) --this.expecting_clicks_for_LPE;
 
     return ret;
   }
@@ -546,6 +573,13 @@ export class PenTool extends FreehandBase {
       ret = true;
 
       this.green_closed = false;
+    }
+
+    // TODO: can we be sure that the path was created correctly?
+    // TODO: should we offer an option to collect the clicks in a list?
+    if (this.expecting_clicks_for_LPE === 0 && this.hasWaitingLPE()) {
+      this.setPolylineMode();
+      // The new LPE is applied to the just-drawn path in spdc_check_for_and_apply_waiting_LPE().
     }
 
     return ret;
@@ -930,6 +964,11 @@ export class PenTool extends FreehandBase {
 
   /** Write the path to the document; closed closes it. */
   _finish(closed: boolean): void {
+    if (this.expecting_clicks_for_LPE > 1) {
+      // don't let the path be finished before we have collected the required number of mouse clicks
+      return;
+    }
+
     this.events_disabled = true;
 
     // TODO: flash _("Drawing finished") in the message stack.

@@ -133,3 +133,16 @@ describe('Path.fromCircle', () => {
     expect(write_svg_path([p])).toBe('M 15 20 A 5 5 0 0 1 5 20 A 5 5 0 0 1 15 20 z');
   });
 });
+
+describe('PathVector.winding', () => {
+  it('counts the turns of the paths around the point, open paths as closed', () => {
+    const square = parse_svg_path('M 0,0 H 10 V 10 H 0 Z');
+    expect(PathVector.winding(square, P(5, 5))).toBe(1);
+    expect(PathVector.winding(square, P(15, 5))).toBe(0);
+    // A hole of the opposite direction cancels, a second square of the same direction adds.
+    expect(PathVector.winding(parse_svg_path('M 0,0 H 10 V 10 H 0 Z M 2,2 V 8 H 8 V 2 Z'), P(5, 5))).toBe(0);
+    expect(PathVector.winding(parse_svg_path('M 0,0 H 10 V 10 H 0 Z M 2,2 H 8 V 8 H 2 Z'), P(5, 5))).toBe(2);
+    expect(PathVector.winding([triangle(false)], P(8, 2))).toBe(1);
+    expect(PathVector.winding([Path.fromCircle(P(0, 0), 10)], P(0, 9.9))).not.toBe(0);
+  });
+});

@@ -28,6 +28,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
   [
     ['Select', 'tool-pointer'],
     ['Node', 'tool-node-editor'],
+    ['Booleans', 'draw-booleans'],
   ],
   [
     ['Rect', 'draw-rectangle'],
@@ -55,6 +56,7 @@ const TOOL_GROUPS: readonly (readonly [tool: string, icon: string][])[] = [
     ['Spray', 'tool-spray'],
     ['Eraser', 'draw-eraser'],
     ['Connector', 'draw-connector'],
+    ['LPETool', 'draw-geometry'],
   ],
   [
     ['Measure', 'tool-measure'],

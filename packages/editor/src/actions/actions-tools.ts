@@ -90,6 +90,12 @@ const SECTION = NC_('Action Section', 'Tool Switch');
 export const raw_data_tools: readonly (readonly [string, string, string, string])[] = [
   ["win.tool-switch('Select')", N_('Selector Tool'), SECTION, N_('Select and transform objects')],
   ["win.tool-switch('Node')", N_('Node Tool'), SECTION, N_('Edit paths by nodes')],
+  [
+    "win.tool-switch('Booleans')",
+    N_('Shape Builder Tool'),
+    SECTION,
+    N_('Build shapes with the Boolean tool'),
+  ],
   ["win.tool-switch('Rect')", N_('Rectangle Tool'), SECTION, N_('Create rectangles and squares')],
   ["win.tool-switch('Arc')", N_('Ellipse/Arc Tool'), SECTION, N_('Create circles, ellipses and arcs')],
   ["win.tool-switch('Star')", N_('Star/Polygon Tool'), SECTION, N_('Create stars and polygons')],
@@ -106,6 +112,7 @@ export const raw_data_tools: readonly (readonly [string, string, string, string]
   ["win.tool-switch('Tweak')", N_('Tweak Tool'), SECTION, N_('Tweak objects by sculpting or painting')],
   ["win.tool-switch('Spray')", N_('Spray Tool'), SECTION, N_('Spray copies or clones of objects')],
   ["win.tool-switch('Eraser')", N_('Eraser Tool'), SECTION, N_('Erase objects or paths')],
+  ["win.tool-switch('LPETool')", N_('LPE Tool'), SECTION, N_('Do geometric constructions')],
   ["win.tool-switch('Gradient')", N_('Gradient Tool'), SECTION, N_('Create and edit gradients')],
   ["win.tool-switch('Dropper')", N_('Dropper Tool'), SECTION, N_('Pick colors from image')],
   ["win.tool-switch('Zoom')", N_('Zoom Tool'), SECTION, N_('Zoom in or out')],

@@ -9,6 +9,7 @@
  */
 import type { Affine } from './affine.ts';
 import type { Path } from './path.ts';
+import type { Point } from './point.ts';
 import { type OptRect, unify } from './rect.ts';
 
 /** A set of subpaths. */
@@ -34,6 +35,33 @@ export const PathVector = {
   reversed(pv: readonly Path[], reversePaths = true): PathVector {
     const ret = pv.map((p) => p.reversed());
     return reversePaths ? ret.reverse() : ret;
+  },
+
+  /**
+   * The winding number of the paths around p (upstream PathVector::winding); open paths count as
+   * closed. Positive for paths that turn from +x to +y. Curves other than lines are sampled
+   * (32 points each), which is exact enough for inside tests.
+   */
+  winding(pv: readonly Path[], p: Point): number {
+    let wind = 0;
+    for (const path of pv) {
+      let a = path.initialPoint();
+      const curves = path.closed() ? path.curves() : [...path.curves(), path.closingSegment()];
+      for (const c of curves) {
+        const n = c.isLineSegment() ? 1 : 32;
+        for (let i = 1; i <= n; i++) {
+          const b = c.pointAt(i / n);
+          const side = (b.x - a.x) * (p.y - a.y) - (p.x - a.x) * (b.y - a.y);
+          if (a.y <= p.y) {
+            if (b.y > p.y && side > 0) wind++;
+          } else if (b.y <= p.y && side < 0) {
+            wind--;
+          }
+          a = b;
+        }
+      }
+    }
+    return wind;
   },
 
   /** Total number of curves in all paths. */

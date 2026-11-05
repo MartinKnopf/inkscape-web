@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/actions/actions-paths.cpp
 // @vitest-environment happy-dom
+import { Preferences } from '@inkscape-web/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { InkscapeApplication } from '../inkscape-application.ts';
 import { setupDesktop, useWasmBackend } from '../ui/tools/tool-test-utils.ts';
@@ -60,6 +61,24 @@ describe('offset actions', () => {
     expect(app.activate_action('win.path-offset-dynamic')).toBe(true);
     expect(dt.getSelection().singleItem()?.getAttribute('sodipodi:type')).toBe('inkscape:offset');
     expect(dt.getTool()?.constructor.name).toBe('NodeTool');
+  });
+});
+
+describe('shape builder actions', () => {
+  it('win.shape-builder-mode sets the mode, win.shape-builder-replace toggles replacing', () => {
+    const app = InkscapeApplication.instance();
+    const prefs = Preferences.get();
+    expect(app.activate_action('win.shape-builder-mode(1)')).toBe(true);
+    expect(prefs.getInt('/tools/booleans/mode')).toBe(1);
+    expect(app.activate_action('win.shape-builder-mode(0)')).toBe(true);
+    expect(prefs.getInt('/tools/booleans/mode')).toBe(0);
+
+    const replace = app.actions.lookup_action('win.shape-builder-replace');
+    expect(replace?.get_state()).toBe(true);
+    expect(app.activate_action('win.shape-builder-replace')).toBe(true);
+    expect([replace?.get_state(), prefs.getBool('/tools/booleans/replace', true)]).toEqual([false, false]);
+    app.activate_action('win.shape-builder-replace');
+    expect(prefs.getBool('/tools/booleans/replace', false)).toBe(true);
   });
 });
 

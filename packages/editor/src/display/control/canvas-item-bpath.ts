@@ -11,7 +11,14 @@
  * Rewrite of SPCanvasBPath
  */
 import { SPWindRule } from '@inkscape-web/core';
-import { type Affine, type PathVector, write_svg_path } from '@inkscape-web/geom';
+import {
+  type Affine,
+  PathVector,
+  type Point,
+  pathv_nearest_time,
+  pathv_point_at,
+  write_svg_path,
+} from '@inkscape-web/geom';
 import { rgbaCss } from '../../ui/widget/canvas.ts';
 import { CanvasItem, type CanvasItemGroup } from './canvas-item.ts';
 
@@ -27,6 +34,8 @@ export class CanvasItemBpath extends CanvasItem {
   #stroke = 0x0000ff7f;
   #fill = 0x0;
   #fill_rule = SPWindRule.SP_WIND_RULE_EVENODD;
+  /** The stroke width in screen px; 0 for the default (1 px, 2 px for a phantom line). */
+  #stroke_width = 0;
   readonly #element: SVGPathElement;
 
   constructor(group: CanvasItemGroup, path: PathVector = [], phantom_line = false) {
@@ -50,6 +59,26 @@ export class CanvasItemBpath extends CanvasItem {
     this.request_update();
   }
 
+  set_stroke_width(width: number): void {
+    this.#stroke_width = width;
+    this.request_update();
+  }
+
+  /**
+   * Whether the world point p is inside the filled path (if there is a fill) or nearer to the
+   * outline than tolerance px.
+   */
+  contains(p: Point, tolerance = 0): boolean {
+    if (tolerance === 0) tolerance = 1; // Need a minimum tolerance value or always returns false.
+    const affine = this.affine();
+    const p_doc = p.transformed(affine.inverse());
+    // Check for 'inside' a filled bpath if a fill is being used.
+    if ((this.#fill & 0xff) !== 0 && PathVector.winding(this.#path, p_doc) % 2 !== 0) return true;
+    // Otherwise see how close we are to the outside line.
+    const t = pathv_nearest_time(this.#path, p_doc);
+    return !!t && pathv_point_at(this.#path, t).transformed(affine).sub(p).length() < tolerance;
+  }
+
   set_fill(rgba: number, fill_rule = SPWindRule.SP_WIND_RULE_EVENODD): void {
     this.#fill = rgba;
     this.#fill_rule = fill_rule;
@@ -60,7 +89,7 @@ export class CanvasItemBpath extends CanvasItem {
     const world = this.#path.map((p) => p.transformed(affine));
     this.#element.setAttribute('d', world.length ? write_svg_path(world) : '');
     this.#element.setAttribute('stroke', rgbaCss(this.#stroke));
-    this.#element.setAttribute('stroke-width', this.#phantom_line ? '2' : '1');
+    this.#element.setAttribute('stroke-width', String(this.#stroke_width || (this.#phantom_line ? 2 : 1)));
     this.#element.setAttribute('fill', (this.#fill & 0xff) > 0 ? rgbaCss(this.#fill) : 'none');
     this.#element.setAttribute(
       'fill-rule',

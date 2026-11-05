@@ -16,12 +16,14 @@ import type { SPDesktop } from '@inkscape-web/editor';
 import type { FunctionComponent } from 'react';
 import { useActiveDesktop, useActiveDocument } from '../../app/active-desktop.ts';
 import { ArcToolbar } from './arc-toolbar.tsx';
+import { BooleansToolbar } from './booleans-toolbar.tsx';
 import { Box3DToolbar } from './box3d-toolbar.tsx';
 import { CalligraphyToolbar } from './calligraphy-toolbar.tsx';
 import { ConnectorToolbar } from './connector-toolbar.tsx';
 import { DropperToolbar } from './dropper-toolbar.tsx';
 import { EraserToolbar } from './eraser-toolbar.tsx';
 import { GradientToolbar } from './gradient-toolbar.tsx';
+import { LPEToolbar } from './lpe-toolbar.tsx';
 import { MeasureToolbar } from './measure-toolbar.tsx';
 import { MeshToolbar } from './mesh-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
@@ -40,6 +42,7 @@ import { ZoomToolbar } from './zoom-toolbar.tsx';
 /** The controls bar of each tool, by tool name. TODO: the other tools (the select toolbar first). */
 const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = {
   Node: NodeToolbar,
+  Booleans: BooleansToolbar,
   Rect: RectToolbar,
   Arc: ArcToolbar,
   Star: StarToolbar,
@@ -58,6 +61,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Zoom: ZoomToolbar,
   Pages: PageToolbar,
   Connector: ConnectorToolbar,
+  LPETool: LPEToolbar,
   '3DBox': Box3DToolbar,
   Text: TextToolbar,
 };
