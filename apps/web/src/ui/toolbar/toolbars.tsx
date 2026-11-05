@@ -23,6 +23,7 @@ import { ConnectorToolbar } from './connector-toolbar.tsx';
 import { DropperToolbar } from './dropper-toolbar.tsx';
 import { EraserToolbar } from './eraser-toolbar.tsx';
 import { GradientToolbar } from './gradient-toolbar.tsx';
+import { LPEToolbar } from './lpe-toolbar.tsx';
 import { MeasureToolbar } from './measure-toolbar.tsx';
 import { MeshToolbar } from './mesh-toolbar.tsx';
 import { NodeToolbar } from './node-toolbar.tsx';
@@ -60,6 +61,7 @@ const toolbar_data: Record<string, FunctionComponent<{ desktop: SPDesktop }>> = 
   Zoom: ZoomToolbar,
   Pages: PageToolbar,
   Connector: ConnectorToolbar,
+  LPETool: LPEToolbar,
   '3DBox': Box3DToolbar,
   Text: TextToolbar,
 };
