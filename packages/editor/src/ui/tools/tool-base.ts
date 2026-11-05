@@ -126,6 +126,14 @@ export class ToolBase {
     return this.#prefsPath;
   }
 
+  /** Whether the tool can work; if not, the desktop switches back to the selector. */
+  is_ready(): boolean {
+    return true;
+  }
+
+  /** Called before the desktop replaces the tool by the tool with the preferences path new_tool. */
+  switching_away(_new_tool: string): void {}
+
   /** Called with the entry name ("rx") when a preference of the tool changes. */
   set(_name: string): void {}
 

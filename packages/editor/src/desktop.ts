@@ -362,9 +362,19 @@ export class SPDesktop {
    */
   setTool(toolName: string): void {
     // Tool should be able to be replaced with itself.
-    this.#tool?.destroy();
-    this.#tool = null;
-    if (toolName) this.#tool = createTool(this, toolName);
+    if (this.#tool) {
+      this.#tool.switching_away(toolName);
+      this.#tool.destroy();
+      this.#tool = null;
+    }
+    if (toolName) {
+      this.#tool = createTool(this, toolName);
+      // Switch back, though we don't know what the tool was
+      if (!this.#tool.is_ready()) {
+        this.setTool('/tools/select');
+        return;
+      }
+    }
     this.#event_context_changed_signal.emit(this, this.#tool);
   }
 

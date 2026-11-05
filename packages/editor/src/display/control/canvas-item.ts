@@ -103,6 +103,11 @@ export abstract class CanvasItem {
     else this.element.setAttribute('pointer-events', 'none');
   }
 
+  /** Move above the other items of the group. */
+  raise_to_top(): void {
+    this._parent.element.append(this.element);
+  }
+
   /** Move below the other items of the group. */
   lower_to_bottom(): void {
     this._parent.element.prepend(this.element);
