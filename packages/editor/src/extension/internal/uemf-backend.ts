@@ -347,3 +347,142 @@ export enum cvt_to_font {
   CVTZDG,
   CVTWDG,
 }
+
+// ---- WMF (uwmf.h; bindings/uwmf.cpp) ----
+// WMFTRACK, WMFHANDLES, U_PAIRF and U_FONT are pointers. The WMF output also uses the shared
+// functions above (free, read_file, U_Utf8ToUtf16le, UnicodeToNon, RGBA_to_DIB ...).
+
+export interface U_POINT16 {
+  x: number;
+  y: number;
+}
+export interface U_RECT16 {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+/** U_PEN (libuemf keeps the width in Widthw[0]). */
+export interface U_PEN {
+  Style: number;
+  Width: number;
+  Color: U_COLORREF;
+}
+export interface U_WLOGBRUSH {
+  Style: number;
+  Color: U_COLORREF;
+  Hatch: number;
+}
+
+// Declaration merging: the WMF functions of uemf-module.wasm.
+export interface UemfBackend {
+  // WMF file
+  wmf_start(name: string, initsize: number, chunksize: number): { status: number; wt: Ptr };
+  wmf_finish(wt: Ptr): number;
+  uwmf_free(wt: Ptr): number;
+  wmf_append(rec: Ptr, wt: Ptr, freerec: number): number;
+  wmf_header_append(rec: Ptr, wt: Ptr, freerec: number): number;
+  wmf_htable_create(initsize: number, chunksize: number): Ptr;
+  wmf_htable_free(wht: Ptr): number;
+  /** A malloc() U_PAIRF. */
+  U_PAIRF_set(x: number, y: number): Ptr;
+
+  // Text (uemf_utf.h): malloc() Latin1 strings, 0 on error
+  U_Utf8ToLatin1(src: string): Ptr;
+  U_Utf16leToLatin1(src: Ptr): Ptr;
+
+  // Objects
+  wselectobject_set(ihObject: number, wht: Ptr): Ptr;
+  wdeleteobject_set(ihObject: number, wht: Ptr): Ptr;
+  wcreatepenindirect_set(wht: Ptr, pen: U_PEN): HandleRecord;
+  wcreatebrushindirect_set(wht: Ptr, lb: U_WLOGBRUSH): HandleRecord;
+  wcreatedibpatternbrush_srcdib_set(wht: Ptr, iUsage: number, Bmi: Ptr, cbPx: number, Px: Ptr): HandleRecord;
+  /** A malloc() U_FONT; FaceName is a Latin1 string (U_Utf8ToLatin1). */
+  U_FONT_set(
+    Height: number,
+    Width: number,
+    Escapement: number,
+    Orientation: number,
+    Weight: number,
+    Italic: number,
+    Underline: number,
+    StrikeOut: number,
+    CharSet: number,
+    OutPrecision: number,
+    ClipPrecision: number,
+    Quality: number,
+    PitchAndFamily: number,
+    FaceName: Ptr,
+  ): Ptr;
+  wcreatefontindirect_set(wht: Ptr, uf: Ptr): HandleRecord;
+  wmiterlimit_set(limit: number): Ptr;
+
+  // WMF records
+  U_WMRHEADER_set(size: Ptr, dpi: number): Ptr;
+  U_WMRPOLYGON_set(points: U_POINT16[]): Ptr;
+  U_WMRPOLYLINE_set(points: U_POINT16[]): Ptr;
+  U_WMRPOLYPOLYGON_set(aPolyCounts: number[], points: U_POINT16[]): Ptr;
+  U_WMRSTRETCHDIB_set(
+    Dest: U_POINT16,
+    cDest: U_POINT16,
+    Src: U_POINT16,
+    cSrc: U_POINT16,
+    cUsage: number,
+    dwRop3: number,
+    Bmi: Ptr,
+    cbPx: number,
+    Px: Ptr,
+  ): Ptr;
+  U_WMREXTTEXTOUT_set(
+    Dst: U_POINT16,
+    Length: number,
+    Opts: number,
+    string: Ptr,
+    dx: number[],
+    rect: U_RECT16,
+  ): Ptr;
+  U_WMRSETWINDOWEXT_set(extent: U_POINT16): Ptr;
+  U_WMRSETWINDOWORG_set(coord: U_POINT16): Ptr;
+  U_WMRMOVETO_set(coord: U_POINT16): Ptr;
+  U_WMRLINETO_set(coord: U_POINT16): Ptr;
+  U_WMRSETMAPMODE_set(Mode: number): Ptr;
+  U_WMRSETBKMODE_set(Mode: number): Ptr;
+  U_WMRSETPOLYFILLMODE_set(Mode: number): Ptr;
+  U_WMRSETTEXTALIGN_set(Mode: number): Ptr;
+  U_WMRSETROP2_set(Mode: number): Ptr;
+  U_WMRSETSTRETCHBLTMODE_set(Mode: number): Ptr;
+  U_WMRSETTEXTCOLOR_set(Color: U_COLORREF): Ptr;
+  U_WMRSETBKCOLOR_set(Color: U_COLORREF): Ptr;
+  U_WMRRECTANGLE_set(rect: U_RECT16): Ptr;
+  U_WMRELLIPSE_set(rect: U_RECT16): Ptr;
+  U_WMREOF_set(): Ptr;
+}
+
+export const U_RCL16_DEF: U_RECT16 = { left: 0, top: 0, right: -1, bottom: -1 };
+/** point16_set (the values are truncated to int16_t). */
+export const point16_set = (x: number, y: number): U_POINT16 => ({ x: (x << 16) >> 16, y: (y << 16) >> 16 });
+export const U_RECT16_set = (ul: U_POINT16, lr: U_POINT16): U_RECT16 => ({
+  left: ul.x,
+  top: ul.y,
+  right: lr.x,
+  bottom: lr.y,
+});
+/** U_PEN_set (the values are truncated to uint16_t). */
+export const U_PEN_set = (Style: number, Width: number, Color: U_COLORREF): U_PEN => ({
+  Style: Style & 0xffff,
+  Width: Width & 0xffff,
+  Color,
+});
+export const U_WLOGBRUSH_set = (Style: number, Color: U_COLORREF, Hatch: number): U_WLOGBRUSH => ({
+  Style: Style & 0xffff,
+  Color,
+  Hatch: Hatch & 0xffff,
+});
+
+export const U_BS_NULL = 1;
+export const U_MM_ANISOTROPIC = 8;
+export const U_PS_DASH = 1;
+export const U_PS_DOT = 2;
+export const U_PS_DASHDOT = 3;
+export const U_PS_DASHDOTDOT = 4;
+export const U_PS_NULL = 5;

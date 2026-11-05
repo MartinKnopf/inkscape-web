@@ -95,6 +95,7 @@ export * from './extension/internal/template-video.ts';
 export * from './extension/internal/vsd-input.ts';
 export * from './extension/internal/wpg-input.ts';
 export { setUemfBackendLoader, type UemfBackend } from './extension/internal/uemf-backend.ts';
+export * from './extension/internal/wmf-inout.ts';
 export * from './extension/output.ts';
 export * from './extension/prefdialog/prefdialog.ts';
 export * from './extension/prefdialog/widget.ts';
