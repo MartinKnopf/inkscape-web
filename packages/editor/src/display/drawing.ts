@@ -44,7 +44,7 @@ const RENDER_MODE_CSS =
   `[data-render-mode="outline"] image{opacity:.3!important}` +
   `[data-render-mode="overlay"] ${PAINTED}{fill-opacity:.4!important;stroke:#000!important;stroke-width:1px!important;stroke-dasharray:none!important;vector-effect:non-scaling-stroke}` +
   `[data-render-mode="nofilters"] *{filter:none!important}` +
-  `[data-render-mode="hairlines"] [data-hairline]{stroke-width:1px!important;vector-effect:non-scaling-stroke}`;
+  `[data-render-mode="hairlines"] [data-hairline]{stroke-width:var(--hairline-width)!important}`;
 
 const RENDER_MODE_ATTRIBUTE: Record<RenderMode, string | null> = {
   [RenderMode.NORMAL]: null,
@@ -147,21 +147,35 @@ export class SvgDrawing implements Drawing {
   }
 
   /**
-   * In the hairlines mode, mark the shapes whose stroke is thinner than 1 screen pixel, so that the
-   * style sheet draws them 1 px wide (upstream DrawingShape::_renderStroke with
-   * RENDER_VISIBLE_HAIRLINES). Call it after the zoom or the shapes change. Outside that mode it
-   * clears the marks. scale gives the screen size of one user unit of an element.
+   * In the hairlines mode, mark the shapes whose stroke is thinner than 1 screen pixel and give
+   * them the width that makes it 1 px (upstream DrawingShape::_renderStroke with
+   * RENDER_VISIBLE_HAIRLINES). Only the width changes; dashes and the rest keep scaling. Call it
+   * after the zoom or the shapes change. Outside that mode it clears the marks.
+   *
+   * The width is the resolved one of the browser (inherited, with units, in user units). For a
+   * non-scaling stroke that width is in screen px already; else it scales with the element.
    */
-  updateHairlines(scale: (element: SVGGraphicsElement) => number = screenScale): void {
+  updateHairlines(): void {
     const hairlines = this.#renderMode === RenderMode.VISIBLE_HAIRLINES;
     if (!hairlines && !this.#hairlinesMarked) return;
     this.#hairlinesMarked = hairlines;
-    for (const el of this.root.element.querySelectorAll<SVGGraphicsElement>(PAINTED)) {
-      const width = hairlines
-        ? Number.parseFloat(el.style.strokeWidth || el.getAttribute('stroke-width') || '1')
-        : 0;
-      if (hairlines && width > 0 && width * scale(el) < 1) el.setAttribute('data-hairline', '');
-      else el.removeAttribute('data-hairline');
+    const elements = [...this.root.element.querySelectorAll<SVGGraphicsElement>(PAINTED)];
+    // Clear first: the marks change the resolved width.
+    for (const el of elements) {
+      el.removeAttribute('data-hairline');
+      el.style.removeProperty('--hairline-width');
+    }
+    if (!hairlines) return;
+    const view = this.#doc.defaultView ?? globalThis;
+    for (const el of elements) {
+      const style = view.getComputedStyle(el);
+      const width = Number.parseFloat(style.strokeWidth);
+      if (!(width > 0)) continue;
+      const non_scaling = style.vectorEffect === 'non-scaling-stroke';
+      const scale = non_scaling ? 1 : screenScale(el);
+      if (width * scale >= 1) continue;
+      el.setAttribute('data-hairline', '');
+      el.style.setProperty('--hairline-width', String(1 / scale));
     }
   }
   #hairlinesMarked = false;

@@ -56,8 +56,8 @@ import { CanvasItemGuideLine } from './display/control/canvas-item-guideline.ts'
 import { CanvasPage } from './display/control/canvas-page.ts';
 import { SnapIndicator } from './display/control/snap-indicator.ts';
 import { RenderMode, SvgDrawing } from './display/drawing.ts';
-import { LPECanvasTexts } from './display/lpe-canvas-text.ts';
 import { SvgDrawingItem } from './display/drawing-item.ts';
+import { LPECanvasTexts } from './display/lpe-canvas-text.ts';
 import { LayerManager } from './layer-manager.ts';
 import { SnapManager } from './snap.ts';
 import { createTool } from './ui/tool-factory.ts';
