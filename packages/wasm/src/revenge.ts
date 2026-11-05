@@ -12,8 +12,16 @@ export interface RevengeModule {
 
 let module: Promise<RevengeModule> | undefined;
 
-/** Load the module once (the JavaScript and the WASM file are fetched on the first call). */
+/**
+ * Load the module once (the JavaScript and the WASM file are fetched on the first call). After a
+ * failed load (for example a failed download), the next call tries again.
+ */
 export function loadRevenge(options?: { locateFile: (path: string) => string }): Promise<RevengeModule> {
-  module ??= import('../dist/revenge-module.mjs').then((m) => m.default(options) as Promise<RevengeModule>);
+  module ??= import('../dist/revenge-module.mjs')
+    .then((m) => m.default(options) as Promise<RevengeModule>)
+    .catch((e: unknown) => {
+      module = undefined;
+      throw e;
+    });
   return module;
 }
