@@ -24,7 +24,7 @@ import { NodeDeleteMode } from '../ui/tool/path-manipulator.ts';
 import { NodeTool } from '../ui/tools/node-tool.ts';
 
 /** The multi path manipulator of the node tool of desktop, or null if the node tool is not active. */
-function node_multipath(desktop: SPDesktop, name: string): MultiPathManipulator | null {
+export function node_multipath(desktop: SPDesktop, name: string): MultiPathManipulator | null {
   const tool = desktop.getTool();
   if (!(tool instanceof NodeTool)) {
     console.warn(`${name}: tool is not Node tool!`);
