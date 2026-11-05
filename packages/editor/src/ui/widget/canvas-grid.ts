@@ -106,8 +106,11 @@ export class CanvasGrid {
     };
     const corner = cell('ruler-corner');
     corner.style.background = '#f4f4f4';
+    corner.style.gridArea = '1 / 1';
     const htop = cell('ruler-horz');
+    htop.style.gridArea = '1 / 2';
     const vleft = cell('ruler-vert');
+    vleft.style.gridArea = '2 / 1';
     const canvas_host = cell('canvas-host');
     // Stays in the second row and column when the rulers are hidden.
     canvas_host.style.gridArea = '2 / 2';
