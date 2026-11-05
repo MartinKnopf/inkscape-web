@@ -475,7 +475,8 @@ export class LPEMeasureSegments extends Effect {
     );
     // active for 1.1
     this.smallx100 = new BoolParam(
-      _('Multiply values &lt; 1'),
+      // The msgid is Pango markup (translations have it); the dialog shows plain text.
+      _('Multiply values &lt; 1').replaceAll('&lt;', '<'),
       _('Multiply values smaller than 1 by 100 and leave out the unit'),
       'smallx100',
       this,
