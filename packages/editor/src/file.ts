@@ -28,6 +28,8 @@ import {
   type SPDocument,
   SPGroup,
   type SPObject,
+  SVG_NS_URI,
+  saveBuf,
   sp_repr_lookup_name,
   type Node as XmlNode,
 } from '@inkscape-web/core';
@@ -135,4 +137,60 @@ export function file_import(
   desktop?.getSelection().setReprList(result);
   DocumentUndo.done(in_doc, C_('Undo', 'Import'), 'document-import');
   return import_root;
+}
+
+/**
+ * The file name of a template (upstream sp_file_save_template: Glib::uri_escape_string(name,
+ * " ", true) and ".svg"): characters other than letters, numbers, "-._~", spaces and UTF-8 are
+ * escaped.
+ */
+export function sp_file_template_filename(name: string): string {
+  const escapeChar = (c: string) =>
+    encodeURIComponent(c).replace(/[!'()*]/g, (x) => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
+  const escaped = [...name]
+    .map((c) => (/[A-Za-z0-9\-._~ ]/.test(c) || c.charCodeAt(0) > 127 ? c : escapeChar(c)))
+    .join('');
+  return `${escaped}.svg`;
+}
+
+/**
+ * The SVG text that saves the document as a template (upstream sp_file_save_template): the
+ * document with a node inkscape:templateinfo for the time of saving. The caller stores the
+ * text under sp_file_template_filename(name) and, for the default template, as "default.svg".
+ * Null if name is empty.
+ */
+export function sp_file_template_svg(
+  document: SPDocument,
+  name: string,
+  author: string,
+  description: string,
+  keywords: string,
+  date = new Date(),
+): string | null {
+  if (name.length === 0) return null;
+
+  return DocumentUndo.scopedInsensitive(document, () => {
+    const root = document.getReprRoot();
+    const xml_doc = document.getReprDoc();
+
+    const templateinfo_node = xml_doc.createElement('inkscape:templateinfo');
+    const add = (tag: string, text: string) => {
+      const element_node = xml_doc.createElement(tag);
+      element_node.appendChild(xml_doc.createTextNode(text));
+      templateinfo_node.appendChild(element_node);
+    };
+
+    add('inkscape:name', name);
+    if (author.length !== 0) add('inkscape:author', author);
+    if (description.length !== 0) add('inkscape:shortdesc', description);
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    add('inkscape:date', `${date.getFullYear()}-${p2(date.getMonth() + 1)}-${p2(date.getDate())}`);
+    if (keywords.length !== 0) add('inkscape:keywords', keywords);
+
+    root.appendChild(templateinfo_node);
+    const text = saveBuf(document.rdoc, SVG_NS_URI);
+    // remove this node from current document after saving it as template
+    root.removeChild(templateinfo_node);
+    return text;
+  });
 }

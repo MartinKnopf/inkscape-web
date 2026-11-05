@@ -14,6 +14,8 @@ import { dialogComponents, setDialogDock } from '../ui/dialog/dialog-manager.ts'
 import { GuidelineDialogHost } from '../ui/dialog/guides.tsx';
 import { LayerPropertiesDialogHost } from '../ui/dialog/layer-properties.tsx';
 import { MessageDialogHost } from '../ui/dialog/message-dialog.tsx';
+import { NewFromTemplateHost } from '../ui/dialog/new-from-template.tsx';
+import { SaveTemplateDialogHost } from '../ui/dialog/save-template-dialog.tsx';
 import { CommandsToolbar } from '../ui/toolbar/commands-toolbar.tsx';
 import { SnapToolbar } from '../ui/toolbar/snap-toolbar.tsx';
 import { ToolToolbar } from '../ui/toolbar/tool-toolbar.tsx';
@@ -122,6 +124,8 @@ export function App() {
       <PdfImportDialogHost />
       <LayerPropertiesDialogHost />
       <MessageDialogHost />
+      <NewFromTemplateHost />
+      <SaveTemplateDialogHost />
     </div>
   );
 }

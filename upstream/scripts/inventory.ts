@@ -34,13 +34,13 @@ const unique = (a: string[]) => [...new Set(a)].sort();
 /**
  * Whether the extension system loads the .inx and can run it. packages/assets/build.ts serves
  * every .inx of share/extensions; build_from_reprdoc() (packages/editor/src/extension/system.ts)
- * takes input, output and effect extensions with a script, and skips ids with "win32"; the script
+ * takes input, output, effect and template extensions with a script, and skips ids with "win32"; the script
  * runs in Pyodide, so its interpreter must be python (or none). XSLT and plugin extensions are not
  * loaded.
  */
 function extensionIsLoaded(inx: string, id: string): boolean {
   return (
-    /<(input|output|effect)[\s>]/.test(inx) &&
+    /<(input|output|effect|template)[\s>]/.test(inx) &&
     /<script[\s>]/.test(inx) &&
     !/interpreter="(?!python")/.test(inx) &&
     !id.includes('win32')

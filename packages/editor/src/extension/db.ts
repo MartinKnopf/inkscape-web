@@ -15,6 +15,7 @@ import { Effect } from './effect.ts';
 import type { Extension } from './extension.ts';
 import { Input } from './input.ts';
 import { Output } from './output.ts';
+import { Template } from './template.ts';
 
 /** The registry of the extensions by id (upstream DB). */
 export class DB {
@@ -43,6 +44,9 @@ export class DB {
   }
   get_input_list(): Input[] {
     return this.#modulelist.filter((m): m is Input => m instanceof Input && !m.deactivated());
+  }
+  get_template_list(): Template[] {
+    return this.#modulelist.filter((m): m is Template => m instanceof Template && !m.deactivated());
   }
   get_output_list(): Output[] {
     return this.#modulelist.filter((m): m is Output => m instanceof Output && !m.deactivated());
