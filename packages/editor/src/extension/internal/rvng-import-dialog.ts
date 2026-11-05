@@ -8,6 +8,7 @@
  */
 import { _, SPDocument } from '@inkscape-web/core';
 import { Rect } from '@inkscape-web/geom';
+import { Input } from '../input.ts';
 
 /** The librevenge parsers: the SVG text of each page, or null if the data is not supported. */
 export interface RevengeBackend {
@@ -109,8 +110,8 @@ export class RvngImportDialog {
 
 /**
  * Open the data with a librevenge parser: the only page, or the page that the user selects in
- * the dialog. Null if the data is not supported, the parser fails or the user cancels (upstream
- * throws open_cancelled).
+ * the dialog. Null if the data is not supported or the parser fails; throws
+ * Input.open_cancelled if the user cancels.
  */
 export async function rvng_open(
   data: Uint8Array,
@@ -129,7 +130,7 @@ export async function rvng_open(
   // If only one page is present, import that one without bothering user
   if (tmpSVGOutput.length > 1 && RvngImportDialog.show_dialog) {
     const dlg = new RvngImportDialog(tmpSVGOutput);
-    if (!(await RvngImportDialog.show_dialog(dlg))) return null;
+    if (!(await RvngImportDialog.show_dialog(dlg))) throw new Input.open_cancelled();
 
     // Get needed page
     page_num = Math.min(Math.max(dlg.getSelectedPage(), 1), tmpSVGOutput.length);

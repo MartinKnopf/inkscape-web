@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { loadRevenge } from '@inkscape-web/wasm/revenge';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { db } from '../db.ts';
-import type { Input } from '../input.ts';
+import { Input } from '../input.ts';
 import { CdrInput } from './cdr-input.ts';
 import { RvngImportDialog, setRevengeBackendLoader } from './rvng-import-dialog.ts';
 import { VsdInput } from './vsd-input.ts';
@@ -87,9 +87,11 @@ describe('librevenge input', () => {
     expect(doc!.getRoot().getRepr().attribute('width')).toBe('2.0000in');
   });
 
-  it('opens nothing when the page selection is cancelled', async () => {
+  it('throws open_cancelled when the page selection is cancelled', async () => {
     RvngImportDialog.show_dialog = async () => false;
-    expect(await input('org.inkscape.input.vdx').open('two_pages.vdx', sample('two_pages.vdx'))).toBeNull();
+    await expect(
+      input('org.inkscape.input.vdx').open('two_pages.vdx', sample('two_pages.vdx')),
+    ).rejects.toBeInstanceOf(Input.open_cancelled);
   });
 });
 

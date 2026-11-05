@@ -4,7 +4,7 @@ import { SPDocument, setCairoBackendLoader } from '@inkscape-web/core';
 import { loadCairo } from '@inkscape-web/wasm/cairo';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { db } from '../../db.ts';
-import type { Input } from '../../input.ts';
+import { Input } from '../../input.ts';
 import type { Output } from '../../output.ts';
 import { CairoRendererPdfOutput, cairo_renderer_hooks } from '../cairo-renderer-pdf-out.ts';
 import { FontFallback, PdfImportDialog, PdfImportType, PdfInput } from './pdf-input.ts';
@@ -123,7 +123,7 @@ describe('PDF import', () => {
 
   it('cancels when the dialog is cancelled and fails on data that is no PDF', async () => {
     PdfInput.show_dialog = async () => false;
-    expect(await input().open('test.pdf', await makePdf())).toBeNull();
+    await expect(input().open('test.pdf', await makePdf())).rejects.toBeInstanceOf(Input.open_cancelled);
     expect(await input().open('bad.pdf', new TextEncoder().encode('no pdf'))).toBeNull();
   });
 
