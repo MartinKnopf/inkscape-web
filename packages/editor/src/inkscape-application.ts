@@ -5,8 +5,7 @@
  *
  * Copyright (C) 2018 Tavmjong Bah
  */
-import { type Selection, Signal, type SPDocument, TextParam } from '@inkscape-web/core';
-import { Point } from '@inkscape-web/geom';
+import { type Selection, Signal, type SPDocument } from '@inkscape-web/core';
 import { ActionRegistry } from './actions/action-map.ts';
 import { add_actions_base } from './actions/actions-base.ts';
 import { add_actions_canvas_mode } from './actions/actions-canvas-mode.ts';
@@ -42,7 +41,6 @@ import { add_actions_transform } from './actions/actions-transform.ts';
 import { add_actions_undo_document } from './actions/actions-undo-document.ts';
 import { add_actions_view_mode } from './actions/actions-view-mode.ts';
 import type { SPDesktop } from './desktop.ts';
-import { CanvasItemText } from './display/control/canvas-item-text.ts';
 import { InkFileExportCmd } from './io/file-export-cmd.ts';
 import { toolIsPorted } from './ui/tool-factory.ts';
 
@@ -73,11 +71,6 @@ export class InkscapeApplication {
   readonly signal_active_changed = new Signal<[]>();
 
   constructor() {
-    // The text of path effects (Path length, Text label) is drawn on the canvas of the active desktop.
-    TextParam.createCanvasText = (text) => {
-      const desktop = this.#active_desktop;
-      return desktop ? new CanvasItemText(desktop.getCanvasTemp(), new Point(0, 0), text) : null;
-    };
     // ======================== Actions =========================
     add_actions_base(this); // actions that are independent of the GUI
     add_actions_edit(this); // actions for editing

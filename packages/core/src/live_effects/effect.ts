@@ -154,7 +154,6 @@ export abstract class Effect {
   /** Disconnect from the document (upstream destructor). */
   destroy(): void {
     this.#before_commit_connection();
-    for (const p of this.param_vector) p.destroy();
   }
 
   effectType(): EffectType {
