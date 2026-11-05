@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./cairo": "./src/cairo.ts",
-    "./revenge": "./src/revenge.ts"
+    "./revenge": "./src/revenge.ts",
+    "./uemf": "./src/uemf.ts"
   },
   "scripts": {
     "build": "./build.sh",

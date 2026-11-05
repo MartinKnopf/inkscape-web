@@ -446,3 +446,46 @@ cp "$B/vendor/libxml2/Copyright" dist/licenses/libxml2-Copyright
 cp "$B/vendor/icu/LICENSE" dist/licenses/icu-LICENSE
 echo "revenge wasm: $(du -h dist/revenge-module.wasm | cut -f1) ($(gzip -9c dist/revenge-module.wasm | wc -c | tr -d ' ') bytes gzip)"
 # <<< revenge-module ----------------------------------------------------------------------------
+# === BEGIN uemf-module (EMF and WMF import and export) ===
+# Its own module (uemf-module.wasm), loaded on the first EMF or WMF open or save.
+# libuemf (upstream src/3rdparty/libuemf, the file list of its CMakeLists.txt) and the upstream
+# import (emf-inout.cpp, wmf-inout.cpp, metafile-inout.cpp, text_reassemble.c) are compiled
+# unchanged: shim/uemf gives them a small SPStyle, an SPDocument that keeps the SVG text, the
+# extension classes and fontconfig. The output (emf-print.cpp, wmf-print.cpp) is TypeScript
+# that makes the records with libuemf (bindings/uemf.cpp). FreeType, libpng and zlib are
+# Emscripten ports; 2geom and livarot (clip paths) come from libinkgeom.a (see the PDF import).
+U=$INK/src/3rdparty/libuemf
+[ -f "$U/CMakeLists.txt" ] || { echo "libuemf not found in $U (git submodule update --init src/3rdparty/libuemf)"; exit 1; }
+UEMF_OBJ=$B/uemf-obj && mkdir -p "$UEMF_OBJ"
+UEMF_C_SRCS="$(sed -n '/target_sources(uemf PRIVATE/,/^)/p' "$U/CMakeLists.txt" | grep -oE '[a-z_]+\.c' | sed "s|^|$U/src/libuemf/|")"
+UEMF_C_SRCS="$UEMF_C_SRCS $INK/src/extension/internal/text_reassemble.c $INK/src/util-string/symbol-convert.c"
+UEMF_SRCS="$INK/src/extension/internal/emf-inout.cpp $INK/src/extension/internal/wmf-inout.cpp \
+    $INK/src/extension/internal/metafile-inout.cpp $INK/src/svg/svg-path.cpp $INK/src/svg/path-string.cpp \
+    $HERE/shim/uemf/fontconfig.cpp $HERE/shim/pdfinput/svg-number.cpp"
+export UEMF_CFLAGS="-O2 -std=c99 -D_GNU_SOURCE -sUSE_FREETYPE=1 -I$U/include -I$U/include/libuemf -I$HERE/shim/uemf"
+export UEMF_FLAGS="-O2 -std=c++20 -fexceptions -sUSE_FREETYPE=1 -sUSE_LIBPNG=1 -include $HERE/shim/uemf/glib.h \
+    -I$HERE/shim/uemf -I$HERE/shim -I$INK/src -I$G/include -I$U/include -I$P/include -I$B/boost-include \
+    -Wno-deprecated-declarations"
+uobj() { echo "$UEMF_OBJ/$(basename "$1").o"; }
+# Rebuild everything when a shim header changed.
+UEMF_STAMP=$UEMF_OBJ/shim.stamp
+[ -f "$UEMF_STAMP" ] && [ -z "$(find "$HERE/shim/uemf" -newer "$UEMF_STAMP" -type f)" ] || rm -f "$UEMF_OBJ"/*.o
+touch "$UEMF_STAMP"
+for s in $UEMF_C_SRCS; do
+    o=$(uobj "$s")
+    [ "$o" -nt "$s" ] || echo "$s $o"
+done | xargs -P "$JOBS" -n 2 sh -c 'emcc $UEMF_CFLAGS -c "$0" -o "$1"'
+for s in $UEMF_SRCS; do
+    o=$(uobj "$s")
+    [ "$o" -nt "$s" ] || echo "$s $o"
+done | xargs -P "$JOBS" -n 2 sh -c 'em++ $UEMF_FLAGS -c "$0" -o "$1"'
+UEMF_OBJS=""
+for s in $UEMF_C_SRCS $UEMF_SRCS; do UEMF_OBJS="$UEMF_OBJS $(uobj "$s")"; done
+# shellcheck disable=SC2086
+em++ $UEMF_FLAGS -lembind bindings/uemf.cpp $UEMF_OBJS "$B/libinkgeom.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" \
+    "$P/lib/libdouble-conversion.a" -sUSE_ZLIB=1 \
+    -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
+    --emit-tsd uemf-module.d.mts -o dist/uemf-module.mjs
+cp "$U/COPYING" dist/licenses/libuemf-COPYING
+echo "uemf wasm: $(du -h dist/uemf-module.wasm | cut -f1) ($(gzip -9c dist/uemf-module.wasm | wc -c | tr -d ' ') bytes gzip)"
+# === END uemf-module ===
