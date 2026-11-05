@@ -27,6 +27,7 @@ import { add_actions_node_align } from './actions/actions-node-align.ts';
 import { add_actions_node_tool } from './actions/actions-node-tool.ts';
 import { add_actions_object } from './actions/actions-object.ts';
 import { add_actions_object_align } from './actions/actions-object-align.ts';
+import { add_actions_output } from './actions/actions-output.ts';
 import { add_actions_pages } from './actions/actions-pages.ts';
 import { add_actions_path } from './actions/actions-paths.ts';
 import { add_actions_selection } from './actions/actions-selection.ts';
@@ -40,6 +41,7 @@ import { add_actions_transform } from './actions/actions-transform.ts';
 import { add_actions_undo_document } from './actions/actions-undo-document.ts';
 import { add_actions_view_mode } from './actions/actions-view-mode.ts';
 import type { SPDesktop } from './desktop.ts';
+import { InkFileExportCmd } from './io/file-export-cmd.ts';
 import { toolIsPorted } from './ui/tool-factory.ts';
 
 /**
@@ -62,6 +64,7 @@ export class InkscapeApplication {
   readonly actions = new ActionRegistry();
   readonly #action_extra_data = new InkActionExtraData();
   readonly #action_hint_data = new InkActionHintData();
+  readonly #file_export = new InkFileExportCmd();
   #active_desktop: SPDesktop | null = null;
   #disconnect_document: (() => void) | null = null;
   /** Emitted when the active desktop or its document changes. */
@@ -77,6 +80,7 @@ export class InkscapeApplication {
     add_actions_hide_lock(this); // actions for hiding and locking
     add_actions_object(this); // actions for object manipulation
     add_actions_object_align(this); // actions for object alignment
+    add_actions_output(this); // actions for export (the command line options)
     add_actions_path(this); // actions for Paths
     add_actions_selection(this); // actions for selection by id, class, ...
     add_actions_selection_object(this); // actions for selected objects
@@ -101,6 +105,11 @@ export class InkscapeApplication {
     add_actions_undo_document(this);
     add_actions_processing(this); // SVG processing, mostly for the command line.
     add_actions_pages(this); // Pages, and the win.page-* actions that center the view.
+  }
+
+  /** The settings of the export (the command line options) that the app.export-* actions change. */
+  file_export(): InkFileExportCmd {
+    return this.#file_export;
   }
 
   get_action_extra_data(): InkActionExtraData {

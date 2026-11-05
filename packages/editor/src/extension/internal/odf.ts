@@ -44,7 +44,6 @@ import {
   type OptRect,
   type PathVector,
   Point,
-  Rect,
   Scale,
   Translate,
 } from '@inkscape-web/geom';
@@ -324,9 +323,9 @@ export class OdfOutput extends Implementation {
     // First, check for metadata
     if (nodeName === 'metadata' || nodeName === 'svg:metadata') {
       const mchild = node.firstChild();
-      if (!mchild || mchild.name() !== 'rdf:RDF') return;
+      if (mchild?.name() !== 'rdf:RDF') return;
       const rchild = mchild.firstChild();
-      if (!rchild || rchild.name() !== 'cc:Work') return;
+      if (rchild?.name() !== 'cc:Work') return;
       for (let cchild = rchild.firstChild(); cchild; cchild = cchild.next()) {
         this.#metadata.set(cchild.name(), gatherText(cchild));
       }

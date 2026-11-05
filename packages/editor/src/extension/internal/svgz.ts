@@ -7,13 +7,13 @@
  *
  * Copyright (C) 2002-2004 Authors
  */
-import { N_, readMem, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
-import { prune_inkscape_from_node } from '../../actions/actions-svg-processing.ts';
+import { N_, SPDocument } from '@inkscape-web/core';
 import { Implementation } from '../implementation/implementation.ts';
 import type { Input } from '../input.ts';
 import type { Output } from '../output.ts';
 import { INKSCAPE_EXTENSION_URI } from '../prefdialog/widget.ts';
 import { build_from_mem } from '../system.ts';
+import { svg_text } from './svg.ts';
 
 export const SP_MODULE_KEY_INPUT_SVGZ = 'org.inkscape.input.svgz';
 export const SP_MODULE_KEY_OUTPUT_SVGZ = 'org.inkscape.output.svgz.plain';
@@ -46,13 +46,8 @@ export class Svgz extends Implementation {
 
   /** Save the document as gzipped SVG; the plain output drops the Inkscape and Sodipodi data. */
   override async save(module: Output, doc: SPDocument, _name: string): Promise<Uint8Array | null> {
-    let text = saveBuf(doc.rdoc, SVG_NS_URI);
-    if (module.get_id() === SP_MODULE_KEY_OUTPUT_SVGZ) {
-      const plain = readMem(text, SVG_NS_URI);
-      if (!plain) return null;
-      prune_inkscape_from_node(plain);
-      text = saveBuf(plain, SVG_NS_URI);
-    }
+    const text = svg_text(doc, module.get_id() === SP_MODULE_KEY_OUTPUT_SVGZ);
+    if (text === null) return null;
     return gzip(new TextEncoder().encode(text));
   }
 

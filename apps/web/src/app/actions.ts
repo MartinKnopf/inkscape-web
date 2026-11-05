@@ -31,6 +31,8 @@ import {
   sp_file_save,
   sp_file_save_a_copy,
   sp_file_save_as,
+  sp_file_save_blob,
+  sp_file_save_blobs,
   sp_print_document,
 } from './file.ts';
 
@@ -197,6 +199,14 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   const withDesktop = (run: (dt: SPDesktop) => unknown) => () => {
     const dt = app.get_active_desktop();
     if (dt) void run(dt);
+  };
+
+  // The files of the action app.export-do (actions-output.cpp) are saved by the user: one file
+  // with a save dialog, several into a folder.
+  app.file_export().on_files = (files) => {
+    const blobs = files.map((f) => ({ data: new Blob([f.data as BlobPart]), name: f.name }));
+    const [only] = blobs;
+    void (only && blobs.length === 1 ? sp_file_save_blob(only.data, only.name) : sp_file_save_blobs(blobs));
   };
 
   // Each document opens in a new tab (upstream: a new window).

@@ -295,7 +295,7 @@ export function copy_document(doc: SPDocument): SPDocument {
  * Remove everything but the objects with the ids, their ancestors and their descendants
  * (upstream SPRoot::cropToObjects).
  */
-function crop_to_objects(doc: SPDocument, ids: ReadonlySet<string>): void {
+export function crop_to_objects(doc: SPDocument, ids: ReadonlySet<string>): void {
   const keep = (obj: SPObject): boolean => {
     const id = obj.getId();
     if (id && ids.has(id)) return true;

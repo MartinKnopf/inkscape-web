@@ -29,6 +29,7 @@ import {
   PngOutput,
   PovOutput,
   Script,
+  Svg,
   Svgz,
   TemplateFromFile,
   TemplateOther,
@@ -53,6 +54,7 @@ export const runner = new PyodideRunner();
  */
 export async function load_extensions(): Promise<Extension[]> {
   // The internal modules (upstream init()). SVG is built into the file functions of the app.
+  Svg.init();
   Svgz.init();
   TemplateFromFile.init();
   TemplatePaper.init();
