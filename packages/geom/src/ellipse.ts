@@ -12,6 +12,7 @@ import { Angle } from './angle.ts';
 import { are_near, type Coord, type Dim2, hypot, X, Y } from './coord.ts';
 import { EllipticalArc } from './elliptical-arc.ts';
 import { Interval } from './interval.ts';
+import { solveLeastSquares } from './least-squares.ts';
 import { atan2, Point } from './point.ts';
 import { Rect } from './rect.ts';
 import { Rotate, Scale, Translate } from './transforms.ts';
@@ -64,6 +65,19 @@ export class Ellipse {
     if (ry2 < 0) throw new RangeError("ry2 < 0, while computing 'rx' coefficient");
 
     return new Ellipse(new Point(cx, cy), new Point(Math.sqrt(rx2), Math.sqrt(ry2)), angle).makeCanonical();
+  }
+
+  /**
+   * The ellipse that fits the points best (upstream Ellipse::fit; LFMEllipse). Throws a RangeError
+   * for less than 5 points, for points that have no unique ellipse, and when the fit is no ellipse.
+   */
+  static fit(points: readonly Point[]): Ellipse {
+    if (points.length < 5) throw new RangeError('fitting error: too few points passed');
+    // x^2 + B xy + C y^2 + D x + E y + F = 0, so (xy, y^2, x, y, 1) * (B, C, D, E, F) = -x^2.
+    const rows = points.map((p) => [p.x * p.y, p.y * p.y, p.x, p.y, 1]);
+    const rhs = points.map((p) => -(p.x * p.x));
+    const [B, C, D, E, F] = solveLeastSquares(rows, rhs) as [number, number, number, number, number];
+    return Ellipse.fromCoefficients(1, B, C, D, E, F);
   }
 
   center(): Point {
