@@ -4,13 +4,15 @@
  * Author:  Ted Gould <ted@gould.cx>
  * Copyright (c) 2003-2005,2007
  */
-import type { SPDocument, SPPage } from '@inkscape-web/core';
+import type { SPDocument, SPPage, SPStyle } from '@inkscape-web/core';
+import type { Affine, OptRect, PathVector, Point } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
 import type { Effect } from '../effect.ts';
 import type { ExecutionEnv } from '../execution-env.ts';
 import type { Extension } from '../extension.ts';
 import type { Input } from '../input.ts';
 import type { Output } from '../output.ts';
+import type { Print } from '../print.ts';
 import type { Template, TemplatePreset } from '../template.ts';
 
 /**
@@ -70,4 +72,63 @@ export class Implementation {
     _desktop: SPDesktop | null,
     _document: SPDocument,
   ): Promise<void> {}
+
+  // ----- Print functions (the print extensions, see ../print.ts) -----
+  setup(_module: Print): number {
+    return 0;
+  }
+  begin(_module: Print, _doc: SPDocument): number {
+    return 0;
+  }
+  /** End the print; the file data (upstream writes the file to the "destination" parameter). */
+  finish(_module: Print): Uint8Array | null {
+    return null;
+  }
+  /** Whether text should be printed as paths. */
+  textToPath(_module: Print): boolean {
+    return false;
+  }
+  bind(_module: Print, _transform: Affine, _opacity: number): number {
+    return 0;
+  }
+  release(_module: Print): number {
+    return 0;
+  }
+  fill(
+    _module: Print,
+    _pathv: PathVector,
+    _ctm: Affine,
+    _style: SPStyle,
+    _pbox: OptRect,
+    _dbox: OptRect,
+    _bbox: OptRect,
+  ): number {
+    return 0;
+  }
+  stroke(
+    _module: Print,
+    _pathv: PathVector,
+    _transform: Affine,
+    _style: SPStyle,
+    _pbox: OptRect,
+    _dbox: OptRect,
+    _bbox: OptRect,
+  ): number {
+    return 0;
+  }
+  /** px: RGBA pixels (the Gdk::Pixbuf format), rs the row stride. */
+  image(
+    _module: Print,
+    _px: Uint8Array,
+    _w: number,
+    _h: number,
+    _rs: number,
+    _transform: Affine,
+    _style: SPStyle,
+  ): number {
+    return 0;
+  }
+  text(_module: Print, _text: string, _p: Point, _style: SPStyle): number {
+    return 0;
+  }
 }
