@@ -21,5 +21,5 @@ fi
 git init -q "$target"
 git -C "$target" fetch -q --depth 1 "$repository" "$commit"
 git -C "$target" -c advice.detachedHead=false checkout -q FETCH_HEAD
-git -C "$target" submodule update -q --init --depth 1 src/3rdparty/2geom po
+git -C "$target" submodule update -q --init --depth 1 src/3rdparty/2geom src/3rdparty/libuemf po
 echo "upstream: $commit → $target"
