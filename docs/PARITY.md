@@ -7,10 +7,10 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 |---|---:|---:|---:|
 | Tools | 26 | 26 | 100 |
 | Dialogs | 29 | 29 | 100 |
-| Actions | 378 | 409 | 92 |
+| Actions | 408 | 409 | 100 |
 | Live path effects | 39 | 56 | 70 |
-| Internal import/export modules | 7 | 35 | 20 |
-| Python extensions | 154 | 160 | 96 |
+| Internal import/export modules | 25 | 35 | 71 |
+| Python extensions | 157 | 160 | 98 |
 
 <details><summary>Tools (26/26)</summary>
 
@@ -77,7 +77,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Actions (378/409)</summary>
+<details><summary>Actions (408/409)</summary>
 
 - [x] `app.about`
 - [x] `app.action-list`
@@ -96,7 +96,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.debug-info`
 - [x] `app.delete`
 - [x] `app.delete-selection`
-- [ ] `app.document-dialog-templates`
+- [x] `app.document-dialog-templates`
 - [x] `app.document-new`
 - [x] `app.document-open`
 - [x] `app.duplicate`
@@ -105,34 +105,34 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `app.element-a-open-link`
 - [x] `app.element-image-crop`
 - [x] `app.element-image-edit`
-- [ ] `app.export-area`
-- [ ] `app.export-area-drawing`
-- [ ] `app.export-area-page`
-- [ ] `app.export-area-snap`
-- [ ] `app.export-background`
-- [ ] `app.export-background-opacity`
-- [ ] `app.export-do`
-- [ ] `app.export-dpi`
-- [ ] `app.export-filename`
-- [ ] `app.export-height`
-- [ ] `app.export-id`
-- [ ] `app.export-id-only`
-- [ ] `app.export-ignore-filters`
-- [ ] `app.export-latex`
-- [ ] `app.export-margin`
-- [ ] `app.export-overwrite`
-- [ ] `app.export-page`
-- [ ] `app.export-pdf-version`
-- [ ] `app.export-plain-svg`
-- [ ] `app.export-png-antialias`
-- [ ] `app.export-png-color-mode`
-- [ ] `app.export-png-compression`
-- [ ] `app.export-png-use-dithering`
-- [ ] `app.export-ps-level`
-- [ ] `app.export-text-to-path`
-- [ ] `app.export-type`
-- [ ] `app.export-use-hints`
-- [ ] `app.export-width`
+- [x] `app.export-area`
+- [x] `app.export-area-drawing`
+- [x] `app.export-area-page`
+- [x] `app.export-area-snap`
+- [x] `app.export-background`
+- [x] `app.export-background-opacity`
+- [x] `app.export-do`
+- [x] `app.export-dpi`
+- [x] `app.export-filename`
+- [x] `app.export-height`
+- [x] `app.export-id`
+- [x] `app.export-id-only`
+- [x] `app.export-ignore-filters`
+- [x] `app.export-latex`
+- [x] `app.export-margin`
+- [x] `app.export-overwrite`
+- [x] `app.export-page`
+- [x] `app.export-pdf-version`
+- [x] `app.export-plain-svg`
+- [x] `app.export-png-antialias`
+- [x] `app.export-png-color-mode`
+- [x] `app.export-png-compression`
+- [x] `app.export-png-use-dithering`
+- [x] `app.export-ps-level`
+- [x] `app.export-text-to-path`
+- [x] `app.export-type`
+- [x] `app.export-use-hints`
+- [x] `app.export-width`
 - [x] `app.file-close`
 - [x] `app.file-new`
 - [x] `app.file-open`
@@ -368,7 +368,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `win.document-save`
 - [x] `win.document-save-as`
 - [x] `win.document-save-copy`
-- [ ] `win.document-save-template`
+- [x] `win.document-save-template`
 - [x] `win.help-url-ask-question`
 - [x] `win.help-url-beginners-guide`
 - [x] `win.help-url-donate`
@@ -552,9 +552,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Internal import/export modules (7/35)</summary>
+<details><summary>Internal import/export modules (25/35)</summary>
 
-- [ ] `bluredge.cpp`
+- [x] `bluredge.cpp`
 - [x] `cairo-ps-out.cpp`
 - [x] `cairo-render-context.cpp`
 - [x] `cairo-renderer-pdf-out.cpp`
@@ -563,28 +563,28 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `emf-inout.cpp`
 - [ ] `emf-print.cpp`
 - [x] `gdkpixbuf-input.cpp`
-- [ ] `gif.cpp`
-- [ ] `gimpgrad.cpp`
-- [ ] `grid.cpp`
-- [ ] `image-resolution.cpp`
-- [ ] `latex-pstricks-out.cpp`
-- [ ] `latex-pstricks.cpp`
+- [x] `gif.cpp`
+- [x] `gimpgrad.cpp`
+- [x] `grid.cpp`
+- [x] `image-resolution.cpp`
+- [x] `latex-pstricks-out.cpp`
+- [x] `latex-pstricks.cpp`
 - [x] `latex-text-renderer.cpp`
 - [ ] `metafile-inout.cpp`
 - [ ] `metafile-print.cpp`
-- [ ] `odf.cpp`
-- [ ] `png-output.cpp`
-- [ ] `pov-out.cpp`
+- [x] `odf.cpp`
+- [x] `png-output.cpp`
+- [x] `pov-out.cpp`
 - [ ] `rvng-import-dialog.cpp`
 - [x] `svg.cpp`
-- [ ] `svgz.cpp`
-- [ ] `template-base.cpp`
-- [ ] `template-from-file.cpp`
-- [ ] `template-other.cpp`
-- [ ] `template-paper.cpp`
-- [ ] `template-screen.cpp`
-- [ ] `template-social.cpp`
-- [ ] `template-video.cpp`
+- [x] `svgz.cpp`
+- [x] `template-base.cpp`
+- [x] `template-from-file.cpp`
+- [x] `template-other.cpp`
+- [x] `template-paper.cpp`
+- [x] `template-screen.cpp`
+- [x] `template-social.cpp`
+- [x] `template-video.cpp`
 - [ ] `vsd-input.cpp`
 - [ ] `wmf-inout.cpp`
 - [ ] `wmf-print.cpp`
@@ -592,7 +592,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Python extensions (154/160)</summary>
+<details><summary>Python extensions (157/160)</summary>
 
 - [x] `com.activdesign.export.scribus`
 - [x] `com.kaioa.export_gimp_palette`
@@ -726,9 +726,9 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `org.inkscape.render.rack_gear`
 - [x] `org.inkscape.render.wireframe_sphere`
 - [x] `org.inkscape.replace_font`
-- [ ] `org.inkscape.template.business_card`
-- [ ] `org.inkscape.template.dvd_cover`
-- [ ] `org.inkscape.template.seamless_pattern`
+- [x] `org.inkscape.template.business_card`
+- [x] `org.inkscape.template.dvd_cover`
+- [x] `org.inkscape.template.seamless_pattern`
 - [x] `org.inkscape.text.braille`
 - [x] `org.inkscape.text.extract`
 - [x] `org.inkscape.text.flip_case`
