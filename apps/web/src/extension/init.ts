@@ -42,6 +42,7 @@ import {
   TemplateVideo,
   VsdInput,
   WpgInput,
+  Wmf,
 } from '@inkscape-web/editor';
 import { load_template_files } from '../app/templates.ts';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
@@ -82,6 +83,7 @@ export async function load_extensions(): Promise<Extension[]> {
   // EMF and WMF: libuemf and the upstream import in their own WASM module, loaded on first use.
   setUemfBackendLoader(() => import('@inkscape-web/wasm/uemf').then((m) => m.loadUemf()));
   Emf.init();
+  Wmf.init();
   // Effects
   BlurEdge.init();
   GimpGrad.init();
