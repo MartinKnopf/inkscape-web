@@ -81,7 +81,10 @@ describe('Ellipse.fit', () => {
     const pts = [0.2, 1.4, 2.5, 3.9, 5.4].map((t) => {
       const x = 30 * Math.cos(t);
       const y = 12 * Math.sin(t);
-      return new Point(50 + x * Math.cos(rot) - y * Math.sin(rot), -20 + x * Math.sin(rot) + y * Math.cos(rot));
+      return new Point(
+        50 + x * Math.cos(rot) - y * Math.sin(rot),
+        -20 + x * Math.sin(rot) + y * Math.cos(rot),
+      );
     });
     const e = Ellipse.fit(pts);
     expect(e.center().x).toBeCloseTo(50, 8);
