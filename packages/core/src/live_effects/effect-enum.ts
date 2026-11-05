@@ -220,6 +220,17 @@ const entry = (
   experimental: false,
 });
 
+/** An effect of the category Experimental (icon "experimental"; shown with "Show experimental effects"). */
+const experimentalEntry = (
+  id: EffectType,
+  label: string,
+  key: string,
+  description: string,
+): EnumEffectData<EffectType> => ({
+  ...entry(id, label, key, 'experimental', description, LPECategory.Experimental),
+  experimental: true,
+});
+
 /**
  * The effects of upstream LPETypeData (effect.cpp) that are ported, in the upstream order.
  * Documents that use another effect keep it, but its stack is disabled as upstream does for an
@@ -503,6 +514,147 @@ export const LPETypeData: readonly EnumEffectData<EffectType>[] = [
       'Add a dashed stroke whose dashes end exactly on a node, optionally with the same number of dashes per path segment',
     ),
     LPECategory.Convert,
+  ),
+  /* Construction and measuring effects */
+  entry(
+    EffectType.CURVE_STITCH,
+    NC_('path effect', 'Stitch Sub-Paths'),
+    'curvestitching',
+    'curvestitching',
+    N_('Draw perpendicular lines between subpaths of a path, like rungs of a ladder'),
+    LPECategory.Generate,
+    false,
+  ),
+  entry(
+    EffectType.CONSTRUCT_GRID,
+    NC_('path effect', 'Construct grid'),
+    'construct_grid',
+    'construct-grid',
+    N_('Create a (perspective) grid from a 3-node path'),
+    LPECategory.Convert,
+    true,
+    false,
+  ),
+  entry(
+    EffectType.RULER,
+    NC_('path effect', 'Ruler'),
+    'ruler',
+    'ruler',
+    N_("Add ruler marks to the object in adjustable intervals, using the object's stroke style."),
+    LPECategory.Convert,
+    true,
+    false,
+  ),
+  entry(
+    EffectType.INTERPOLATE_POINTS,
+    NC_('path effect', 'Interpolate points'),
+    'interpolate_points',
+    'interpolate-points',
+    N_('Change the type of all nodes on the path. Useful for smoothing the shape or making it sharp.'),
+    LPECategory.Convert,
+    true,
+    false,
+  ),
+  entry(
+    EffectType.TRANSFORM_2PTS,
+    NC_('path effect', 'Transform by 2 points'),
+    'transform_2pts',
+    'transform-2pts',
+    N_('Scale, stretch and rotate an object by two handles'),
+    LPECategory.Distort,
+    true,
+    false,
+  ),
+  entry(
+    EffectType.ELLIPSE_5PTS,
+    NC_('path effect', 'Ellipse by 5 points'),
+    'ellipse_5pts',
+    'ellipse-5pts',
+    N_('Create an ellipse from 5 nodes on its circumference'),
+    LPECategory.Convert,
+    false,
+    false,
+  ),
+  entry(
+    EffectType.MEASURE_SEGMENTS,
+    NC_('path effect', 'Measure Segments'),
+    'measure_segments',
+    'measure-segments',
+    N_(
+      'Add dimensioning for distances between nodes, optionally with projection and many other configuration options',
+    ),
+    LPECategory.Convert,
+    false,
+    false,
+  ),
+  entry(
+    EffectType.PTS2ELLIPSE,
+    NC_('path effect', 'Ellipse from points'),
+    'pts2ellipse',
+    'pts2ellipse',
+    N_('Draw a circle, ellipse, arc or slice based on the nodes of a path'),
+    LPECategory.Convert,
+    true,
+    false,
+  ),
+  /* Experimental effects */
+  experimentalEntry(
+    EffectType.ANGLE_BISECTOR,
+    NC_('path effect', 'Angle bisector'),
+    'angle_bisector',
+    N_('Draw a line that halves the angle between the first three nodes of the path'),
+  ),
+  experimentalEntry(
+    EffectType.CIRCLE_WITH_RADIUS,
+    NC_('path effect', 'Circle'),
+    'circle_with_radius',
+    N_(
+      'Draw a circle by center and radius, where the first node of the path is the center, and the last determines its radius',
+    ),
+  ),
+  experimentalEntry(
+    EffectType.CIRCLE_3PTS,
+    NC_('path effect', 'Circle by 3 points'),
+    'circle_3pts',
+    N_('Draw a circle whose circumference passes through the first three nodes of the path'),
+  ),
+  experimentalEntry(
+    EffectType.LINE_SEGMENT,
+    NC_('path effect', 'Line Segment'),
+    'line_segment',
+    N_('Draw a straight line that connects the first and last node of a path'),
+  ),
+  experimentalEntry(
+    EffectType.PARALLEL,
+    NC_('path effect', 'Parallel'),
+    'parallel',
+    N_('Create a draggable line that will always be parallel to a two-node path'),
+  ),
+  experimentalEntry(
+    EffectType.PERP_BISECTOR,
+    NC_('path effect', 'Perpendicular bisector'),
+    'perp_bisector',
+    N_(
+      'Draw a perpendicular line in the middle of the (imaginary) line that connects the start and end nodes',
+    ),
+  ),
+  experimentalEntry(
+    EffectType.TANGENT_TO_CURVE,
+    NC_('path effect', 'Tangent to curve'),
+    'tangent_to_curve',
+    N_('Draw a tangent with variable length and additional angle that can be moved along the path'),
+  ),
+  experimentalEntry(
+    EffectType.PATH_LENGTH,
+    NC_('path effect', 'Path length'),
+    'path_length',
+    N_('Display the total length of a (curved) path'),
+  ),
+  experimentalEntry(
+    EffectType.TEXT_LABEL,
+    NC_('path effect', 'Text label'),
+    'text_label',
+    N_('Add a label for the object'),
   ),
   /* 1.1 */
   entry(
