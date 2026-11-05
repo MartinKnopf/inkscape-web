@@ -19,6 +19,7 @@ const U_SIZE_WMRPLACEABLE = 22;
 const U_SIZE_WMRHEADER = 18;
 const U_WMR_EOF = 0x0000;
 const U_WMR_EXTTEXTOUT = 0x0a32;
+const U_WMR_CREATEFONTINDIRECT = 0x02fb;
 const U_WMR_CREATEPENINDIRECT = 0x02fa;
 const U_WMR_CREATEBRUSHINDIRECT = 0x02fc;
 
@@ -134,24 +135,26 @@ describe('WMF output', () => {
     expect(fills(back!)).toContain('#008000');
   });
 
-  it('transliterates text to Latin1 as iconv LATIN1//TRANSLIT', async () => {
+  /** Save the text as WMF text records, without the mapping to the Symbol, Wingdings and Zapf Dingbats fonts. */
+  async function save_text(text: string, family: string): Promise<Uint8Array> {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
-      <text x="20" y="80" style="font-size:20px;font-family:Arial">Āčě‘x’β</text>
+      <text x="20" y="80" style="font-size:20px;font-family:'${family}'">${text}</text>
     </svg>`;
     const out = output();
-    // without the mapping to the Symbol, Wingdings and Zapf Dingbats fonts (β would be Symbol 'b')
     const params = ['TnrToSymbol', 'TnrToWingdings', 'TnrToZapfDingbats'];
     out.set_param_bool('textToPath', false);
     for (const p of params) out.set_param_bool(p, false);
-    let data: Uint8Array | null;
     try {
-      data = await out.save(SPDocument.createNewDocFromMem(svg)!, 'latin1.wmf');
+      return (await out.save(SPDocument.createNewDocFromMem(svg)!, 'latin1.wmf'))!;
     } finally {
       out.set_param_bool('textToPath', true);
       for (const p of params) out.set_param_bool(p, true);
     }
-    // the strings of the text records (Layout::print may split the text into several)
-    const text = wmf_parts(data!)
+  }
+
+  /** The strings of the text records (Layout::print may split the text into several). */
+  function record_text(data: Uint8Array): string {
+    return wmf_parts(data)
       .records.filter((r) => r[0] === U_WMR_EXTTEXTOUT)
       .map(([, rec]) => {
         const length = rec[10]! | (rec[11]! << 8); // U_WMREXTTEXTOUT: size, function, y, x, Length, Opts
@@ -160,10 +163,30 @@ describe('WMF output', () => {
         return new TextDecoder('latin1').decode(rec.subarray(start, start + length));
       })
       .join('');
+  }
+
+  /** The face names of the font records. */
+  function face_names(data: Uint8Array): string[] {
+    return wmf_parts(data)
+      .records.filter((r) => r[0] === U_WMR_CREATEFONTINDIRECT)
+      .map(([, rec]) => {
+        const name = rec.subarray(24); // size, function, 18 bytes of U_FONT before FaceName
+        return new TextDecoder('latin1').decode(name.subarray(0, name.indexOf(0)));
+      });
+  }
+
+  it('transliterates text to Latin1 as iconv LATIN1//TRANSLIT', async () => {
     // decomposed letters lose their accents, symbols get their ASCII forms, the rest becomes '?'.
     // (A form of more than one character, like "..." for "…", is cut off: as upstream, the
     // record keeps as many bytes as the text has characters.)
-    expect(text).toBe("Ace'x'?");
+    expect(record_text(await save_text('Āčě‘x’β', 'Arial'))).toBe("Ace'x'?");
+  });
+
+  it('transliterates full-width and compatibility forms', async () => {
+    const data = await save_text('ＡＢ１２\u3000x', 'Ｍyﬁ⁴₃');
+    expect(record_text(data)).toBe('AB12 x');
+    // ligatures become their letters, superscript and subscript digits plain digits
+    expect(face_names(data)).toContain('Myfi43');
   });
 
   it('frees the file and the handle table when the print fails', async () => {
