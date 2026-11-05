@@ -22,11 +22,24 @@ export interface CanvasText {
   anchor: Point;
 }
 
+/** What the editor draws for the text on the canvas (upstream CanvasItemText). */
+export interface CanvasTextView {
+  set_text(text: string): void;
+  set_coord(pos: Point): void;
+  set_anchor(anchor: Point): void;
+  unlink(): void;
+}
+
 /**
- * A text value (upstream TextParam). The text on the canvas (upstream a CanvasItemText) is
- * kept as canvasText(); drawing it is up to the editor.
+ * A text value (upstream TextParam). The text on the canvas is kept as canvasText(). Upstream
+ * makes a CanvasItemText on the active desktop in the constructor; the core has no canvas, so the
+ * editor sets TextParam.createCanvasText to do that and the param keeps the view up to date.
  */
 export class TextParam extends Parameter {
+  /** Set by the editor: makes the text item on the canvas of the active desktop, or null without one. */
+  static createCanvasText: ((text: string) => CanvasTextView | null) | null = null;
+
+  #view: CanvasTextView | null;
   protected value: string;
   protected defvalue: string;
   protected anchor_x = 0;
@@ -38,6 +51,13 @@ export class TextParam extends Parameter {
     super(label, tip, key, effect);
     this.value = default_value;
     this.defvalue = default_value;
+    this.#view = TextParam.createCanvasText?.(default_value) ?? null;
+  }
+
+  /** Remove the text from the canvas (upstream destructor). */
+  override destroy(): void {
+    this.#view?.unlink();
+    this.#view = null;
   }
 
   param_set_default(): void {
@@ -49,6 +69,7 @@ export class TextParam extends Parameter {
   /** Do not show the text on the canvas. */
   param_hide_canvas_text(): void {
     this.canvas_text_hidden = true;
+    this.destroy();
   }
   /** The text on the canvas, or null when it is hidden. */
   canvasText(): CanvasText | null {
@@ -57,6 +78,7 @@ export class TextParam extends Parameter {
   }
   setPos(pos: Point): void {
     this.pos = pos;
+    this.#view?.set_coord(pos);
   }
   /**
    * Put the text at the fraction t of the length of path, `length` away from it on its left
@@ -70,12 +92,13 @@ export class TextParam extends Parameter {
     const dir = sample.unit;
     const n = dir.rot90().neg();
     const angle = angle_between(dir, new Point(1, 0));
-    this.pos = sample.point.add(n.mul(length));
+    this.setPos(sample.point.add(n.mul(length)));
     this.setAnchor(Math.sin(angle), -Math.cos(angle));
   }
   setAnchor(x_value: number, y_value: number): void {
     this.anchor_x = x_value;
     this.anchor_y = y_value;
+    this.#view?.set_anchor(new Point(x_value, y_value));
   }
   get_value(): string {
     return this.value;
@@ -96,6 +119,7 @@ export class TextParam extends Parameter {
   param_setValue(newvalue: string): void {
     if (this.value !== newvalue) this.param_effect.refresh_widgets = true;
     this.value = newvalue;
+    this.#view?.set_text(newvalue);
   }
   paramType(): ParamType {
     return ParamType.TEXT;

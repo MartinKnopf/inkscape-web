@@ -97,6 +97,9 @@ export abstract class Parameter {
   /** force all LPE params has overrided method */
   abstract paramType(): ParamType;
 
+  /** Release what the parameter shows outside the document, when its effect is destroyed. */
+  destroy(): void {}
+
   param_widget_is_visible(is_visible: boolean): void {
     this.widget_is_visible = is_visible;
   }
