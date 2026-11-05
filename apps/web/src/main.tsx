@@ -12,6 +12,7 @@ import {
   load_image_pixels,
   local_font_list,
   PdfInput,
+  setRevengeBackendLoader,
 } from '@inkscape-web/editor';
 import { loadGeom } from '@inkscape-web/wasm';
 import { StrictMode } from 'react';
@@ -40,6 +41,8 @@ cairo_renderer_hooks.current = browser_cairo_renderer_hooks;
 setTextLayoutBackend(geom);
 // PDF import: the same module; the font matching knows the local fonts.
 PdfInput.local_fonts = local_font_list;
+// CorelDRAW, Visio and WordPerfect Graphics import: librevenge in its own WASM module, loaded on the first import.
+setRevengeBackendLoader(() => import('@inkscape-web/wasm/revenge').then((m) => m.loadRevenge()));
 add_actions_web();
 await Promise.all([loadShortcuts(), loadMenu()]);
 createRoot(document.getElementById('root')!).render(
