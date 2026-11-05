@@ -393,16 +393,20 @@ for s in $ICU_SRCS; do ICU_OBJS="$ICU_OBJS $(iobj "$s")"; done
 rm -f "$RV/libicu.a" && emar rcs "$RV/libicu.a" $ICU_OBJS
 
 # libxml2 (libvisio reads VDX and VSDX with its xmlTextReader). The encodings that libxml2 does not
-# know itself (windows-1252, ...) go through the ICU converters.
-if [ ! -f "$RV/libxml2/libxml2.a" ]; then
-    mkdir -p "$RV/libxml2" && (cd "$RV/libxml2" &&
-        emcmake cmake "$B/vendor/libxml2" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
-            -DLIBXML2_WITH_ICU=ON -DICU_INCLUDE_DIR="$ICU/common" -DICU_UC_LIBRARY_RELEASE="$RV/libicu.a" \
-            -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_LZMA=OFF -DLIBXML2_WITH_ZLIB=OFF \
-            -DLIBXML2_WITH_PYTHON=OFF -DLIBXML2_WITH_PROGRAMS=OFF -DLIBXML2_WITH_TESTS=OFF \
-            -DLIBXML2_WITH_THREADS=OFF -DLIBXML2_WITH_HTTP=OFF -DLIBXML2_WITH_MODULES=OFF \
-            -DLIBXML2_WITH_CATALOG=OFF -DLIBXML2_WITH_DEBUG=OFF >/dev/null &&
-        emmake make -j"$JOBS" LibXml2 >/dev/null)
+# know itself (windows-1252, ...) go through the ICU converters. The flags are kept next to the
+# library: other flags give a new build.
+LIBXML2_FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    -DLIBXML2_WITH_ICU=ON -DICU_INCLUDE_DIR=$ICU/common -DICU_UC_LIBRARY_RELEASE=$RV/libicu.a \
+    -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_LZMA=OFF -DLIBXML2_WITH_ZLIB=OFF \
+    -DLIBXML2_WITH_PYTHON=OFF -DLIBXML2_WITH_PROGRAMS=OFF -DLIBXML2_WITH_TESTS=OFF \
+    -DLIBXML2_WITH_THREADS=OFF -DLIBXML2_WITH_HTTP=OFF -DLIBXML2_WITH_MODULES=OFF \
+    -DLIBXML2_WITH_CATALOG=OFF -DLIBXML2_WITH_DEBUG=OFF"
+if [ ! -f "$RV/libxml2/libxml2.a" ] || [ "$(cat "$RV/libxml2/flags" 2>/dev/null)" != "$LIBXML2_FLAGS" ]; then
+    rm -rf "$RV/libxml2" && mkdir -p "$RV/libxml2" && (cd "$RV/libxml2" &&
+        # shellcheck disable=SC2086
+        emcmake cmake "$B/vendor/libxml2" $LIBXML2_FLAGS >/dev/null &&
+        emmake make -j"$JOBS" LibXml2 >/dev/null &&
+        echo "$LIBXML2_FLAGS" > flags)
 fi
 
 # librevenge (with librevenge-stream, without its directory stream), libwpd, libwpg, libcdr and
