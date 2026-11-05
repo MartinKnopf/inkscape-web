@@ -8,7 +8,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Tools | 26 | 26 | 100 |
 | Dialogs | 29 | 29 | 100 |
 | Actions | 408 | 409 | 100 |
-| Live path effects | 39 | 56 | 70 |
+| Live path effects | 56 | 56 | 100 |
 | Internal import/export modules | 25 | 35 | 71 |
 | Python extensions | 157 | 160 | 98 |
 
@@ -491,24 +491,24 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Live path effects (39/56)</summary>
+<details><summary>Live path effects (56/56)</summary>
 
-- [ ] `angle_bisector`
+- [x] `angle_bisector`
 - [x] `attach_path`
 - [x] `bend_path`
 - [x] `bool_op`
 - [x] `bounding_box`
 - [x] `bspline`
-- [ ] `circle_3pts`
-- [ ] `circle_with_radius`
+- [x] `circle_3pts`
+- [x] `circle_with_radius`
 - [x] `clone_original`
-- [ ] `construct_grid`
+- [x] `construct_grid`
 - [x] `copy_rotate`
-- [ ] `curvestitching`
+- [x] `curvestitching`
 - [x] `dashed_stroke`
 - [x] `doeffectstacktest`
 - [x] `dynastroke`
-- [ ] `ellipse_5pts`
+- [x] `ellipse_5pts`
 - [x] `embrodery_stitch`
 - [x] `envelope`
 - [x] `extrude`
@@ -517,37 +517,37 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `fillet_chamfer`
 - [x] `gears`
 - [x] `interpolate`
-- [ ] `interpolate_points`
+- [x] `interpolate_points`
 - [x] `join_type`
 - [x] `knot`
 - [x] `lattice`
 - [x] `lattice2`
-- [ ] `line_segment`
-- [ ] `measure_segments`
+- [x] `line_segment`
+- [x] `measure_segments`
 - [x] `mirror_symmetry`
 - [x] `offset`
-- [ ] `parallel`
-- [ ] `path_length`
-- [ ] `perp_bisector`
+- [x] `parallel`
+- [x] `path_length`
+- [x] `perp_bisector`
 - [x] `powerclip`
 - [x] `powermask`
 - [x] `powerstroke`
-- [ ] `pts2ellipse`
+- [x] `pts2ellipse`
 - [x] `recursive_skeleton`
 - [x] `rough_hatches`
 - [x] `roughen`
-- [ ] `ruler`
+- [x] `ruler`
 - [x] `show_handles`
 - [x] `simplify`
 - [x] `skeletal`
 - [x] `sketch`
 - [x] `slice`
 - [x] `spiro`
-- [ ] `tangent_to_curve`
+- [x] `tangent_to_curve`
 - [x] `taper_stroke`
-- [ ] `text_label`
+- [x] `text_label`
 - [x] `tiling`
-- [ ] `transform_2pts`
+- [x] `transform_2pts`
 - [x] `vonkoch`
 
 </details>

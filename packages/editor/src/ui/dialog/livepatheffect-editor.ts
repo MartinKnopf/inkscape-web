@@ -48,6 +48,9 @@ import { NodeTool, sp_update_helperpath } from '../tools/node-tool.ts';
 
 const ICON = 'dialog-path-effects';
 
+/** The preference that shows the experimental effects in the gallery (upstream /dialogs/livepatheffect/showexperimental). */
+export const SHOW_EXPERIMENTAL_PREF = '/dialogs/livepatheffect/showexperimental';
+
 /** An effect in the gallery of the dialog (upstream LPEMetadata). */
 export interface LPEMetadata {
   type: EffectType;
@@ -95,7 +98,10 @@ function get_tooltip(type: EffectType, untranslated_label: string): string {
  * get_list_of_applicable_lpes with can_apply). Experimental effects only with the preference
  * /dialogs/livepatheffect/showexperimental. TODO: favorites.
  */
-export function get_list_of_applicable_lpes(item: SPLPEItem | null): LPEMetadata[] {
+export function get_list_of_applicable_lpes(
+  item: SPLPEItem | null,
+  include_experimental = Preferences.get().getBool(SHOW_EXPERIMENTAL_PREF, false),
+): LPEMetadata[] {
   const item_type =
     item instanceof SPGroup
       ? 'group'
@@ -104,7 +110,6 @@ export function get_list_of_applicable_lpes(item: SPLPEItem | null): LPEMetadata
         : item instanceof SPShape
           ? 'shape'
           : '';
-  const include_experimental = Preferences.get().getBool('/dialogs/livepatheffect/showexperimental', false);
   const lpes: LPEMetadata[] = [];
   for (let i = 0; i < LPETypeConverter._length; i++) {
     const data = LPETypeConverter.data(i);

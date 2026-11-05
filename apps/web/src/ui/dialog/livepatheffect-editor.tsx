@@ -13,6 +13,7 @@ import {
   type PathArrayParam,
   type PathParam,
   type PointParam,
+  Preferences,
   type RandomParam,
   type ScalarParam,
   type SPLPEItem,
@@ -366,7 +367,10 @@ function EffectParams({ desktop, item, effect }: { desktop: SPDesktop; item: SPL
 function AddEffect({ desktop, item }: { desktop: SPDesktop; item: SPLPEItem }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
-  const lpes = LPE.filter_lpes(LPE.get_list_of_applicable_lpes(item), search);
+  const [experimental, setExperimental] = useState(() =>
+    Preferences.get().getBool(LPE.SHOW_EXPERIMENTAL_PREF, false),
+  );
+  const lpes = LPE.filter_lpes(LPE.get_list_of_applicable_lpes(item, experimental), search);
   let category = -1;
   return (
     <div className="lpe-add">
@@ -399,6 +403,17 @@ function AddEffect({ desktop, item }: { desktop: SPDesktop; item: SPLPEItem }) {
       </button>
       {open && (
         <div className="lpe-gallery" role="listbox">
+          <label className="lpe-experimental">
+            <input
+              type="checkbox"
+              checked={experimental}
+              onChange={(e) => {
+                Preferences.get().setBool(LPE.SHOW_EXPERIMENTAL_PREF, e.target.checked);
+                setExperimental(e.target.checked);
+              }}
+            />
+            <span>{_('Show experimental effects')}</span>
+          </label>
           {lpes.map((lpe) => {
             const header = lpe.category !== category;
             category = lpe.category;

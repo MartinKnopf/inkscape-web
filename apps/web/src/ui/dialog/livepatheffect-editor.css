@@ -119,6 +119,14 @@
   background: #fff;
 }
 
+.lpe-experimental {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #ddd;
+}
+
 .lpe-category {
   font-weight: bold;
   padding: 4px 6px 2px;
