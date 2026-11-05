@@ -11,6 +11,7 @@ import { DocumentUndo } from '../../document-undo.ts';
 import { sp_embed_image } from '../../object/sp-image.ts';
 import { Preferences } from '../../preferences.ts';
 import { spReprCssAttrNew, spReprCssSet, spReprCssSetProperty } from '../../xml/repr-css.ts';
+import { ImageResolution } from './image-resolution.ts';
 
 /** An empty document for the imported image (upstream SPDocument::createNewDoc(nullptr)). */
 const EMPTY_DOC =
@@ -22,11 +23,12 @@ const EMPTY_DOC =
  * one svg:image in a layer (upstream GdkpixbufInput::open). Returns null if
  * the bytes are no image that the browser can show.
  *
+ * The size follows the resolution that the file states (ImageResolution) unless the
+ * preferences force the default resolution.
+ *
  * The image is always embedded as a data: URI: upstream may link the file
  * instead (/dialogs/import/link), but a web page cannot link a local file.
- * TODO: the import dialog (ask, link, dpi, scale), the resolution of the file
- * (ImageResolution; now 96 dpi or /dialogs/import/defaultxdpi with forcexdpi),
- * fit_canvas_to_drawing.
+ * TODO: the import dialog (ask, link, dpi, scale), fit_canvas_to_drawing.
  */
 export function gdkpixbuf_input_open(bytes: Uint8Array): SPDocument | null {
   const prefs = Preferences.get();
@@ -43,7 +45,16 @@ export function gdkpixbuf_input_open(bytes: Uint8Array): SPDocument | null {
     let height = pb.height();
     let xscale = 1;
     let yscale = 1;
-    if (forcexdpi) {
+    if (!forcexdpi) {
+      const ir = new ImageResolution(bytes);
+      if (ir.ok()) {
+        xscale = 960.0 / Math.round(10.0 * ir.x()); // round-off to 0.1 dpi
+        yscale = 960.0 / Math.round(10.0 * ir.y());
+        // No division by zero
+        if (ir.x() <= 0.05) xscale = 960.0;
+        if (ir.y() <= 0.05) yscale = 960.0;
+      }
+    } else {
       const defaultxdpi = prefs.getDouble('/dialogs/import/defaultxdpi/value', 96);
       xscale = 96.0 / defaultxdpi;
       yscale = 96.0 / defaultxdpi;
