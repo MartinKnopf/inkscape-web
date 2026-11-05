@@ -200,6 +200,7 @@ export class PrintEmf extends PrintMetafile {
     this.FixPPTPatternAsHatch = mod.get_param_bool('FixPPTPatternAsHatch');
     this.FixImageRot = mod.get_param_bool('FixImageRot');
 
+    this.abort(); // a print that did not finish
     this.et = uemf.emf_start(EMF_FILE, 1000000, 250000).et; // Initialize the et structure
     this.eht = uemf.htable_create(128, 128); // Initialize the eht structure
     this.m_tr_stack = [];
@@ -322,6 +323,20 @@ export class PrintEmf extends PrintMetafile {
     this.uemf.htable_free(this.eht); // clean up
     this.et = this.eht = 0;
     return this.uemf.read_file(EMF_FILE);
+  }
+
+  /**
+   * Free the EMF in memory and the handle table of a print that did not finish (not upstream:
+   * there a failed print ends the program). The file is closed and removed.
+   */
+  abort(): void {
+    if (this.et) {
+      if (this.eht) this.uemf.emf_finish(this.et, this.eht); // closes the file
+      this.uemf.emf_free(this.et);
+      this.uemf.read_file(EMF_FILE);
+    }
+    if (this.eht) this.uemf.htable_free(this.eht);
+    this.et = this.eht = 0;
   }
 
   /** fcolor is defined when gradients are being expanded, it is the color of one stripe or ring. */

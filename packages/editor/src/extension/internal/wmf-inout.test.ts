@@ -3,13 +3,14 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SPDocument, SPShape, sp_repr_visit_descendants } from '@inkscape-web/core';
 import { loadUemf } from '@inkscape-web/wasm/uemf';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { db } from '../db.ts';
 import type { Input } from '../input.ts';
 import type { Output } from '../output.ts';
 import { SHAPES_SVG } from './fixtures/shapes.ts';
 import { setUemfBackendLoader } from './uemf-backend.ts';
 import { Wmf } from './wmf-inout.ts';
+import { PrintWmf } from './wmf-print.ts';
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`fixtures/${name}`, import.meta.url)));
 
@@ -131,5 +132,22 @@ describe('WMF output', () => {
     expect(text).toContain('Hello');
     expect(text).toContain('font-family:Arial');
     expect(fills(back!)).toContain('#008000');
+  });
+
+  it('frees the file and the handle table when the print fails', async () => {
+    const imp = db.get('org.inkscape.print.wmf')!.get_imp() as PrintWmf;
+    const doc = SPDocument.createNewDocFromMem(SHAPES_SVG)!;
+    const fill = vi.spyOn(PrintWmf.prototype, 'fill').mockImplementationOnce(() => {
+      throw new Error('print failed');
+    });
+    try {
+      await expect(output().save(doc, 'fail.wmf')).rejects.toThrow('print failed');
+    } finally {
+      fill.mockRestore();
+    }
+    expect([imp.wt, imp.wht]).toEqual([0, 0]);
+    // the next print starts clean
+    const data = (await output().save(doc, 'shapes.wmf'))!;
+    expect(data.length).toBeGreaterThan(0);
   });
 });

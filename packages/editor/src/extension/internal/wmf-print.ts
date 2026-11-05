@@ -333,6 +333,7 @@ export class PrintWmf extends PrintMetafile {
     this.FixPPTPatternAsHatch = mod.get_param_bool('FixPPTPatternAsHatch');
 
     // The file name of upstream ("destination") is not needed: the WMF goes to WMF_FILE.
+    this.abort(); // a print that did not finish
     this.wt = uemf.wmf_start(WMF_FILE, 1000000, 250000).wt; // Initialize the wt structure
     this.wht = uemf.wmf_htable_create(128, 128); // Initialize the wht structure
     this.m_tr_stack = [];
@@ -455,6 +456,20 @@ export class PrintWmf extends PrintMetafile {
     uemf.wmf_htable_free(this.wht); // clean up
     this.wt = this.wht = 0;
     return uemf.read_file(WMF_FILE);
+  }
+
+  /**
+   * Free the WMF in memory and the handle table of a print that did not finish (not upstream:
+   * there a failed print ends the program). The file is closed and removed.
+   */
+  abort(): void {
+    if (this.wt) {
+      this.uemf.wmf_finish(this.wt);
+      this.uemf.uwmf_free(this.wt);
+      this.uemf.read_file(WMF_FILE);
+    }
+    if (this.wht) this.uemf.wmf_htable_free(this.wht);
+    this.wt = this.wht = 0;
   }
 
   /** fcolor is defined when gradients are being expanded, it is the color of one stripe or ring. */

@@ -60,6 +60,7 @@ export class Emf extends Metafile {
       invoke_print(doc.getRoot(), context);
       return mod.finish();
     } finally {
+      imp.abort(); // nothing to free after finish()
       mod.set_param_string('destination', oldoutput);
     }
   }
