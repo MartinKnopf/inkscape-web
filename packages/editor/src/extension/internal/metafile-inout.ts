@@ -19,7 +19,7 @@ import { ensureUemfBackend, type UemfBackend } from './uemf-backend.ts';
  * upstream import; here is the part that turns its SVG text into a document.
  */
 export class Metafile extends Implementation {
-  /** The families that were looked up for the module already (their files are in it). */
+  /** The families whose font files the module has. */
   static readonly #fonts_sent = new Set<string>();
 
   /**
@@ -62,7 +62,6 @@ export class Metafile extends Implementation {
     ];
     let added = false;
     for (const family of families) {
-      Metafile.#fonts_sent.add(family.toLowerCase());
       if (!factory.backend || !factory.hasFontFamily(family)) continue;
       const descrs = styles.map((s) => ({
         ...pango_font_description_new(family),
@@ -78,6 +77,8 @@ export class Metafile extends Implementation {
         sent.add(file.data);
         const s = styles[i]!;
         uemf.addFont(`${family}-${s.name}.font`, file.data, family, s.name, s.fc_weight, s.fc_slant);
+        // only now: a family that the editor does not have yet is looked up again next time
+        Metafile.#fonts_sent.add(family.toLowerCase());
         added = true;
       });
     }

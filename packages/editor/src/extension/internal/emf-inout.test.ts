@@ -77,24 +77,26 @@ describe('EMF input', () => {
 });
 
 describe('EMF input fonts', () => {
-  it('measures the text with the font files of the editor', async () => {
-    // "Monaco" is not a bundled font: the editor has it (here: the DejaVu Sans Mono file).
+  /** Let the editor have the DejaVu Sans Mono file as the family (not a bundled family). */
+  async function add_editor_font(family: string): Promise<void> {
     const factory = FontFactory.get();
-    factory.setBackend(await loadText());
+    if (!factory.backend) factory.setBackend(await loadText());
     const mono = BUNDLED_FONTS.find((f) => f.family === 'DejaVu Sans Mono' && f.weight === 400)!;
     const bytes = new Uint8Array(readFileSync(fileURLToPath(mono.url)));
     factory.addFontSource({
-      family: 'Monaco',
+      family,
       style: 0,
       weight: 400,
       stretch: PangoStretch.PANGO_STRETCH_NORMAL,
       display_name: 'Regular',
       load: async () => bytes,
     });
+  }
 
-    // text right-aligned at x = 200 px: the import places its start by the width of the text
+  /** An EMF with "Hello" in the family at 20 px, right-aligned at x = 200 px. */
+  async function right_aligned_emf(family: string): Promise<Uint8Array> {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
-      <text x="200" y="50" style="font-size:20px;font-family:Monaco">Hello</text>
+      <text x="200" y="50" style="font-size:20px;font-family:${family}">Hello</text>
     </svg>`;
     const out = output();
     out.set_param_bool('textToPath', false);
@@ -109,7 +111,11 @@ describe('EMF input fonts', () => {
     for (const [type, rec] of emf_records(data)) {
       if (type === 22) view.setUint32(rec.byteOffset - data.byteOffset + 8, 0x18 | 0x02, true);
     }
+    return data;
+  }
 
+  /** The left end of the imported text: the import places it by the width of the text. */
+  async function import_text_x(data: Uint8Array): Promise<number> {
     const doc = (await input().open('right.emf', data))!;
     let x = Number.NaN;
     sp_repr_visit_descendants(doc.getReprRoot(), (n) => {
@@ -120,9 +126,23 @@ describe('EMF input fonts', () => {
       }
       return true;
     });
-    // 5 characters of 0.602 em (DejaVu Sans Mono) at 20 px left of the right edge;
-    // DejaVu Sans (the fallback) is narrower and gives about 149 px.
-    expect(x).toBeCloseTo(200 - 5 * 0.602 * 20, 0);
+    return x;
+  }
+
+  // 5 characters of 0.602 em (DejaVu Sans Mono) at 20 px left of the right edge;
+  // DejaVu Sans (the fallback) is narrower and gives about 149 px.
+  const MONO_X = 200 - 5 * 0.602 * 20;
+
+  it('measures the text with the font files of the editor', async () => {
+    await add_editor_font('Monaco');
+    expect(await import_text_x(await right_aligned_emf('Monaco'))).toBeCloseTo(MONO_X, 0);
+  });
+
+  it('sends a font that the editor got after an earlier import', async () => {
+    const data = await right_aligned_emf('Andale');
+    expect(await import_text_x(data)).toBeCloseTo(149.3, 0); // the fallback
+    await add_editor_font('Andale');
+    expect(await import_text_x(data)).toBeCloseTo(MONO_X, 0);
   });
 });
 
