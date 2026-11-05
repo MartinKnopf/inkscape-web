@@ -79,6 +79,19 @@ describe('display modes', () => {
     expect(el.style.getPropertyValue('--hairline-width')).toBe('0.5');
   });
 
+  it('resolves a percentage width against the viewport diagonal', () => {
+    const { dt, el } = hairlineSetup({ strokeWidth: '0.5%' }, 1);
+    // A 300 x 400 viewport: sqrt((300^2 + 400^2) / 2) = 353.55, so 0.5% is 1.77 user units, not 0.5.
+    Object.defineProperty(el, 'ownerSVGElement', {
+      value: { viewBox: { baseVal: { width: 300, height: 400 } }, clientWidth: 0, clientHeight: 0 },
+    });
+    dt.getDrawing().updateHairlines();
+    expect(el.hasAttribute('data-hairline')).toBe(false);
+    el.getScreenCTM = () => ({ a: 0.5, b: 0, c: 0, d: 0.5 }) as DOMMatrix;
+    dt.getDrawing().updateHairlines();
+    expect(el.hasAttribute('data-hairline')).toBe(true);
+  });
+
   it('compares the width of non-scaling strokes directly in screen px', () => {
     const { dt, el } = hairlineSetup({ strokeWidth: '2px', vectorEffect: 'non-scaling-stroke' }, 0.1);
     dt.getDrawing().updateHairlines();

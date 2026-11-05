@@ -56,6 +56,20 @@ const RENDER_MODE_ATTRIBUTE: Record<RenderMode, string | null> = {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/**
+ * A computed stroke width in user units. The browser keeps a percentage as it is; it is a part of
+ * the diagonal of the viewport of the nearest svg element, sqrt((w^2 + h^2) / 2).
+ */
+function resolveWidth(value: string, el: SVGGraphicsElement): number {
+  const width = Number.parseFloat(value);
+  if (!value.trim().endsWith('%')) return width;
+  const svg = el.ownerSVGElement;
+  const box = svg?.viewBox?.baseVal;
+  const w = box?.width || svg?.clientWidth || 0;
+  const h = box?.height || svg?.clientHeight || 0;
+  return (width / 100) * Math.sqrt((w * w + h * h) / 2);
+}
+
 /** The screen size of one user unit of the element, from its transform to the screen. */
 function screenScale(el: SVGGraphicsElement): number {
   const m = el.getScreenCTM?.();
@@ -169,7 +183,7 @@ export class SvgDrawing implements Drawing {
     const view = this.#doc.defaultView ?? globalThis;
     for (const el of elements) {
       const style = view.getComputedStyle(el);
-      const width = Number.parseFloat(style.strokeWidth);
+      const width = resolveWidth(style.strokeWidth, el);
       if (!(width > 0)) continue;
       const non_scaling = style.vectorEffect === 'non-scaling-stroke';
       const scale = non_scaling ? 1 : screenScale(el);
