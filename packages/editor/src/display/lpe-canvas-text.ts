@@ -7,7 +7,14 @@
  * puts the text on the wrong desktop when another document is active. Here each desktop draws the
  * texts of the effects of its own document.
  */
-import { type Effect, LivePathEffectObject, type SPDocument, SPLPEItem, TextParam } from '@inkscape-web/core';
+import {
+  type Effect,
+  LivePathEffectObject,
+  SPDefs,
+  type SPDocument,
+  SPLPEItem,
+  TextParam,
+} from '@inkscape-web/core';
 import { Point } from '@inkscape-web/geom';
 import type { SPDesktop } from '../desktop.ts';
 import { CanvasItemText } from './control/canvas-item-text.ts';
@@ -29,8 +36,7 @@ export class LPECanvasTexts {
 
   update(): void {
     const wanted = new Set<TextParam>();
-    for (const obj of this.#doc.getDefs()?.children ?? []) {
-      if (!(obj instanceof LivePathEffectObject)) continue;
+    for (const obj of effectObjects(this.#doc)) {
       // The items that use the effect (not getCurrrentLPEItems(): the flag "deleted" of the object stays set after an undo).
       const lpe = obj.get_lpe();
       if (!lpe || !obj.hrefList.some((o) => o instanceof SPLPEItem)) continue;
@@ -64,4 +70,12 @@ export class LPECanvasTexts {
 
 function textParams(lpe: Effect): TextParam[] {
   return lpe.param_vector.filter((p): p is TextParam => p instanceof TextParam);
+}
+
+/** The path effect objects of all the defs elements of the document (not only the first). */
+function* effectObjects(doc: SPDocument): Generator<LivePathEffectObject> {
+  for (const defs of doc.getRoot().children) {
+    if (!(defs instanceof SPDefs)) continue;
+    for (const obj of defs.children) if (obj instanceof LivePathEffectObject) yield obj;
+  }
 }

@@ -28,6 +28,12 @@ describe('text of path effects on the canvas', () => {
     InkscapeApplication.instance().set_active_desktop(null);
   });
 
+  it('draws the text of an effect in a second defs element', () => {
+    const s = setupDesktop(WITH_LPE.replace('<defs>', '<defs/><defs>'), 'Select');
+    s.doc.ensureUpToDate();
+    expect(texts(s)).toEqual(['50.00 px']);
+  });
+
   it('hides the text when the effect is removed from the item and shows it again on undo', () => {
     const s = setupDesktop(PLAIN, 'Select');
     const shape = s.item('p') as unknown as SPShape;
