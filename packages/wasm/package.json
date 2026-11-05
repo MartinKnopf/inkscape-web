@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./cairo": "./src/cairo.ts"
+    "./cairo": "./src/cairo.ts",
+    "./revenge": "./src/revenge.ts"
   },
   "scripts": {
     "build": "./build.sh",
