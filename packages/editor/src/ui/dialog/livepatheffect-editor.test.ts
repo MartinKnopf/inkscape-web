@@ -32,4 +32,13 @@ describe('Path Effects gallery', () => {
     expect(filter_lpes(lpes, 'MIRROR').map((l) => l.type)).toEqual([EffectType.MIRROR_SYMMETRY]);
     expect(filter_lpes(lpes, '')).toHaveLength(lpes.length);
   });
+
+  it('lists the experimental effects only when asked', () => {
+    const types = (include: boolean) => get_list_of_applicable_lpes(null, include).map((l) => l.type);
+    expect(types(false)).not.toContain(EffectType.PARALLEL);
+    expect(types(true)).toEqual(expect.arrayContaining([EffectType.PARALLEL, EffectType.ANGLE_BISECTOR]));
+    const parallel = get_list_of_applicable_lpes(null, true).find((l) => l.type === EffectType.PARALLEL);
+    expect(parallel?.category).toBe(LPECategory.Experimental);
+    expect(parallel?.icon_name).toBe('experimental');
+  });
 });
