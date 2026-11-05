@@ -134,6 +134,38 @@ describe('WMF output', () => {
     expect(fills(back!)).toContain('#008000');
   });
 
+  it('transliterates text to Latin1 as iconv LATIN1//TRANSLIT', async () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+      <text x="20" y="80" style="font-size:20px;font-family:Arial">Āčě‘x’β</text>
+    </svg>`;
+    const out = output();
+    // without the mapping to the Symbol, Wingdings and Zapf Dingbats fonts (β would be Symbol 'b')
+    const params = ['TnrToSymbol', 'TnrToWingdings', 'TnrToZapfDingbats'];
+    out.set_param_bool('textToPath', false);
+    for (const p of params) out.set_param_bool(p, false);
+    let data: Uint8Array | null;
+    try {
+      data = await out.save(SPDocument.createNewDocFromMem(svg)!, 'latin1.wmf');
+    } finally {
+      out.set_param_bool('textToPath', true);
+      for (const p of params) out.set_param_bool(p, true);
+    }
+    // the strings of the text records (Layout::print may split the text into several)
+    const text = wmf_parts(data!)
+      .records.filter((r) => r[0] === U_WMR_EXTTEXTOUT)
+      .map(([, rec]) => {
+        const length = rec[10]! | (rec[11]! << 8); // U_WMREXTTEXTOUT: size, function, y, x, Length, Opts
+        const opts = rec[12]! | (rec[13]! << 8);
+        const start = opts & 0x6 ? 22 : 14; // a rectangle with U_ETO_OPAQUE or U_ETO_CLIPPED
+        return new TextDecoder('latin1').decode(rec.subarray(start, start + length));
+      })
+      .join('');
+    // decomposed letters lose their accents, symbols get their ASCII forms, the rest becomes '?'.
+    // (A form of more than one character, like "..." for "…", is cut off: as upstream, the
+    // record keeps as many bytes as the text has characters.)
+    expect(text).toBe("Ace'x'?");
+  });
+
   it('frees the file and the handle table when the print fails', async () => {
     const imp = db.get('org.inkscape.print.wmf')!.get_imp() as PrintWmf;
     const doc = SPDocument.createNewDocFromMem(SHAPES_SVG)!;

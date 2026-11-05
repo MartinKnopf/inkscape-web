@@ -13,6 +13,7 @@
 #include <vector>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
+#include <libuemf/uemf_utf.h>
 #include <libuemf/uwmf.h>
 
 using emscripten::val;
@@ -97,56 +98,18 @@ uintptr_t U_PAIRF_set_(float x, float y)
 }
 
 // ---- Text ----
-// libuemf converts to Latin1 with iconv_open("LATIN1//TRANSLIT", ...), which the musl iconv of
-// Emscripten does not open (the functions then always return NULL). These replacements convert
-// the code points without iconv; a code point above 0xFF becomes '?' (glibc TRANSLIT gives '?'
-// for the characters that it cannot transliterate).
+// libuemf converts to Latin1 with iconv "LATIN1//TRANSLIT" (shim/uemf/iconv.c gives musl that target).
 
-/** The code points as a malloc() Latin1 string. */
-uintptr_t to_latin1(std::vector<uint32_t> const &cps)
-{
-    char *dst = static_cast<char *>(std::malloc(cps.size() + 1));
-    size_t n = 0;
-    for (uint32_t cp : cps) {
-        dst[n++] = cp <= 0xFF ? static_cast<char>(cp) : '?';
-    }
-    dst[n] = 0;
-    return ptr(dst);
-}
-
-/** U_Utf8ToLatin1(src, 0, nullptr): a malloc() buffer. */
+/** U_Utf8ToLatin1(src, 0, nullptr): a malloc() buffer, 0 on error. */
 uintptr_t U_Utf8ToLatin1_(std::string const &src)
 {
-    std::vector<uint32_t> cps;
-    for (size_t i = 0; i < src.size();) {
-        auto c = static_cast<unsigned char>(src[i]);
-        int n = c < 0x80 ? 0 : c < 0xE0 ? 1 : c < 0xF0 ? 2 : 3;
-        uint32_t cp = n ? c & (0x3F >> n) : c;
-        for (int k = 1; k <= n && i + k < src.size(); k++) {
-            cp = (cp << 6) | (static_cast<unsigned char>(src[i + k]) & 0x3F);
-        }
-        cps.push_back(cp);
-        i += n + 1;
-    }
-    return to_latin1(cps);
+    return ptr(U_Utf8ToLatin1(src.c_str(), 0, nullptr));
 }
 
-/** U_Utf16leToLatin1(src, 0, nullptr): a malloc() buffer, 0 for NULL. */
+/** U_Utf16leToLatin1(src, 0, nullptr): a malloc() buffer, 0 for NULL or on error. */
 uintptr_t U_Utf16leToLatin1_(uintptr_t src)
 {
-    auto s = to<uint16_t const>(src);
-    if (!s) {
-        return 0;
-    }
-    std::vector<uint32_t> cps;
-    for (; *s; s++) {
-        uint32_t cp = *s;
-        if (cp >= 0xD800 && cp < 0xDC00 && s[1] >= 0xDC00 && s[1] < 0xE000) {
-            cp = 0x10000 + ((cp - 0xD800) << 10) + (*++s - 0xDC00); // surrogate pair
-        }
-        cps.push_back(cp);
-    }
-    return to_latin1(cps);
+    return ptr(U_Utf16leToLatin1(to<uint16_t const>(src), 0, nullptr));
 }
 
 // ---- Objects ----

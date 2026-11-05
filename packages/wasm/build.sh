@@ -458,7 +458,8 @@ U=$INK/src/3rdparty/libuemf
 [ -f "$U/CMakeLists.txt" ] || { echo "libuemf not found in $U (git submodule update --init src/3rdparty/libuemf)"; exit 1; }
 UEMF_OBJ=$B/uemf-obj && mkdir -p "$UEMF_OBJ"
 UEMF_C_SRCS="$(sed -n '/target_sources(uemf PRIVATE/,/^)/p' "$U/CMakeLists.txt" | grep -oE '[a-z_]+\.c' | sed "s|^|$U/src/libuemf/|")"
-UEMF_C_SRCS="$UEMF_C_SRCS $INK/src/extension/internal/text_reassemble.c $INK/src/util-string/symbol-convert.c"
+UEMF_C_SRCS="$UEMF_C_SRCS $INK/src/extension/internal/text_reassemble.c $INK/src/util-string/symbol-convert.c \
+    $HERE/shim/uemf/iconv.c"
 UEMF_SRCS="$INK/src/extension/internal/emf-inout.cpp $INK/src/extension/internal/wmf-inout.cpp \
     $INK/src/extension/internal/metafile-inout.cpp $INK/src/svg/svg-path.cpp $INK/src/svg/path-string.cpp \
     $HERE/shim/uemf/fontconfig.cpp $HERE/shim/pdfinput/svg-number.cpp"
