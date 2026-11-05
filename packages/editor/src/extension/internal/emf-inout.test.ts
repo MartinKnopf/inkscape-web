@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { SPDocument, SPShape, sp_repr_visit_descendants } from '@inkscape-web/core';
+import {
+  FontFactory,
+  PangoStretch,
+  SPDocument,
+  SPShape,
+  sp_repr_visit_descendants,
+} from '@inkscape-web/core';
+import { BUNDLED_FONTS, loadText } from '@inkscape-web/wasm';
 import { loadUemf } from '@inkscape-web/wasm/uemf';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { db } from '../db.ts';
@@ -66,6 +73,56 @@ describe('EMF input', () => {
 
   it('returns null for data that is not an EMF file', async () => {
     expect(await input().open('bad.emf', new TextEncoder().encode('not a metafile'))).toBeNull();
+  });
+});
+
+describe('EMF input fonts', () => {
+  it('measures the text with the font files of the editor', async () => {
+    // "Monaco" is not a bundled font: the editor has it (here: the DejaVu Sans Mono file).
+    const factory = FontFactory.get();
+    factory.setBackend(await loadText());
+    const mono = BUNDLED_FONTS.find((f) => f.family === 'DejaVu Sans Mono' && f.weight === 400)!;
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(mono.url)));
+    factory.addFontSource({
+      family: 'Monaco',
+      style: 0,
+      weight: 400,
+      stretch: PangoStretch.PANGO_STRETCH_NORMAL,
+      display_name: 'Regular',
+      load: async () => bytes,
+    });
+
+    // text right-aligned at x = 200 px: the import places its start by the width of the text
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">
+      <text x="200" y="50" style="font-size:20px;font-family:Monaco">Hello</text>
+    </svg>`;
+    const out = output();
+    out.set_param_bool('textToPath', false);
+    let data: Uint8Array;
+    try {
+      data = (await out.save(SPDocument.createNewDocFromMem(svg)!, 'right.emf'))!;
+    } finally {
+      out.set_param_bool('textToPath', true);
+    }
+    // U_EMR_SETTEXTALIGN (22) with U_TA_BASELINE | U_TA_RIGHT instead of U_TA_LEFT
+    const view = new DataView(data.buffer, data.byteOffset);
+    for (const [type, rec] of emf_records(data)) {
+      if (type === 22) view.setUint32(rec.byteOffset - data.byteOffset + 8, 0x18 | 0x02, true);
+    }
+
+    const doc = (await input().open('right.emf', data))!;
+    let x = Number.NaN;
+    sp_repr_visit_descendants(doc.getReprRoot(), (n) => {
+      if (n.name() === 'svg:text' && Number.isNaN(x)) {
+        // matrix(a,b,c,d,e,f) with the reference point, x relative to it
+        const e = Number.parseFloat(n.attribute('transform')!.split(',')[4]!);
+        x = e + Number.parseFloat(n.attribute('x')!);
+      }
+      return true;
+    });
+    // 5 characters of 0.602 em (DejaVu Sans Mono) at 20 px left of the right edge;
+    // DejaVu Sans (the fallback) is narrower and gives about 149 px.
+    expect(x).toBeCloseTo(200 - 5 * 0.602 * 20, 0);
   });
 });
 

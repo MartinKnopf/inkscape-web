@@ -77,6 +77,13 @@ export interface HandleRecord {
 export interface UemfBackend {
   // Import (upstream Emf::open and Wmf::open): the SVG text, "" on error.
   emfImport(data: Uint8Array): string;
+  /**
+   * Add a font file for the text of the import (fontconfig of the module); weight and slant
+   * are fontconfig values. name is the file name in the module.
+   */
+  addFont(name: string, data: Uint8Array, family: string, style: string, weight: number, slant: number): void;
+  /** The font families that the imports asked for since the last call, one per line. */
+  requestedFontFamilies(): string;
   wmfImport(data: Uint8Array): string;
 
   // Memory and files

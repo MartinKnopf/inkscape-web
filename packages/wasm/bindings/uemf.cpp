@@ -73,6 +73,12 @@ void add_font(std::string const &name, std::string const &data, std::string cons
     FcShimAddFont(path.c_str(), family.c_str(), style.c_str(), weight, slant);
 }
 
+/** The font families that the imports asked for since the last call. */
+std::string requested_font_families()
+{
+    return FcShimRequestedFamilies();
+}
+
 // ---- Memory and files ----
 
 template <typename T>
@@ -434,6 +440,7 @@ EMSCRIPTEN_BINDINGS(uemf)
     function("emfImport", &emf_import);
     function("wmfImport", &wmf_import);
     function("addFont", &add_font);
+    function("requestedFontFamilies", &requested_font_families);
 
     value_object<U_COLORREF>("U_COLORREF")
         .field("Red", &U_COLORREF::Red)

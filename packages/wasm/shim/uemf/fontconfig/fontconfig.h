@@ -91,6 +91,8 @@ void FcFontSetDestroy(FcFontSet *s);
 /** Not fontconfig: add a font file (in the Emscripten file system) to the font list.
  *  weight and slant are fontconfig values (FC_WEIGHT_REGULAR 80, FC_SLANT_ITALIC 100). */
 void FcShimAddFont(const char *file, const char *family, const char *style, int weight, int slant);
+/** Not fontconfig: the families asked for since the last call, one per line. */
+const char *FcShimRequestedFamilies(void);
 
 #ifdef __cplusplus
 }

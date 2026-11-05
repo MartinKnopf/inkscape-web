@@ -36,6 +36,13 @@ struct Font
     _FcCharSet charset;
 };
 
+/** The families that the import asked for (FcNameParse), for FcShimRequestedFamilies(). */
+std::vector<std::string> &requested()
+{
+    static std::vector<std::string> list;
+    return list;
+}
+
 std::vector<Font *> &fonts()
 {
     static std::vector<Font *> list;
@@ -94,6 +101,16 @@ void FcShimAddFont(char const *file, char const *family, char const *style, int 
     fonts().push_back(font);
 }
 
+char const *FcShimRequestedFamilies(void)
+{
+    static std::string out;
+    out.clear();
+    for (auto const &f : requested())
+        out += f + '\n';
+    requested().clear();
+    return out.c_str();
+}
+
 FcBool FcInit(void)
 {
     return FcTrue;
@@ -107,6 +124,9 @@ FcPattern *FcNameParse(FcChar8 const *name)
     std::string spec(reinterpret_cast<char const *>(name));
     size_t colon = spec.find(':');
     p->strings[FC_FAMILY] = spec.substr(0, colon);
+    auto &req = requested();
+    if (std::find(req.begin(), req.end(), p->strings[FC_FAMILY]) == req.end())
+        req.push_back(p->strings[FC_FAMILY]);
     while (colon != std::string::npos) {
         size_t next = spec.find(':', colon + 1);
         std::string item = spec.substr(colon + 1, next == std::string::npos ? next : next - colon - 1);
