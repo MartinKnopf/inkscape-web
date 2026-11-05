@@ -161,7 +161,9 @@ export class CanvasGrid {
     const bar = this.#show_scrollbars ? `${SCROLLBAR_SIZE}px` : '0px';
     this.element.style.gridTemplateColumns = `${ruler} 1fr ${bar}`;
     this.element.style.gridTemplateRows = `${ruler} 1fr ${bar}`;
-    for (const cell of this.element.querySelectorAll<HTMLElement>('.ruler-corner, .ruler-horz, .ruler-vert')) {
+    for (const cell of this.element.querySelectorAll<HTMLElement>(
+      '.ruler-corner, .ruler-horz, .ruler-vert',
+    )) {
       cell.style.display = this.#show_rulers ? '' : 'none';
     }
     this.#hscrollbar.element.style.display = this.#show_scrollbars ? '' : 'none';
@@ -196,16 +198,20 @@ export class CanvasGrid {
     let deskarea = doc.preferredBounds().transformed(dt).expandBy(dims.x, dims.y);
     for (const page of doc.getPageManager().getPages()) deskarea = deskarea.unionWith(page.getDesktopRect());
     const root = doc.getRoot();
-    const bounds = Preferences.get().getInt('/tools/bounding_box', 0) === 0
-      ? root.desktopVisualBounds()
-      : root.desktopGeometricBounds();
+    const bounds =
+      Preferences.get().getInt('/tools/bounding_box', 0) === 0
+        ? root.desktopVisualBounds()
+        : root.desktopGeometricBounds();
     if (bounds) deskarea = deskarea.unionWith(bounds);
     // Account for desktop rotation, offset, etc - but ignore zoom
     deskarea = deskarea.transformed(desktop.d2w().multiply(Scale(1 / zoom, 1 / zoom)));
     // Canvas region we always show unconditionally; the visible area is always scrollable.
     const y_dir = desktop.yaxisdir();
     const viewbox = this.canvas.get_area_world();
-    const carea = deskarea.transformed(Scale(zoom, zoom * y_dir)).expandBy(64).unionWith(viewbox);
+    const carea = deskarea
+      .transformed(Scale(zoom, zoom * y_dir))
+      .expandBy(64)
+      .unionWith(viewbox);
     this.#hscrollbar.setAdjustment(carea.left(), carea.right(), viewbox.left());
     this.#vscrollbar.setAdjustment(carea.top(), carea.bottom(), viewbox.top());
     this.#updating = false;

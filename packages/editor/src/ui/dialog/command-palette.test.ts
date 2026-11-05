@@ -93,7 +93,11 @@ describe('palette', () => {
   });
 
   it('ranks an exact name before the "(No preferences)" extension entries, as upstream does', () => {
-    const rulers = { name: 'Rulers', untranslated_name: 'Rulers', description: 'Show or hide the canvas rulers' };
+    const rulers = {
+      name: 'Rulers',
+      untranslated_name: 'Rulers',
+      description: 'Show or hide the canvas rulers',
+    };
     const extension = {
       name: 'Approximate Curves by Straight Lines (No preferences)',
       untranslated_name: 'Approximate Curves by Straight Lines (No preferences)',

@@ -157,7 +157,9 @@ export class SvgDrawing implements Drawing {
     if (!hairlines && !this.#hairlinesMarked) return;
     this.#hairlinesMarked = hairlines;
     for (const el of this.root.element.querySelectorAll<SVGGraphicsElement>(PAINTED)) {
-      const width = hairlines ? Number.parseFloat(el.style.strokeWidth || el.getAttribute('stroke-width') || '1') : 0;
+      const width = hairlines
+        ? Number.parseFloat(el.style.strokeWidth || el.getAttribute('stroke-width') || '1')
+        : 0;
       if (hairlines && width > 0 && width * scale(el) < 1) el.setAttribute('data-hairline', '');
       else el.removeAttribute('data-hairline');
     }

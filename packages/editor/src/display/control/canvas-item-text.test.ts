@@ -16,13 +16,12 @@ describe('text of path effects on the canvas', () => {
       'Select',
     );
     InkscapeApplication.instance().set_active_desktop(s.dt);
-    const texts = () =>
-      [...s.dt.getCanvasTemp().element.querySelectorAll('text')].map((t) => t.textContent);
+    const texts = () => [...s.dt.getCanvasTemp().element.querySelectorAll('text')].map((t) => t.textContent);
     const shape = s.item('p') as unknown as SPShape;
     Effect.createAndApply('path_length', s.doc, shape);
     s.doc.ensureUpToDate();
     expect(texts()).toEqual(['50.00 px']);
-    const lpe_id = shape.getCurrentLPE()?.getRepr().attribute('id') ?? '';
+    const lpe_id = shape.getCurrentLPE()?.getRepr()?.attribute('id') ?? '';
     shape.removeAllPathEffects(false);
     // The effect object stays in the defs until it is deleted.
     s.doc.getObjectById(lpe_id)?.deleteObject();

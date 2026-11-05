@@ -19,8 +19,6 @@ export function DrawingPanel({ api }: IDockviewPanelProps) {
     const grid = new CanvasGrid(host);
     grid_ref.current = grid;
     const desktop = new SPDesktop(grid.canvas, win.doc);
-    grid.ShowRulers(rulers);
-    grid.ShowScrollbars(scrollbars);
     grid.set_desktop(desktop);
     desktop.schedule_zoom_from_document();
     registerDesktop(api.id, desktop);

@@ -7,7 +7,6 @@
  */
 import { type Selection, Signal, type SPDocument, TextParam } from '@inkscape-web/core';
 import { Point } from '@inkscape-web/geom';
-import { CanvasItemText } from './display/control/canvas-item-text.ts';
 import { ActionRegistry } from './actions/action-map.ts';
 import { add_actions_base } from './actions/actions-base.ts';
 import { add_actions_canvas_mode } from './actions/actions-canvas-mode.ts';
@@ -43,6 +42,7 @@ import { add_actions_transform } from './actions/actions-transform.ts';
 import { add_actions_undo_document } from './actions/actions-undo-document.ts';
 import { add_actions_view_mode } from './actions/actions-view-mode.ts';
 import type { SPDesktop } from './desktop.ts';
+import { CanvasItemText } from './display/control/canvas-item-text.ts';
 import { InkFileExportCmd } from './io/file-export-cmd.ts';
 import { toolIsPorted } from './ui/tool-factory.ts';
 
