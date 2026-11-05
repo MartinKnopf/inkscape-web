@@ -3,8 +3,13 @@
 // The actions that need the web app: files and dialogs. The other actions are
 // registered by InkscapeApplication in @inkscape-web/editor.
 import { _, C_, DocumentUndo, N_, NC_, ngettext, SPDocument } from '@inkscape-web/core';
-import { INKSCAPE_VERSION, InkscapeApplication, type SPDesktop, show_output } from '@inkscape-web/editor';
-import { hasDialog, openDialog } from '../ui/dialog/dialog-manager.ts';
+import {
+  type ActionHintRawData,
+  INKSCAPE_VERSION,
+  InkscapeApplication,
+  type SPDesktop,
+  show_output,
+} from '@inkscape-web/editor';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
 import {
   app_quit,
@@ -19,6 +24,7 @@ import {
   sp_file_import,
   sp_file_open_dialog,
   sp_file_open_recent,
+  sp_file_rebase,
   sp_file_reload,
   sp_file_save,
   sp_file_save_a_copy,
@@ -27,7 +33,6 @@ import {
 } from './file.ts';
 
 const SECTION_FILE = NC_('Action Section', 'File');
-const SECTION_DIALOG = NC_('Action Section', 'Dialog');
 const SECTION_WINDOW_FILE = NC_('Action Section', 'Window-File');
 const SECTION_FILE_APP = NC_('Action Section', 'File');
 const SECTION_WINDOW = NC_('Action Section', 'Window');
@@ -50,6 +55,12 @@ const raw_data_app: readonly (readonly [string, string, string, string])[] = [
     N_('Remove unused definitions (such as gradients or clipping paths) from the document'),
   ],
   ['app.file-open', N_('File Open'), SECTION_FILE_APP, N_('Open file')],
+  [
+    'app.file-rebase',
+    N_('File Contents Replace'),
+    SECTION_FILE_APP,
+    N_("Replace current document's contents by contents of another file"),
+  ],
   ['app.file-new', N_('File New'), SECTION_FILE_APP, N_('Open new document using template')],
   ['app.file-close', N_('File Close'), SECTION_FILE_APP, N_('Close active document')],
   ['app.file-open-window', N_('File Open Window'), SECTION_FILE_APP, N_('Open file window')],
@@ -64,6 +75,12 @@ const raw_data_app: readonly (readonly [string, string, string, string])[] = [
     N_('Window Close'),
     SECTION_WINDOW,
     N_('Close the active window, does not check for data loss'),
+  ],
+  [
+    'app.window-set-geometry',
+    N_('Window Set Geometry'),
+    SECTION_WINDOW,
+    N_("Set the active window's location and size (x, y, width, height)"),
   ],
   [
     'app.window-query-geometry',
@@ -136,6 +153,15 @@ const TUTORIALS: Record<string, string> = {
   'tutorial-tips': 'tutorial-tips',
 };
 
+/** What to enter for the parameter of an action (shown by the command palette). */
+const hint_data_app: ActionHintRawData = [
+  ['app.window-set-geometry', N_('Enter comma-separated string for x, y, width, height')],
+  ['app.file-open', N_('Enter file name')],
+  ['app.file-new', N_('Enter file name')],
+  ['app.file-open-window', N_('Enter file name')],
+  ['app.file-rebase-from-saved', N_('Namedview; Update=1, Replace=0')],
+];
+
 const raw_data_file: readonly (readonly [string, string, string, string])[] = [
   ['app.document-new', N_('New'), SECTION_FILE, N_('Create new document from the default template')],
   ['app.document-open', N_('Open File Dialog'), SECTION_FILE, N_('Open an existing document')],
@@ -150,88 +176,6 @@ const raw_data_file: readonly (readonly [string, string, string, string])[] = [
     N_('Save a copy of the document under a new name'),
   ],
   ['win.document-import', N_('Import'), SECTION_FILE, N_('Import a bitmap or SVG image into this document')],
-  [
-    "win.dialog-open('FillStroke')",
-    N_('Open Fill and Stroke'),
-    SECTION_DIALOG,
-    N_("Edit objects' colors, gradients, arrowheads, and other fill and stroke properties..."),
-  ],
-  [
-    "win.dialog-open('Preferences')",
-    N_('Open Preferences'),
-    SECTION_DIALOG,
-    N_('Edit global Inkscape preferences'),
-  ],
-  ['app.preferences', N_('Open Preferences'), SECTION_DIALOG, N_('Edit global Inkscape preferences')],
-  [
-    "win.dialog-open('Export')",
-    N_('Open Export'),
-    SECTION_DIALOG,
-    N_('Export this document or a selection as a PNG image'),
-  ],
-  ["win.dialog-open('Objects')", N_('Open Objects'), SECTION_DIALOG, N_('View Objects')],
-  [
-    "win.dialog-open('Text')",
-    N_('Open Text'),
-    SECTION_DIALOG,
-    N_('View and select font family, font size and other text properties'),
-  ],
-  [
-    "win.dialog-open('AlignDistribute')",
-    N_('Open Align and Distribute'),
-    SECTION_DIALOG,
-    N_('Align and distribute objects'),
-  ],
-  [
-    "win.dialog-open('DocumentProperties')",
-    N_('Open Document Properties'),
-    SECTION_DIALOG,
-    N_('Edit properties of this document (to be saved with the document)'),
-  ],
-  [
-    "win.dialog-open('Transform')",
-    N_('Open Transform'),
-    SECTION_DIALOG,
-    N_("Precisely control objects' transformations"),
-  ],
-  [
-    "win.dialog-open('ObjectProperties')",
-    N_('Open Object Properties'),
-    SECTION_DIALOG,
-    N_('Edit the object attributes (context dependent)...'),
-  ],
-  ["win.dialog-open('UndoHistory')", N_('Open Undo History'), SECTION_DIALOG, N_('Undo History')],
-  [
-    "win.dialog-open('Swatches')",
-    N_('Open Swatches'),
-    SECTION_DIALOG,
-    N_('Select colors from a swatches palette'),
-  ],
-  [
-    "win.dialog-open('Symbols')",
-    N_('Open Symbols'),
-    SECTION_DIALOG,
-    N_('Select symbol from a symbols palette'),
-  ],
-  [
-    "win.dialog-open('CloneTiler')",
-    N_('Open Clone Tiler'),
-    SECTION_DIALOG,
-    N_('Create multiple clones of selected object, arranging them into a pattern or scattering'),
-  ],
-  [
-    "win.dialog-open('FontCollections')",
-    N_('Open Font Collections'),
-    SECTION_DIALOG,
-    N_('Manage Font Collections'),
-  ],
-  ["win.dialog-open('SVGFonts')", N_('Open SVG Fonts'), SECTION_DIALOG, N_('Edit SVG fonts')],
-  [
-    "win.dialog-open('XMLEditor')",
-    N_('Open XML Editor'),
-    SECTION_DIALOG,
-    N_('View and edit the XML tree of the document'),
-  ],
 ];
 
 /** Register the file and dialog actions of the web app. Call once at startup. */
@@ -253,7 +197,6 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   });
   app.actions.win.add_action('document-close', () => void document_close_active());
   app.actions.app.add_action('quit', () => void app_quit());
-  app.actions.app.add_action('preferences', () => openDialog('Preferences'));
   app.actions.win.add_action(
     'document-save',
     withDesktop((dt) => sp_file_save(dt.doc)),
@@ -285,6 +228,10 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
     void open_url_in_window(url);
   });
   apps.add_action('file-close', () => void document_close_unchecked());
+  apps.add_action_with_parameter('file-rebase', 'b', (keep_namedview) => {
+    const doc = app.get_active_document();
+    if (doc) void sp_file_rebase(doc, keep_namedview);
+  });
 
   // actions-window.cpp
   apps.add_action('window-open', () => {
@@ -298,6 +245,21 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
     show_output(`h:${window.innerHeight}`, false);
   });
   apps.add_action('quit-immediate', () => window.close());
+  // The browser lets a script move and resize only the windows it opened, so this does nothing
+  // for the tab of the application.
+  apps.add_action_with_parameter('window-set-geometry', 's', (geometry) => {
+    const tokens = geometry.split(',');
+    if (tokens.length !== 4) {
+      show_output("action:set geometry: requires 'x, y, width, height'");
+      return;
+    }
+    const [x, y, w, h] = tokens.map((t) => Number.parseInt(t, 10));
+    if ([x, y, w, h].some((n) => n === undefined || Number.isNaN(n))) {
+      show_output("action:set geometry: requires 'x, y, width, height'");
+      return;
+    }
+    window.resizeTo(w as number, h as number);
+  });
 
   // actions-tutorial.cpp
   const ok = [{ id: 'ok', label: _('_OK') }];
@@ -386,9 +348,8 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
   win.add_action('tab-next', () => document_tab_step(1));
   win.add_action('tab-previous', () => document_tab_step(-1));
   app.get_action_extra_data().add_data(raw_data_app);
+  app.get_action_hint_data().add_data(hint_data_app);
 
-  // Dialogs that are not ported yet are disabled.
-  app.actions.win.add_action_with_parameter('dialog-open', 's', openDialog, hasDialog);
   app.get_action_extra_data().add_data(raw_data_file);
 }
 

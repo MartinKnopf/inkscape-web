@@ -18,7 +18,16 @@
  * Copyright (C) 2004 David Turner
  * Copyright (C) 2001-2002 Ximian, Inc.
  */
-import { _, DocumentUndo, gdkpixbuf_input_open, SPDocument, SVG_NS_URI, saveBuf } from '@inkscape-web/core';
+import {
+  _,
+  C_,
+  DocumentUndo,
+  gdkpixbuf_input_open,
+  readMem,
+  SPDocument,
+  SVG_NS_URI,
+  saveBuf,
+} from '@inkscape-web/core';
 import { db, file_import, type Input, type Output, type SPDesktop } from '@inkscape-web/editor';
 import { output_prefs } from '../extension/prefdialog/prefdialog.tsx';
 import { decodeSvgBytes, gzip } from './gzip.ts';
@@ -175,6 +184,34 @@ export async function sp_file_reload(doc: SPDocument): Promise<SPDocument | null
   } catch (e) {
     console.error(e);
     return null;
+  }
+}
+
+/**
+ * app.file-rebase (upstream SPDocument::rebase(bool)): replace the contents of the document by the
+ * contents of its file, as one undo step; the namedview is kept and updated if keep_namedview.
+ * Returns false if the document has no file or the file cannot be read.
+ */
+export async function sp_file_rebase(doc: SPDocument, keep_namedview: boolean): Promise<boolean> {
+  const handle = fileHandles.get(doc);
+  if (!handle) {
+    console.warn('Error on rebase_doc: NULL file');
+    return false;
+  }
+  try {
+    const text = await decodeSvgBytes(new Uint8Array(await (await handle.getFile()).arrayBuffer()));
+    const xmldoc = readMem(text, SVG_NS_URI);
+    if (!xmldoc) {
+      console.warn('Error on rebase_doc: The file could not be parsed.');
+      return false;
+    }
+    doc.rebase(xmldoc, keep_namedview);
+    doc.ensureUpToDate();
+    DocumentUndo.done(doc, C_('Undo', 'Replace file contents'), '');
+    return true;
+  } catch (e) {
+    console.error(e);
+    return false;
   }
 }
 
