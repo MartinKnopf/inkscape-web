@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Build upstream lib2geom + livarot + path operations + libavoid + potrace and the trace filters to WebAssembly.
-# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/3rdparty/adaptagrams/libvpsc/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/live_effects/lpe-dashed-stroke.cpp, src/live_effects/lpe-jointype.cpp, src/live_effects/lpe-sketch.cpp, src/live_effects/lpe-interpolate.cpp, src/live_effects/lpe-powerstroke.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp, src/libnrtype/Layout-TNG-Scanline-Makers.cpp
+# Upstream: src/3rdparty/2geom, src/3rdparty/adaptagrams/libavoid/, src/3rdparty/adaptagrams/libvpsc/, src/livarot/, src/path/path-boolop.cpp, src/helper/geom-nodesatellite.cpp, src/live_effects/spiro.cpp, src/live_effects/spiro-converters.cpp, src/live_effects/lpe-dashed-stroke.cpp, src/live_effects/lpe-jointype.cpp, src/live_effects/lpe-sketch.cpp, src/live_effects/lpe-interpolate.cpp, src/live_effects/lpe-powerstroke.cpp, src/live_effects/lpe-embrodery-stitch-ordering.cpp, src/svg/stringstream.cpp, src/svg/strip-trailing-zeros.cpp, src/helper/geom-pathstroke.cpp, src/helper/geom.cpp, src/util/treeify.cpp, src/trace/imagemap.cpp, src/trace/filterset.cpp, src/trace/quantize.cpp, src/libnrtype/Layout-TNG-Scanline-Makers.cpp
 # Upstream sources are compiled unchanged; shim/ replaces the few glib calls and the preferences.
 #
 # Needs: emcc (version in ./emscripten-version), Boost headers, curl.
@@ -94,6 +94,8 @@ SRCS="$SRCS $HERE/shim/precision.cpp"
 SRCS="$SRCS $INK/src/helper/geom-nodesatellite.cpp"
 # Spiro splines (Spiro LPE and the Spiro mode of the drawing tools).
 SRCS="$SRCS $INK/src/live_effects/spiro.cpp $INK/src/live_effects/spiro-converters.cpp"
+# The sub-path ordering of the Embroidery stitch LPE (shim/live_effects/effect.h for its header).
+SRCS="$SRCS $INK/src/live_effects/lpe-embrodery-stitch-ordering.cpp"
 # The filters and color quantization of Trace Bitmap and the paint bucket (shim/gdkmm for their headers).
 SRCS="$SRCS $INK/src/trace/imagemap.cpp $INK/src/trace/filterset.cpp $INK/src/trace/quantize.cpp"
 # The scanline maker of flowed text (libnrtype; shim/pango and shim/sigc++ for its header).
@@ -115,7 +117,7 @@ OBJS=""
 for s in $SRCS; do OBJS="$OBJS $(obj "$s")"; done
 mkdir -p dist
 # shellcheck disable=SC2086
-em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/lpe-convert.cpp bindings/lpe-generate.cpp bindings/lpe-powerstroke.cpp bindings/paths.cpp bindings/avoid.cpp bindings/trace.cpp bindings/text-layout.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
+em++ $FLAGS -lembind bindings/geom.cpp bindings/lpe.cpp bindings/lpe-convert.cpp bindings/lpe-generate.cpp bindings/lpe-powerstroke.cpp bindings/lpe-pwd2.cpp bindings/paths.cpp bindings/avoid.cpp bindings/trace.cpp bindings/text-layout.cpp $OBJS "$P/lib/libpotrace.a" "$P/lib/libgsl.a" "$P/lib/libgslcblas.a" "$P/lib/libdouble-conversion.a" \
     -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
     --emit-tsd geom-module.d.mts -o dist/geom-module.mjs
 git -C "$INK" rev-parse HEAD > dist/upstream-commit

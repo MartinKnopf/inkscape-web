@@ -91,6 +91,97 @@ export interface Geom {
     tgtscale: number,
     tgtlength: number,
   ): string;
+  /** lpe-test-doEffect-stack.cpp: Effect::doEffect_path with a doEffect_pwd2 that returns its input. */
+  identityPwd2Path(d: string): string;
+  /** lpe-recursiveskeleton.cpp doEffect_pwd2 (all paths of d concatenated). */
+  recursiveSkeletonPath(d: string, iterations: number): string;
+  /** lpe-extrude.cpp doEffect_pwd2 of each path of d. */
+  extrudePath(d: string, vector: readonly [number, number]): string;
+  /** lpe-gears.cpp doEffect_path. */
+  gearsPath(d: string, teeth: number, phi: number, minRadius: number): string;
+  /**
+   * lpe-lattice.cpp doEffect_pwd2 of each path of d. handles are the 16 grid points [x0, y0, ...];
+   * bbox is [x0, x1, y0, y1].
+   */
+  latticePath(d: string, handles: readonly number[], bbox: readonly [number, number, number, number]): string;
+  /** lpe-lattice2.cpp doEffect_pwd2: as latticePath with 36 grid points (shared points repeated). */
+  lattice2Path(
+    d: string,
+    handles: readonly number[],
+    bbox: readonly [number, number, number, number],
+  ): string;
+  /**
+   * lpe-rough-hatches.cpp doEffect_pwd2 of each path of d. rnd(k) is the next random number of the
+   * k-th RandomParam (dist_rdm, top/bot_edge_variation, top/bot_tgt_variation, top/bot_smth_variation),
+   * values[k] its value. direction is [ox, oy, vx, vy], bender is [vx, vy].
+   */
+  roughHatchesPath(
+    d: string,
+    rnd: (k: number) => number,
+    values: readonly number[],
+    params: {
+      growth: number;
+      scale_tf: number;
+      scale_tb: number;
+      scale_bf: number;
+      scale_bb: number;
+      fat_output: boolean;
+      do_bend: boolean;
+      stroke_width_top: number;
+      stroke_width_bot: number;
+      front_thickness: number;
+      back_thickness: number;
+      direction: readonly [number, number, number, number];
+      bender: readonly [number, number];
+    },
+  ): string;
+  /** lpe-dynastroke.cpp doEffect_pwd2 of each path of d. method and caps are the upstream enums. */
+  dynastrokePath(
+    d: string,
+    method: number,
+    width: number,
+    roundness: number,
+    angle: number,
+    startCap: number,
+    endCap: number,
+    growfor: number,
+    fadefor: number,
+  ): string;
+  /** lpe-knot.cpp CrossingPoints(gpaths).to_vector(): 9 numbers per crossing (x, y, i, j, ni, nj, ti, tj, sign). */
+  knotCrossings(gpaths: string): number[];
+  /** lpe-knot.cpp doEffect_path: the visible pieces of the path i0 of gpaths. */
+  knotComponent(
+    gpaths: string,
+    i0: number,
+    crossings: readonly number[],
+    widths: readonly number[],
+    params: {
+      interruption_width: number;
+      prop_to_stroke_width: boolean;
+      both: boolean;
+      inverse_width: boolean;
+      add_stroke_width: boolean;
+      add_other_stroke_width: boolean;
+    },
+  ): string;
+  /** lpe-embrodery-stitch.cpp doEffect_path. ordering and connection are the upstream enums. */
+  embroderyStitchPath(
+    d: string,
+    params: {
+      ordering: number;
+      connection: number;
+      stitch_length: number;
+      stitch_min_length: number;
+      stitch_pattern: number;
+      show_stitches: boolean;
+      show_stitch_gap: number;
+      jump_if_longer: number;
+    },
+  ): string;
+  /** Geom::Curve::pointAndDerivatives(t, n) of the first curve of d: [x, y, dx, dy, ...]. */
+  curvePointAndDerivatives(d: string, t: number, n: number): number[];
+  /** Geom::Path::nearestTime(p).asFlatTime() of the first path of d. */
+  pathNearestFlatTime(d: string, x: number, y: number): number;
   /**
    * The Power stroke outline of the first path of d (lpe-powerstroke.cpp doEffect_path loop body).
    * ts is [x0, y0, ...]: the width points of the subpath, x relative to its start, y scaled.
@@ -500,6 +591,21 @@ export async function loadGeom(options?: {
         tgtscale,
         tgtlength,
       ),
+    identityPwd2Path: (d) => m.identityPwd2Path(d),
+    recursiveSkeletonPath: (d, iterations) => m.recursiveSkeletonPath(d, iterations),
+    extrudePath: (d, [vx, vy]) => m.extrudePath(d, vx, vy),
+    gearsPath: (d, teeth, phi, minRadius) => m.gearsPath(d, teeth, phi, minRadius),
+    latticePath: (d, handles, [x0, x1, y0, y1]) => m.latticePath(d, handles, x0, x1, y0, y1),
+    lattice2Path: (d, handles, [x0, x1, y0, y1]) => m.lattice2Path(d, handles, x0, x1, y0, y1),
+    roughHatchesPath: (d, rnd, values, params) => m.roughHatchesPath(d, rnd, values, params),
+    dynastrokePath: (d, method, width, roundness, angle, startCap, endCap, growfor, fadefor) =>
+      m.dynastrokePath(d, method, width, roundness, angle, startCap, endCap, growfor, fadefor),
+    knotCrossings: (gpaths) => m.knotCrossings(gpaths) as number[],
+    knotComponent: (gpaths, i0, crossings, widths, params) =>
+      m.knotComponent(gpaths, i0, crossings, widths, params),
+    embroderyStitchPath: (d, params) => m.embroderyStitchPath(d, params),
+    curvePointAndDerivatives: (d, t, n) => m.curvePointAndDerivatives(d, t, n) as number[],
+    pathNearestFlatTime: (d, x, y) => m.pathNearestFlatTime(d, x, y),
     powerstrokePath: (d, ts, legacy, sortPoints, interpolator, beta, startCap, endCap, join, miterLimit) =>
       m.powerstrokePath(d, ts, legacy, sortPoints, interpolator, beta, startCap, endCap, join, miterLimit),
     halfOutline: (d, width, miter, join) => m.halfOutline(d, width, miter, join),
