@@ -5,25 +5,31 @@ import { CanvasGrid, SPDesktop } from '@inkscape-web/editor';
 import { DockviewDefaultTab, type IDockviewPanelHeaderProps, type IDockviewPanelProps } from 'dockview-react';
 import { useEffect, useRef } from 'react';
 import { document_close, getDocumentWindow, registerDesktop } from './documents.ts';
+import { useLayout } from './layout.ts';
 
 /** The canvas of the document that the panel (see openDocumentWindow) shows. */
 export function DrawingPanel({ api }: IDockviewPanelProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const grid_ref = useRef<CanvasGrid | null>(null);
+  const rulers = useLayout().bars.rulers;
   useEffect(() => {
     const host = ref.current;
     const win = getDocumentWindow(api.id);
     if (!host || !win) return;
     const grid = new CanvasGrid(host);
+    grid_ref.current = grid;
     const desktop = new SPDesktop(grid.canvas, win.doc);
     grid.set_desktop(desktop);
     desktop.schedule_zoom_from_document();
     registerDesktop(api.id, desktop);
     return () => {
+      grid_ref.current = null;
       registerDesktop(api.id, null);
       desktop.destroy();
       grid.destroy();
     };
   }, [api.id]);
+  useEffect(() => grid_ref.current?.ShowRulers(rulers), [rulers]);
   return <div className="drawing" ref={ref} />;
 }
 
