@@ -385,7 +385,7 @@ iobj() { echo "$ICU_OBJ/$(basename "$(dirname "$1")")_$(basename "$1" .cpp).o"; 
 for s in $ICU_SRCS; do
     o=$(iobj "$s")
     [ "$o" -nt "$s" ] || echo "$s $o"
-done | xargs -P "$JOBS" -n 2 sh -c 'em++ $ICU_FLAGS -c "$0" -o "$1"'
+done | xargs -r -P "$JOBS" -n 2 sh -c 'em++ $ICU_FLAGS -c "$0" -o "$1"'
 [ "$ICU_OBJ/icudt77l_dat.o" -nt "$RV/icudt77l_dat.c" ] || emcc -O2 -I"$ICU/common" -c "$RV/icudt77l_dat.c" -o "$ICU_OBJ/icudt77l_dat.o"
 ICU_OBJS="$ICU_OBJ/icudt77l_dat.o"
 for s in $ICU_SRCS; do ICU_OBJS="$ICU_OBJS $(iobj "$s")"; done
@@ -429,7 +429,7 @@ robj() { local lib=${1#"$B"/vendor/}; echo "$REVENGE_OBJ/${lib%%/*}_$(basename "
 for s in $REVENGE_SRCS; do
     o=$(robj "$s")
     [ "$o" -nt "$s" ] || echo "$s $o"
-done | xargs -P "$JOBS" -n 2 sh -c 'em++ $REVENGE_FLAGS -c "$0" -o "$1"'
+done | xargs -r -P "$JOBS" -n 2 sh -c 'em++ $REVENGE_FLAGS -c "$0" -o "$1"'
 REVENGE_OBJS=""
 for s in $REVENGE_SRCS; do REVENGE_OBJS="$REVENGE_OBJS $(robj "$s")"; done
 
