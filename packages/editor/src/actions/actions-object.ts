@@ -16,6 +16,7 @@ import {
   type Selection,
   type SPDocument,
   SPLPEItem,
+  SPStar,
   sp_inverse_powermask,
   sp_remove_powermask,
   spReprCssAttr,
@@ -27,6 +28,7 @@ import {
 } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 import { show_output } from './actions-helper.ts';
+import type { ActionHintRawData } from './actions-hint-data.ts';
 
 const SECTION = NC_('Action Section', 'Object');
 
@@ -124,6 +126,18 @@ export const raw_data_object: readonly (readonly [string, string, string, string
     N_('Remove the property from selected objects; usage: object-remove-property:property name;'),
   ],
   ['app.object-unlink-clones', N_('Unlink Clones'), SECTION, N_('Unlink clones and symbols')],
+  [
+    'app.object-star-turn-upright',
+    N_('Turn Stars/Polygons Upright'),
+    SECTION,
+    N_('Turn stars and polygons upright'),
+  ],
+];
+
+/** What to enter for the parameter of an action (shown by the command palette). */
+export const hint_data_object: ActionHintRawData = [
+  ['app.object-set-attribute', N_('Enter comma-separated string for attribute name, attribute value')],
+  ['app.object-set-property', N_('Enter comma-separated string for property name, property value')],
 ];
 
 function should_remove_original(): boolean {
@@ -272,5 +286,26 @@ export function add_actions_object(app: InkscapeApplication): void {
     }
     DocumentUndo.done(doc, 'ActionObjectSetProperty', '');
   });
+  app.actions.app.add_action('object-star-turn-upright', () => {
+    const selection = app.get_active_selection();
+    const doc = app.get_active_document();
+    if (!selection || selection.isEmpty() || !doc) {
+      show_output('action:object_star_turn_upright: selection empty!');
+      return;
+    }
+    let has_stars = false;
+    for (const obj of selection.objects()) {
+      if (obj instanceof SPStar) {
+        has_stars = true;
+        obj.turn_upright();
+      }
+    }
+    if (!has_stars) {
+      show_output('action:objects_star_turn_upright: no SPStar in selection!');
+      return;
+    }
+    DocumentUndo.done(doc, C_('Undo', 'Turn stars upright'), 'object-level');
+  });
   app.get_action_extra_data().add_data(raw_data_object);
+  app.get_action_hint_data().add_data(hint_data_object);
 }

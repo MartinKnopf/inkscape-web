@@ -32,6 +32,7 @@ import {
 import { are_near, type OptRect, Point, type Rect, Translate } from '@inkscape-web/geom';
 import type { InkscapeApplication } from '../inkscape-application.ts';
 import { show_output } from './actions-helper.ts';
+import type { ActionHintRawData } from './actions-hint-data.ts';
 
 enum ObjectAlignTarget {
   LAST,
@@ -529,6 +530,12 @@ const SECTION = NC_('Action Section', 'Object');
 /** Action id, label, section and tooltip of the align actions (untranslated). */
 export const raw_data_object_align: readonly (readonly [string, string, string, string])[] = [
   [
+    'app.object-align-on-canvas',
+    N_('Enable on-canvas alignment'),
+    SECTION,
+    N_('Enable on-canvas alignment handles'),
+  ],
+  [
     'app.object-align',
     N_('Align objects'),
     SECTION,
@@ -584,6 +591,25 @@ export const raw_data_object_align: readonly (readonly [string, string, string, 
   ],
 ];
 
+/** What to enter for the parameter of an action (shown by the command palette). */
+export const hint_data_object_align: ActionHintRawData = [
+  [
+    'app.object-align',
+    N_(
+      'Enter anchor<space>alignment<space>optional second alignment. Possible anchors: last, first, biggest, smallest, page, drawing, selection, pref; possible alignments: left, hcenter, right, top, vcenter, bottom.',
+    ),
+  ],
+  [
+    'app.object-distribute',
+    N_('Enter distribution type. Possible values: left, hcenter, right, top, vcenter, bottom, hgap, vgap.'),
+  ],
+  [
+    'app.object-rearrange',
+    N_('Enter arrange method. Possible values: graph, exchange, exchangez, rotate, randomize, unclump.'),
+  ],
+  ['app.object-remove-overlaps', N_('Enter two comma-separated numbers: horizontal,vertical')],
+];
+
 /** Register app.object-align, app.object-distribute and their text variants (string parameter). */
 export function add_actions_object_align(app: InkscapeApplication): void {
   for (const [name, run] of Object.entries(object_align_actions)) {
@@ -592,5 +618,16 @@ export function add_actions_object_align(app: InkscapeApplication): void {
       if (selection) run(selection, value);
     });
   }
+  // Toggle the on-canvas alignment handles of the selector tool (the click on the selection shows them).
+  const on_canvas = app.actions.app.add_action_bool(
+    'object-align-on-canvas',
+    () => {
+      const state = !(on_canvas.get_state() ?? false);
+      on_canvas.change_state(state);
+      Preferences.get().setBool('/dialogs/align/oncanvas', state);
+    },
+    Preferences.get().getBool('/dialogs/align/oncanvas'),
+  );
   app.get_action_extra_data().add_data(raw_data_object_align);
+  app.get_action_hint_data().add_data(hint_data_object_align);
 }

@@ -7,6 +7,7 @@
  */
 import { C_, DocumentUndo, N_, NC_, Preferences } from '@inkscape-web/core';
 import type { InkscapeApplication } from '../inkscape-application.ts';
+import type { ActionHintRawData } from './actions-hint-data.ts';
 
 const SECTION = NC_('Action Section', 'Transform');
 
@@ -66,6 +67,24 @@ export const raw_data_transform: readonly (readonly [string, string, string, str
     N_('Reapply the last transformation to the selection'),
   ],
   ['app.page-rotate', N_('Rotate Page 90°'), SECTION, N_('Rotate page by 90-degree rotation steps')],
+];
+
+/** What to enter for the parameter of an action (shown by the command palette). */
+export const hint_data_transform: ActionHintRawData = [
+  ['app.transform-translate', N_('Enter two comma-separated numbers, e.g. 50,-2.5')],
+  ['app.transform-rotate', N_('Enter angle (in degrees) for clockwise rotation')],
+  ['app.transform-scale', N_('Enter scaling factor, e.g. 1.5')],
+  ['app.transform-grow', N_('Enter positive or negative number to grow/shrink selection')],
+  [
+    'app.transform-grow-step',
+    N_('Enter positive or negative number to grow or shrink selection relative to preference step value'),
+  ],
+  // Upstream has the "app." prefix, although the action is win.transform-grow-screen.
+  [
+    'app.transform-grow-screen',
+    N_('Enter positive or negative number to grow or shrink selection relative to zoom level'),
+  ],
+  ['app.page-rotate', N_('Enter number of 90-degree rotation steps')],
 ];
 
 /** The window actions of upstream add_actions_transform(InkscapeWindow*): they need the zoom. */
@@ -131,4 +150,5 @@ export function add_actions_transform(app: InkscapeApplication): void {
   });
   add_actions_transform_window(app);
   app.get_action_extra_data().add_data(raw_data_transform);
+  app.get_action_hint_data().add_data(hint_data_transform);
 }

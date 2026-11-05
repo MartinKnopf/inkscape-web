@@ -55,3 +55,48 @@ describe('object attribute and property actions', () => {
     expect(run('app.object-get-attribute("id")')[0]).toContain('selection empty');
   });
 });
+
+describe('app.object-star-turn-upright', () => {
+  const STAR =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" ' +
+    'xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="200" height="200">' +
+    '<path id="s" sodipodi:type="star" sodipodi:cx="100" sodipodi:cy="100" sodipodi:r1="40" sodipodi:r2="20" ' +
+    'sodipodi:arg1="1" sodipodi:arg2="1.6" sodipodi:sides="5" inkscape:flatsided="false" transform="rotate(30,100,100)"/>' +
+    '<rect id="r" width="10" height="10"/></svg>';
+
+  it('puts the first point at the top, keeps the angle between the radii and removes the rotation', () => {
+    const s = setupDesktop(STAR, 'Select');
+    const app = InkscapeApplication.instance();
+    app.set_active_desktop(s.dt);
+    s.dt.getSelection().setList([s.item('s'), s.item('r')]);
+    expect(app.activate_action('app.object-star-turn-upright')).toBe(true);
+    const star = s.item('s');
+    expect(Number(star.getAttribute('sodipodi:arg1'))).toBeCloseTo(-Math.PI / 2, 6);
+    expect(Number(star.getAttribute('sodipodi:arg2'))).toBeCloseTo(-Math.PI / 2 + 0.6, 6);
+    const m = star.transform;
+    expect(Math.atan2(m.c1, m.c0)).toBeCloseTo(0, 6);
+    expect(s.undoSteps().at(-1)).toBe('Turn stars upright');
+  });
+
+  it('an even number of sides starts half a side before the top', () => {
+    const s = setupDesktop(STAR.replace('sodipodi:sides="5"', 'sodipodi:sides="6"'), 'Select');
+    const app = InkscapeApplication.instance();
+    app.set_active_desktop(s.dt);
+    s.dt.getSelection().set(s.item('s'));
+    app.activate_action('app.object-star-turn-upright');
+    expect(Number(s.item('s').getAttribute('sodipodi:arg1'))).toBeCloseTo(-Math.PI / 2 - Math.PI / 6, 6);
+  });
+
+  it('says when there is no star', () => {
+    const s = setupDesktop(STAR, 'Select');
+    const app = InkscapeApplication.instance();
+    app.set_active_desktop(s.dt);
+    s.dt.getSelection().set(s.item('r'));
+    const lines: string[] = [];
+    const off = output_signal.connect((l) => lines.push(l));
+    app.activate_action('app.object-star-turn-upright');
+    off();
+    expect(lines).toEqual(['action:objects_star_turn_upright: no SPStar in selection!']);
+    expect(s.undoSteps()).toEqual([]);
+  });
+});

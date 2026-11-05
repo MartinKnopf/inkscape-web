@@ -2,6 +2,7 @@
 // Upstream: src/actions/actions-object-align.cpp
 import { ObjectSet, Preferences, SPDocument, type SPItem, type SPText } from '@inkscape-web/core';
 import { describe, expect, it } from 'vitest';
+import { InkscapeApplication } from '../inkscape-application.ts';
 import { useWasmBackend } from '../ui/tools/tool-test-utils.ts';
 import {
   object_align,
@@ -212,5 +213,20 @@ describe('text alignment', () => {
     object_distribute_text(set, 'horizontal');
     expect([anchor('t1')[0], anchor('t2')[0], anchor('t3')[0]]).toEqual([10, 55, 100]);
     expect(undo()).toEqual(['Distribute']);
+  });
+});
+
+describe('app.object-align-on-canvas', () => {
+  it('toggles the preference of the on-canvas alignment handles', () => {
+    const app = InkscapeApplication.instance();
+    const prefs = Preferences.get();
+    prefs.setBool('/dialogs/align/oncanvas', false);
+    const action = app.actions.app.lookup_action('object-align-on-canvas');
+    action?.change_state(false);
+    expect(app.activate_action('app.object-align-on-canvas')).toBe(true);
+    expect(action?.get_state()).toBe(true);
+    expect(prefs.getBool('/dialogs/align/oncanvas')).toBe(true);
+    app.activate_action('app.object-align-on-canvas');
+    expect(prefs.getBool('/dialogs/align/oncanvas')).toBe(false);
   });
 });
