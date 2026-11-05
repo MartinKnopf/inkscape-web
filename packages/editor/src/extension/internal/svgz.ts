@@ -19,18 +19,18 @@ export const SP_MODULE_KEY_INPUT_SVGZ = 'org.inkscape.input.svgz';
 export const SP_MODULE_KEY_OUTPUT_SVGZ = 'org.inkscape.output.svgz.plain';
 export const SP_MODULE_KEY_OUTPUT_SVGZ_INKSCAPE = 'org.inkscape.output.svgz.inkscape';
 
-async function pipe(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStream | DecompressionStream) {
-  const out = new Response(new Blob([bytes]).stream().pipeThrough(stream));
+async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream) {
+  const out = new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(stream));
   return new Uint8Array(await out.arrayBuffer());
 }
 
 /** Compress bytes with gzip (upstream GzipOutputStream). */
-export function gzip(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
+export function gzip(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
   return pipe(bytes, new CompressionStream('gzip'));
 }
 
 /** Decompress gzip bytes (upstream GzipInputStream). */
-export function gunzip(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
+export function gunzip(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
   return pipe(bytes, new DecompressionStream('gzip'));
 }
 
