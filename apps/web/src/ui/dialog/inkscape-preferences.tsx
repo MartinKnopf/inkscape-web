@@ -643,6 +643,19 @@ const Steps = () => (
   </>
 );
 
+const Lpe = () => (
+  <>
+    <PrefHeader text={_('General')} />
+    <PrefCheckButton
+      label={_('Show experimental effects')}
+      path="/dialogs/livepatheffect/showexperimental"
+      def={false}
+      indent
+      tip={_('Show experimental effects')}
+    />
+  </>
+);
+
 const Clones = () => (
   <>
     <PrefHeader text={_('Moving original: clones and linked offsets')} />
@@ -940,7 +953,7 @@ function pages(): Page[] {
         { id: 'behavior-masks', title: _('Clippaths and masks'), content: Masks },
         { id: 'behavior-clipboard', title: _('Clipboard'), content: Clipboard },
         { id: 'behavior-cleanup', title: _('Cleanup'), content: Cleanup },
-        { id: 'behavior-lpe', title: _('Live Path Effects (LPE)') },
+        { id: 'behavior-lpe', title: _('Live Path Effects (LPE)'), content: Lpe },
       ],
     },
     {
