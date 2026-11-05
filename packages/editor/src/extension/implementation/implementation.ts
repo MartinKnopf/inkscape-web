@@ -38,6 +38,18 @@ export class Implementation {
   async save(_module: Output, _doc: SPDocument, _name: string): Promise<Uint8Array | null> {
     return null;
   }
+  /**
+   * Write a raster export (upstream export_raster): png is the PNG file that the export made;
+   * the file data of the output format, or null if it fails.
+   */
+  async export_raster(
+    _module: Output,
+    _doc: SPDocument,
+    _png: Uint8Array,
+    _name: string,
+  ): Promise<Uint8Array | null> {
+    return null;
+  }
   /** Change the document of desktop (or document without a desktop). */
   async effect(
     _module: Effect,

@@ -61,4 +61,15 @@ export class Output extends Extension {
     this.extra_files = [];
     return this.imp.save(this, doc, name);
   }
+
+  /**
+   * Write the PNG export png as the raster format of this output (upstream export_raster); the
+   * file data, or null if it fails.
+   */
+  async export_raster(doc: SPDocument, png: Uint8Array, name: string): Promise<Uint8Array | null> {
+    if (!this.loaded()) this.set_state(ExtensionState.STATE_LOADED);
+    if (!this.loaded()) return null;
+    this.extra_files = [];
+    return this.imp.export_raster(this, doc, png, name);
+  }
 }
