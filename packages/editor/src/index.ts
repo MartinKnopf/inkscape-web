@@ -71,6 +71,7 @@ export * from './extension/internal/filter/filter.ts';
 export * from './extension/internal/filter/filter-file.ts';
 export * from './extension/internal/gimpgrad.ts';
 export * from './extension/internal/grid.ts';
+export * from './extension/internal/odf.ts';
 export * from './extension/internal/pdfinput/pdf-input.ts';
 export * from './extension/internal/svgz.ts';
 export * from './extension/output.ts';
