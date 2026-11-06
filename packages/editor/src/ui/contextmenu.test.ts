@@ -133,6 +133,38 @@ describe('items below the cursor', () => {
   it('a locked item in a hidden group is below the cursor', () => {
     expect(menuAt(270, 70)).toContain('Unlock Objects Below Cursor');
   });
+  it('the stroke counts in the coordinates of the shape; a shape without paint is not below the cursor', () => {
+    const at = (svg: string, x: number, y: number) => {
+      const t = setupDesktop(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300">${svg}</svg>`,
+        'Select',
+      );
+      mockHitTest();
+      shown = [];
+      rightPress(t.svg, x, y);
+      return labels(shown[0]!.menu.entries).includes('Unhide Objects Below Cursor');
+    };
+    // The stroke is 10 wide in the path's coordinates, 100 wide on the canvas (x 450 to 550).
+    const wide =
+      '<path d="M 50 20 V 30" transform="scale(10,1)" style="display:none;fill:none;stroke:#000;stroke-width:10"/>';
+    expect(at(wide, 530, 25)).toBe(true);
+    expect(at(wide, 600, 25)).toBe(false);
+    const unpainted = '<circle cx="100" cy="100" r="50" style="display:none;fill:none;stroke:none"/>';
+    expect(at(unpainted, 149.5, 100)).toBe(false);
+  });
+
+  it('a hidden shape with markers is below the cursor in its bounding box, which includes the markers', () => {
+    const t = setupDesktop(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><defs>' +
+        '<marker id="m" markerUnits="userSpaceOnUse" markerWidth="40" markerHeight="40" refX="0" refY="0" overflow="visible">' +
+        '<rect width="40" height="40"/></marker></defs>' +
+        '<path d="M 10 50 H 100" style="display:none;fill:none;stroke:#000;stroke-width:2;marker-end:url(#m)"/></svg>',
+      'Select',
+    );
+    mockHitTest();
+    rightPress(t.svg, 120, 70);
+    expect(labels(shown[0]!.menu.entries)).toContain('Unhide Objects Below Cursor');
+  });
 });
 
 describe('page context menu', () => {

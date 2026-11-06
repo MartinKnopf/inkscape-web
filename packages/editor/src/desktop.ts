@@ -1257,10 +1257,13 @@ export function sp_namedview_document_from_window(desktop: SPDesktop): void {
   });
 }
 
-/** Whether the item is at p (document coordinates), see SPDesktop.#hiddenItemsAt(). */
+/**
+ * Whether the item is at p (document coordinates), see SPDesktop.#hiddenItemsAt(). A shape is
+ * at p when p is in its fill or on its stroke; a shape with markers, and any other item, when p
+ * is in its visual bounding box (which includes the markers).
+ */
 function hiddenItemContains(item: SPItem, p: Point): boolean {
-  if (!item.documentVisualBounds()?.contains(p)) return false;
-  if (!(item instanceof SPShape)) return true;
+  if (!(item instanceof SPShape) || item.hasMarkers()) return !!item.documentVisualBounds()?.contains(p);
   const curve = item.curve();
   if (!curve) return false;
   const i2doc = item.i2docAffine();
@@ -1271,9 +1274,14 @@ function hiddenItemContains(item: SPItem, p: Point): boolean {
     if (style.fill_rule.computed === SPWindRule.SP_WIND_RULE_EVENODD ? wind % 2 !== 0 : wind !== 0)
       return true;
   }
-  // On the stroke: nearer to the outline than half the stroke width (at least 1 px).
+  if (style.stroke.isNone()) return false;
+  // On the stroke: nearer to the outline than half the stroke width (in the item's coordinates),
+  // or than 1 px.
   const t = pathv_nearest_time(curve, local);
   if (!t) return false;
-  const half = style.stroke.isNone() ? 0 : (style.stroke_width.computed * i2doc.descrim()) / 2;
-  return pathv_point_at(curve, t).transformed(i2doc).sub(p).length() <= Math.max(half, 1);
+  const nearest = pathv_point_at(curve, t);
+  return (
+    nearest.sub(local).length() <= style.stroke_width.computed / 2 ||
+    nearest.transformed(i2doc).sub(p).length() <= 1
+  );
 }
