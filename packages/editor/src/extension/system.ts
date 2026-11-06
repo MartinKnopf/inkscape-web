@@ -24,13 +24,14 @@ import { Script } from './implementation/script.ts';
 import { Input } from './input.ts';
 import { Output } from './output.ts';
 import { INKSCAPE_EXTENSION_NS, INKSCAPE_EXTENSION_URI } from './prefdialog/widget.ts';
+import { Print } from './print.ts';
 import { Template } from './template.ts';
 
 /**
  * Build an extension from an .inx document and register it (upstream build_from_reprdoc).
  * Returns the extension, or null if it is not valid, not compatible or has no implementation
  * in the browser (XSLT and plugins).
- * TODO: print and path effect extensions, XSLT.
+ * TODO: path effect extensions, XSLT.
  */
 export function build_from_reprdoc(
   doc: XmlDocument,
@@ -46,7 +47,7 @@ export function build_from_reprdoc(
     return null;
   }
 
-  let functional: 'input' | 'output' | 'effect' | 'template' | 'other' = 'other';
+  let functional: 'input' | 'output' | 'effect' | 'template' | 'print' | 'other' = 'other';
   let implementation: 'script' | 'xslt' | 'plugin' | 'unknown' = 'unknown';
   for (const child_repr of repr.children()) {
     switch (child_repr.name()) {
@@ -61,6 +62,9 @@ export function build_from_reprdoc(
         break;
       case `${INKSCAPE_EXTENSION_NS}template`:
         functional = 'template';
+        break;
+      case `${INKSCAPE_EXTENSION_NS}print`:
+        functional = 'print';
         break;
       case `${INKSCAPE_EXTENSION_NS}script`:
         implementation = 'script';
@@ -92,8 +96,11 @@ export function build_from_reprdoc(
       case 'template':
         module = new Template(repr, imp, baseDir);
         break;
+      case 'print':
+        module = new Print(repr, imp, baseDir);
+        break;
       default:
-        return null; // TODO: print, path effects
+        return null; // TODO: path effects
     }
   } catch (e) {
     if (!(e instanceof Error && e.message === 'extension_not_compatible'))

@@ -64,3 +64,17 @@ Loaded only for the CorelDRAW, Visio and WordPerfect Graphics import.
 
 The bindings (`bindings/revenge.cpp`) are GPL-2.0-or-later. `build.sh` copies the license files
 into `dist/licenses/`.
+# Third-party code in uemf-module.wasm
+
+Loaded only to open, import or save EMF and WMF files.
+
+| Component | Source | License |
+|---|---|---|
+| libUEMF | upstream `src/3rdparty/libuemf` (git submodule) | GPL-2.0-or-later |
+| Inkscape (`src/extension/internal/emf-inout.cpp`, `wmf-inout.cpp`, `metafile-inout.cpp`, `text_reassemble.c`, `src/util-string/symbol-convert.c`, `src/svg`) | upstream checkout | GPL-2.0-or-later |
+| lib2geom, livarot (shared with geom-module) | upstream checkout | see above |
+| FreeType, libpng, zlib | Emscripten ports | FTL or GPL-2.0, libpng, Zlib |
+| GNU Scientific Library, double-conversion (linked with lib2geom) | see geom-module | see above |
+
+The text of the import is measured with the DejaVu fonts of `dist/fonts`. `build.sh`
+copies the libUEMF license file into `dist/licenses/`.

@@ -19,6 +19,7 @@ import {
   CairoPsOutput,
   CairoRendererPdfOutput,
   CdrInput,
+  Emf,
   ExecutionEnv,
   type Extension,
   Gif,
@@ -32,6 +33,7 @@ import {
   Script,
   Svg,
   Svgz,
+  setUemfBackendLoader,
   TemplateFromFile,
   TemplateOther,
   TemplatePaper,
@@ -39,6 +41,7 @@ import {
   TemplateSocial,
   TemplateVideo,
   VsdInput,
+  Wmf,
   WpgInput,
 } from '@inkscape-web/editor';
 import { load_template_files } from '../app/templates.ts';
@@ -77,6 +80,10 @@ export async function load_extensions(): Promise<Extension[]> {
   OdfOutput.init();
   LatexOutput.init();
   Gif.init();
+  // EMF and WMF: libuemf and the upstream import in their own WASM module, loaded on first use.
+  setUemfBackendLoader(() => import('@inkscape-web/wasm/uemf').then((m) => m.loadUemf()));
+  Emf.init();
+  Wmf.init();
   // Effects
   BlurEdge.init();
   GimpGrad.init();

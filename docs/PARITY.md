@@ -9,7 +9,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Dialogs | 29 | 29 | 100 |
 | Actions | 408 | 409 | 100 |
 | Live path effects | 56 | 56 | 100 |
-| Internal import/export modules | 29 | 35 | 83 |
+| Internal import/export modules | 35 | 35 | 100 |
 | Python extensions | 157 | 160 | 98 |
 
 <details><summary>Tools (26/26)</summary>
@@ -552,7 +552,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>Internal import/export modules (29/35)</summary>
+<details><summary>Internal import/export modules (35/35)</summary>
 
 - [x] `bluredge.cpp`
 - [x] `cairo-ps-out.cpp`
@@ -560,8 +560,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `cairo-renderer-pdf-out.cpp`
 - [x] `cairo-renderer.cpp`
 - [x] `cdr-input.cpp`
-- [ ] `emf-inout.cpp`
-- [ ] `emf-print.cpp`
+- [x] `emf-inout.cpp`
+- [x] `emf-print.cpp`
 - [x] `gdkpixbuf-input.cpp`
 - [x] `gif.cpp`
 - [x] `gimpgrad.cpp`
@@ -570,8 +570,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `latex-pstricks-out.cpp`
 - [x] `latex-pstricks.cpp`
 - [x] `latex-text-renderer.cpp`
-- [ ] `metafile-inout.cpp`
-- [ ] `metafile-print.cpp`
+- [x] `metafile-inout.cpp`
+- [x] `metafile-print.cpp`
 - [x] `odf.cpp`
 - [x] `png-output.cpp`
 - [x] `pov-out.cpp`
@@ -586,8 +586,8 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `template-social.cpp`
 - [x] `template-video.cpp`
 - [x] `vsd-input.cpp`
-- [ ] `wmf-inout.cpp`
-- [ ] `wmf-print.cpp`
+- [x] `wmf-inout.cpp`
+- [x] `wmf-print.cpp`
 - [x] `wpg-input.cpp`
 
 </details>

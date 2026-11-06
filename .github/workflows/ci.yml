@@ -25,7 +25,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: inkscape
-          key: upstream-${{ steps.upstream.outputs.commit }}
+          key: upstream-${{ steps.upstream.outputs.commit }}-${{ hashFiles('inkscape-web/upstream/scripts/checkout.sh') }}
 
       - name: Check out upstream Inkscape (sync.json commit)
         if: steps.upstream-cache.outputs.cache-hit != 'true'
