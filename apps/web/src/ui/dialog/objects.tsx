@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Upstream: src/ui/dialog/objects.cpp, src/ui/dialog/objects.h
 import { _, type SPItem } from '@inkscape-web/core';
-import { objectRows, selectRow, toggleLocked, toggleVisible } from '@inkscape-web/editor';
+import {
+  objectRows,
+  popupRowContextMenu,
+  selectRow,
+  toggleLocked,
+  toggleVisible,
+} from '@inkscape-web/editor';
+import { Point } from '@inkscape-web/geom';
 import { useState } from 'react';
 import { useActiveDesktop } from '../../app/active-desktop.ts';
 import { objectKey, useReprVersion, useSelectionVersion } from './use-repr.ts';
 
 /**
  * The Layers and Objects dialog (dialog key "Objects"): layers and items,
- * topmost first, with the visibility and lock toggles.
+ * topmost first, with the visibility and lock toggles and the context menu of a row.
  * TODO: drag and drop, search, rename, opacity and blend mode, color tags,
  * the layers-only mode, icons.
  */
@@ -43,6 +50,15 @@ export function ObjectsDialog() {
               aria-expanded={row.hasChildren ? !row.collapsed : undefined}
               className={`tree-row${isSelected ? ' selected' : ''}${isCurrent ? ' current-layer' : ''}${row.hidden ? ' dimmed' : ''}`}
               onClick={(e) => selectRow(desktop, row.item, e.ctrlKey || e.metaKey || e.shiftKey)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                popupRowContextMenu(
+                  desktop,
+                  row.item,
+                  new Point(e.clientX, e.clientY),
+                  e.ctrlKey || e.metaKey || e.shiftKey,
+                );
+              }}
               onKeyDown={(e) => e.key === 'Enter' && selectRow(desktop, row.item, false)}
             >
               <button

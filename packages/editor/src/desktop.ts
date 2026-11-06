@@ -35,8 +35,11 @@ import {
   type SPGuide,
   SPItem,
   type SPNamedView,
+  type SPObject,
   type SPPage,
+  SPShape,
   type SPStop,
+  SPWindRule,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
   spCssAttrUnsetUris,
@@ -46,7 +49,16 @@ import {
   TextParam,
   type Node as XmlNode,
 } from '@inkscape-web/core';
-import { Affine, Point, Rect, Rotate, Scale } from '@inkscape-web/geom';
+import {
+  Affine,
+  PathVector,
+  Point,
+  pathv_nearest_time,
+  pathv_point_at,
+  Rect,
+  Rotate,
+  Scale,
+} from '@inkscape-web/geom';
 import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
 import { CanvasFlip } from './canvas-flip.ts';
 import { sp_dt_guide_event, sp_dt_guide_key_event } from './desktop-events.ts';
@@ -738,14 +750,23 @@ export class SPDesktop {
    * The items at the points (world coordinates, as upstream), each once, in
    * the order found (upstream getItemsAtPoints): groups are entered;
    * topmost_only takes the topmost item at each point; without all_layers
-   * only items in the current layer count; limit 0 is no limit.
+   * only items in the current layer count; limit 0 is no limit. Without
+   * active_only, hidden and locked items count too (see #hiddenItemsAt()).
    */
-  getItemsAtPoints(points: readonly Point[], all_layers = true, topmost_only = true, limit = 0): SPItem[] {
+  getItemsAtPoints(
+    points: readonly Point[],
+    all_layers = true,
+    topmost_only = true,
+    limit = 0,
+    active_only = true,
+  ): SPItem[] {
     const result: SPItem[] = [];
     const current_layer = this.#layerManager.currentLayer();
     const window_origin = this.canvas.get_area_world().min();
     for (const point of points) {
-      const items = this.#pickCandidates(point.sub(window_origin), true);
+      const items = this.#pickCandidates(point.sub(window_origin), true, active_only);
+      if (!active_only)
+        items.push(...this.#hiddenItemsAt(point.transformed(this.w2d()).transformed(this.dt2doc())));
       for (const item of topmost_only ? items.slice(0, 1) : items) {
         if (result.includes(item)) continue;
         if (!all_layers && this.#layerManager.layerForObject(item) !== current_layer) continue;
@@ -757,14 +778,34 @@ export class SPDesktop {
     return result;
   }
 
+  /**
+   * The items of the flat item list (groups entered) that the browser does not draw, because they
+   * or a group above them are hidden, and that are at p (document coordinates): a shape when p
+   * is in its fill or on its stroke, another item when p is in its visual bounding box
+   * (upstream: sticky picking of the drawing).
+   */
+  #hiddenItemsAt(p: Point): SPItem[] {
+    const result: SPItem[] = [];
+    const visit = (o: SPObject, hidden: boolean): void => {
+      for (const child of o.children) {
+        if (!(child instanceof SPItem)) continue;
+        const child_hidden = hidden || child.isHidden();
+        if (child instanceof SPGroup) visit(child, child_hidden);
+        else if (child_hidden && hiddenItemContains(child, p)) result.push(child);
+      }
+    };
+    visit(this.doc.getRoot(), false);
+    return result;
+  }
+
   /** The topmost non-layer group at window point p (upstream getGroupAtPoint). */
   getGroupAtPoint(p: Point): SPItem | null {
     for (const item of this.#pickCandidates(p, false)) if (item instanceof SPGroup) return item;
     return null;
   }
 
-  /** The pickable items at window point p, topmost first (upstream: the flat item list, picked in z-order). */
-  #pickCandidates(p: Point, into_groups: boolean): SPItem[] {
+  /** The pickable items at window point p, topmost first (upstream: the flat item list, picked in z-order). Without active_only, locked items count too. */
+  #pickCandidates(p: Point, into_groups: boolean, active_only = true): SPItem[] {
     const svg = this.canvas.svg;
     const r = svg.getBoundingClientRect();
     const result: SPItem[] = [];
@@ -775,7 +816,7 @@ export class SPDesktop {
       while (di && !di.item()) di = SvgDrawingItem.itemFromElement(di.element.parentElement);
       const hit = di?.item();
       const item = hit ? this.#flatListItem(hit, into_groups) : null;
-      if (item && !result.includes(item) && item.isVisibleAndUnlocked()) result.push(item);
+      if (item && !result.includes(item) && (!active_only || item.isVisibleAndUnlocked())) result.push(item);
     }
     return result;
   }
@@ -1214,4 +1255,37 @@ export function sp_namedview_document_from_window(desktop: SPDesktop): void {
     }
     view.setAttribute('inkscape:current-layer', desktop.layerManager().currentLayer()?.getId() ?? null);
   });
+}
+
+/**
+ * Whether the item is at p (document coordinates), see SPDesktop.#hiddenItemsAt(). A shape is
+ * at p when p is in its fill or on its stroke, and inside the bounding box of its clip and mask;
+ * a shape with markers, and any other item, when p is in its visual bounding box (which includes
+ * the markers).
+ */
+function hiddenItemContains(item: SPItem, p: Point): boolean {
+  if (!(item instanceof SPShape) || item.hasMarkers()) return !!item.documentVisualBounds()?.contains(p);
+  // The visual bounding box is cut by the clip and the mask.
+  if ((item.getClipObject() || item.getMaskObject()) && !item.documentVisualBounds()?.contains(p))
+    return false;
+  const curve = item.curve();
+  if (!curve) return false;
+  const i2doc = item.i2docAffine();
+  const local = p.transformed(i2doc.inverse());
+  const style = item.style;
+  if (!style.fill.isNone()) {
+    const wind = PathVector.winding(curve, local);
+    if (style.fill_rule.computed === SPWindRule.SP_WIND_RULE_EVENODD ? wind % 2 !== 0 : wind !== 0)
+      return true;
+  }
+  if (style.stroke.isNone()) return false;
+  // On the stroke: nearer to the outline than half the stroke width (in the item's coordinates),
+  // or than 1 px.
+  const t = pathv_nearest_time(curve, local);
+  if (!t) return false;
+  const nearest = pathv_point_at(curve, t);
+  return (
+    nearest.sub(local).length() <= style.stroke_width.computed / 2 ||
+    nearest.transformed(i2doc).sub(p).length() <= 1
+  );
 }

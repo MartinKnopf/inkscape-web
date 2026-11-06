@@ -3,7 +3,14 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
 import { InkscapeApplication } from '../inkscape-application.ts';
-import { accel_abbrev, get_from_event, get_label, parse_accelerator, Shortcuts } from './shortcuts.ts';
+import {
+  accel_abbrev,
+  attachActionShortcuts,
+  get_from_event,
+  get_label,
+  parse_accelerator,
+  Shortcuts,
+} from './shortcuts.ts';
 
 const KEYS = `<?xml version="1.0"?>
 <keys name="Test">
@@ -115,5 +122,28 @@ describe('Shortcuts', () => {
     expect(rotate).toHaveBeenCalledWith(-90);
     // Bound, but not registered.
     expect(s.invoke_action(key('f', 'KeyF', { ctrlKey: true }), app)).toBe(false);
+  });
+});
+
+describe('attachActionShortcuts', () => {
+  it('runs the action of a key in the window, but not of a key typed in an open menu', () => {
+    expect(Shortcuts.getInstance().read(KEYS)).toBe(true);
+    const app = new InkscapeApplication();
+    const raise = vi.fn();
+    app.actions.app.add_action('selection-raise', raise);
+    const detach = attachActionShortcuts(app);
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    const item = menu.appendChild(document.createElement('div'));
+    document.body.append(menu);
+    const press = (target: Element) =>
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageUp', code: 'PageUp', bubbles: true }));
+
+    press(item);
+    expect(raise).not.toHaveBeenCalled();
+    press(document.body);
+    expect(raise).toHaveBeenCalledOnce();
+    detach();
+    menu.remove();
   });
 });

@@ -128,23 +128,15 @@ export class FreehandBase extends ToolBase {
     this.blue_bpath = new CanvasItemBpath(desktop.getCanvasControls());
     this.blue_bpath.set_stroke(this.blue_color);
 
-    // The right button finishes the pen path; there is no canvas context menu.
-    this._element.addEventListener('contextmenu', this.#onContextMenu);
-
     this._attachSelection();
   }
 
   override destroy(): void {
     for (const f of this.#disconnect) f();
-    this._element.removeEventListener('contextmenu', this.#onContextMenu);
     this.ungrabCanvasEvents();
     spdc_free_colors(this);
     super.destroy();
   }
-
-  readonly #onContextMenu = (event: Event): void => {
-    if (this._desktop.getTool() === this) event.preventDefault();
-  };
 
   /**
    * The number of presses of a button press: 2 for the second press of a
