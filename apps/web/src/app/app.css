@@ -183,21 +183,11 @@ body,
   white-space: pre-line;
 }
 
-.about-dialog {
-  max-width: 460px;
-}
-
-.about-dialog p {
-  margin: 0;
-}
-
-.about-authors {
-  max-height: 180px;
-  margin: 0;
-  padding: 4px 8px;
-  overflow-y: auto;
-  list-style: none;
-  border: 1px solid #ddd;
+.about-dialog hr {
+  width: 100%;
+  margin: 6px 0;
+  border: none;
+  border-top: 1px solid #ccc;
 }
 
 .statusbar .rotation input {
