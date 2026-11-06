@@ -1259,11 +1259,15 @@ export function sp_namedview_document_from_window(desktop: SPDesktop): void {
 
 /**
  * Whether the item is at p (document coordinates), see SPDesktop.#hiddenItemsAt(). A shape is
- * at p when p is in its fill or on its stroke; a shape with markers, and any other item, when p
- * is in its visual bounding box (which includes the markers).
+ * at p when p is in its fill or on its stroke, and inside the bounding box of its clip and mask;
+ * a shape with markers, and any other item, when p is in its visual bounding box (which includes
+ * the markers).
  */
 function hiddenItemContains(item: SPItem, p: Point): boolean {
   if (!(item instanceof SPShape) || item.hasMarkers()) return !!item.documentVisualBounds()?.contains(p);
+  // The visual bounding box is cut by the clip and the mask.
+  if ((item.getClipObject() || item.getMaskObject()) && !item.documentVisualBounds()?.contains(p))
+    return false;
   const curve = item.curve();
   if (!curve) return false;
   const i2doc = item.i2docAffine();

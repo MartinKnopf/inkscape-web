@@ -133,7 +133,7 @@ describe('items below the cursor', () => {
   it('a locked item in a hidden group is below the cursor', () => {
     expect(menuAt(270, 70)).toContain('Unlock Objects Below Cursor');
   });
-  it('the stroke counts in the coordinates of the shape; a shape without paint is not below the cursor', () => {
+  it('the stroke counts in the coordinates of the shape; unpainted and clipped parts are not below the cursor', () => {
     const at = (svg: string, x: number, y: number) => {
       const t = setupDesktop(
         `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300">${svg}</svg>`,
@@ -151,6 +151,11 @@ describe('items below the cursor', () => {
     expect(at(wide, 600, 25)).toBe(false);
     const unpainted = '<circle cx="100" cy="100" r="50" style="display:none;fill:none;stroke:none"/>';
     expect(at(unpainted, 149.5, 100)).toBe(false);
+    const clipped =
+      '<clipPath id="cp"><rect width="20" height="20"/></clipPath>' +
+      '<rect width="100" height="100" clip-path="url(#cp)" style="display:none"/>';
+    expect(at(clipped, 10, 10)).toBe(true);
+    expect(at(clipped, 80, 80)).toBe(false);
   });
 
   it('a hidden shape with markers is below the cursor in its bounding box, which includes the markers', () => {
