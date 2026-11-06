@@ -78,6 +78,10 @@ function AboutDialog({ onClose }: { onClose: () => void }) {
             '© %1 Inkscape Developers',
           ).replace('%1', String(new Date().getFullYear()))}
           {' · '}
+          <a href="/COPYING" target="_blank" rel="noreferrer" title={_('Inkscape license')}>
+            {_('License')}
+          </a>
+          {' · '}
           <a
             href="https://inkscape.org"
             target="_blank"

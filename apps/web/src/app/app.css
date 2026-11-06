@@ -198,7 +198,6 @@ body,
   overflow-y: auto;
   list-style: none;
   border: 1px solid #ddd;
-  columns: 2;
 }
 
 .statusbar .rotation input {

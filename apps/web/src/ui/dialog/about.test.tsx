@@ -27,6 +27,7 @@ describe('AboutDialogHost', () => {
     const dialog = document.querySelector('.about-dialog')!;
     expect(dialog.textContent).toContain('port of Inkscape');
     expect(dialog.querySelector(`a[href="${REPOSITORY_URL}"]`)).not.toBeNull();
+    expect(dialog.querySelector('a[href="/COPYING"]')).not.toBeNull();
     expect(fetch).toHaveBeenCalledWith('/AUTHORS');
     const names = [...dialog.querySelectorAll('.about-authors li')].map((li) => li.textContent);
     expect(names.sort()).toEqual(['Ada Lovelace', 'Alan Turing']);
