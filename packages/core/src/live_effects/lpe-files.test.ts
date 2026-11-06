@@ -60,7 +60,12 @@ const LAYERS = [
 /**
  * Items that do not match (Inkscape_1_3.svg). The geometry is the same, but path_from_piecewise()
  * and livarot add very short segments (about 1e-5 long) at other places than in the file. This
- * moves the curve indices, so the point checks fail. These are rounding differences.
+ * moves the curve indices, so the point checks fail. These are rounding differences: the WASM
+ * code is upstream code, but its inputs differ from upstream in the last bits (bounding boxes
+ * computed in TypeScript, elliptical arcs sent to WASM as SVG path data). The effects are
+ * that sensitive: a change of 1e-13 in the Envelope Deformation bounding box changes the
+ * number of curves of rect126080. Rough hatches, Offset and Show handles items get their input
+ * from Bend and Envelope, so they inherit these differences.
  */
 const KNOWN_DIFFERENCES = new Set([
   // Envelope Deformation
