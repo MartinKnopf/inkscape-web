@@ -10,6 +10,7 @@ import { PdfImportDialogHost } from '../extension/internal/pdfinput/pdf-input.ts
 import { RvngImportDialogHost } from '../extension/internal/rvng-import-dialog.tsx';
 import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
 import { MenuBar } from '../ui/desktop/menubar.tsx';
+import { AboutDialogHost } from '../ui/dialog/about.tsx';
 import { CommandPaletteHost } from '../ui/dialog/command-palette.tsx';
 import { dialogComponents, setDialogDock } from '../ui/dialog/dialog-manager.ts';
 import { GuidelineDialogHost } from '../ui/dialog/guides.tsx';
@@ -119,6 +120,7 @@ export function App() {
       </div>
       {bars.panels && <ColorPaletteBar />}
       {bars.statusbar && <StatusBar />}
+      <AboutDialogHost />
       <CommandPaletteHost />
       <GuidelineDialogHost />
       <PrefDialogHost />

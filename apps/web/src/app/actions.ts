@@ -5,11 +5,11 @@
 import { _, C_, DocumentUndo, N_, NC_, ngettext, SPDocument } from '@inkscape-web/core';
 import {
   type ActionHintRawData,
-  INKSCAPE_VERSION,
   InkscapeApplication,
   type SPDesktop,
   show_output,
 } from '@inkscape-web/editor';
+import { show_about } from '../ui/dialog/about.tsx';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
 import { load_new_from_template } from '../ui/dialog/new-from-template.tsx';
 import { save_document_as_template } from '../ui/dialog/save-template-dialog.tsx';
@@ -311,15 +311,7 @@ export function add_actions_web(app = InkscapeApplication.instance()): void {
       });
     });
   }
-  apps.add_action('about', () => {
-    void showMessageDialog({
-      title: _('About Inkscape'),
-      message: `Inkscape ${INKSCAPE_VERSION}\n\n${_('Inkscape is a free and open source vector graphics editor.')}\n${_('Released under the GNU General Public License, version 2 or later.')}\nhttps://inkscape.org`,
-      buttons: ok,
-      cancel: 'ok',
-      default: 'ok',
-    });
-  });
+  apps.add_action('about', show_about);
 
   // actions-file-gui.cpp, actions-view-window.cpp
   win.add_action(

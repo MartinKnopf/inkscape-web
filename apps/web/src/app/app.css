@@ -183,6 +183,24 @@ body,
   white-space: pre-line;
 }
 
+.about-dialog {
+  max-width: 460px;
+}
+
+.about-dialog p {
+  margin: 0;
+}
+
+.about-authors {
+  max-height: 180px;
+  margin: 0;
+  padding: 4px 8px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid #ddd;
+  columns: 2;
+}
+
 .statusbar .rotation input {
   width: 4.5em;
 }
