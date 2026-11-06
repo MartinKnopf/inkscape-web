@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!-- A Visio XML drawing with two pages: a rectangle on page 1, a triangle on page 2. -->
+<VisioDocument xmlns="http://schemas.microsoft.com/visio/2003/core">
+  <Pages>
+    <Page ID="0" NameU="Page-1">
+      <PageSheet>
+        <PageProps>
+          <PageWidth Unit="IN">4</PageWidth>
+          <PageHeight Unit="IN">3</PageHeight>
+        </PageProps>
+      </PageSheet>
+      <Shapes>
+        <Shape ID="1" Type="Shape">
+          <XForm>
+            <PinX>2</PinX>
+            <PinY>1.5</PinY>
+            <Width>2</Width>
+            <Height>1</Height>
+            <LocPinX>1</LocPinX>
+            <LocPinY>0.5</LocPinY>
+          </XForm>
+          <Fill>
+            <FillForegnd>#ff0000</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <Geom IX="0">
+            <MoveTo IX="1"><X>0</X><Y>0</Y></MoveTo>
+            <LineTo IX="2"><X>2</X><Y>0</Y></LineTo>
+            <LineTo IX="3"><X>2</X><Y>1</Y></LineTo>
+            <LineTo IX="4"><X>0</X><Y>1</Y></LineTo>
+            <LineTo IX="5"><X>0</X><Y>0</Y></LineTo>
+          </Geom>
+        </Shape>
+      </Shapes>
+    </Page>
+    <Page ID="1" NameU="Page-2">
+      <PageSheet>
+        <PageProps>
+          <PageWidth Unit="IN">2</PageWidth>
+          <PageHeight Unit="IN">2</PageHeight>
+        </PageProps>
+      </PageSheet>
+      <Shapes>
+        <Shape ID="2" Type="Shape">
+          <XForm>
+            <PinX>1</PinX>
+            <PinY>1</PinY>
+            <Width>1</Width>
+            <Height>1</Height>
+            <LocPinX>0.5</LocPinX>
+            <LocPinY>0.5</LocPinY>
+          </XForm>
+          <Fill>
+            <FillForegnd>#0000ff</FillForegnd>
+            <FillPattern>1</FillPattern>
+          </Fill>
+          <Geom IX="0">
+            <MoveTo IX="1"><X>0</X><Y>0</Y></MoveTo>
+            <LineTo IX="2"><X>1</X><Y>0</Y></LineTo>
+            <LineTo IX="3"><X>0.5</X><Y>1</Y></LineTo>
+            <LineTo IX="4"><X>0</X><Y>0</Y></LineTo>
+          </Geom>
+        </Shape>
+      </Shapes>
+    </Page>
+  </Pages>
+</VisioDocument>

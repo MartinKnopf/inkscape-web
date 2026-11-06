@@ -23,7 +23,7 @@ import {
 import { Rect } from '@inkscape-web/geom';
 import type { Extension } from '../../extension.ts';
 import { Implementation } from '../../implementation/implementation.ts';
-import type { Input } from '../../input.ts';
+import { Input } from '../../input.ts';
 import { INKSCAPE_EXTENSION_URI } from '../../prefdialog/widget.ts';
 import { build_from_mem } from '../../system.ts';
 
@@ -315,7 +315,7 @@ export class PdfInput extends Implementation {
       let dlg: PdfImportDialog | null = null;
       if (PdfInput.show_dialog) {
         dlg = new PdfImportDialog(handle, mod);
-        if (!(await PdfInput.show_dialog(dlg))) return null; // upstream throws open_cancelled
+        if (!(await PdfInput.show_dialog(dlg))) throw new Input.open_cancelled();
       }
 
       // Get options

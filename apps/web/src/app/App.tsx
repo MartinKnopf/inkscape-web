@@ -7,6 +7,7 @@ import { DockviewReact, type DockviewReadyEvent, type IDockviewPanelProps } from
 import { useEffect, useSyncExternalStore } from 'react';
 import 'dockview-react/dist/styles/dockview.css';
 import { PdfImportDialogHost } from '../extension/internal/pdfinput/pdf-input.tsx';
+import { RvngImportDialogHost } from '../extension/internal/rvng-import-dialog.tsx';
 import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
 import { MenuBar } from '../ui/desktop/menubar.tsx';
 import { CommandPaletteHost } from '../ui/dialog/command-palette.tsx';
@@ -122,6 +123,7 @@ export function App() {
       <GuidelineDialogHost />
       <PrefDialogHost />
       <PdfImportDialogHost />
+      <RvngImportDialogHost />
       <LayerPropertiesDialogHost />
       <MessageDialogHost />
       <NewFromTemplateHost />

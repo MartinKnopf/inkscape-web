@@ -18,6 +18,7 @@ import {
   CairoEpsOutput,
   CairoPsOutput,
   CairoRendererPdfOutput,
+  CdrInput,
   ExecutionEnv,
   type Extension,
   Gif,
@@ -37,6 +38,8 @@ import {
   TemplateScreen,
   TemplateSocial,
   TemplateVideo,
+  VsdInput,
+  WpgInput,
 } from '@inkscape-web/editor';
 import { load_template_files } from '../app/templates.ts';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
@@ -66,6 +69,9 @@ export async function load_extensions(): Promise<Extension[]> {
   CairoPsOutput.init();
   CairoEpsOutput.init();
   PdfInput.init();
+  CdrInput.init();
+  VsdInput.init();
+  WpgInput.init();
   PngOutput.init();
   PovOutput.init();
   OdfOutput.init();

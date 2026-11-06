@@ -31,8 +31,18 @@ export function read_io_fields(
   return { attrs, fields };
 }
 
+/** Thrown by open() when the user cancels a dialog of the input (upstream Input::open_cancelled). */
+class OpenCancelled extends Error {
+  constructor() {
+    super('open cancelled');
+    this.name = 'open_cancelled';
+  }
+}
+
 /** An extension that opens a file type (upstream Input). */
 export class Input extends Extension {
+  static readonly open_cancelled = OpenCancelled;
+
   readonly extension: string | null;
   readonly mimetype: string | null;
   readonly filetypename: string | null;
@@ -57,7 +67,7 @@ export class Input extends Extension {
     return translated ? this.get_translation(name, null) : name;
   }
 
-  /** Open the file data as a document (upstream open); null if it fails. */
+  /** Open the file data as a document (upstream open); null if it fails, open_cancelled if the user cancels. */
   async open(name: string, data: Uint8Array): Promise<SPDocument | null> {
     if (!this.loaded()) this.set_state(ExtensionState.STATE_LOADED);
     if (!this.loaded()) return null;

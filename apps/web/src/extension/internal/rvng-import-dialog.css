@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* The page selector of the CorelDRAW and Visio import: the preview above the page number. */
+.rvng-dialog {
+  width: min(432px, calc(100vw - 32px));
+}
+
+.rvng-preview {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 400px;
+  object-fit: contain;
+  border: 1px solid #bbb;
+  background: #fff;
+}
+
+.rvng-dialog::backdrop {
+  background: rgb(0 0 0 / 15%);
+}
+
+.rvng-page input {
+  width: 5em;
+}

@@ -44,3 +44,23 @@ Loaded only for PDF, PS and EPS export and for PDF import.
 The bindings (`bindings/text.cpp`) are GPL-2.0-or-later, so the text module is
 covered by the GNU GPL version 2 or later. `build.sh` copies the license files
 into `dist/licenses/`.
+
+# Third-party code in revenge-module.wasm
+
+Loaded only for the CorelDRAW, Visio and WordPerfect Graphics import.
+
+| Component | Source | License |
+|---|---|---|
+| librevenge 0.0.5 | dev-www.libreoffice.org/src | MPL-2.0 OR LGPL-2.1-or-later |
+| libwpd 0.10.3 | dev-www.libreoffice.org/src | MPL-2.0 OR LGPL-2.1-or-later |
+| libwpg 0.3.4 | dev-www.libreoffice.org/src | MPL-2.0 OR LGPL-2.1-or-later |
+| libcdr 0.1.8 | dev-www.libreoffice.org/src | MPL-2.0 |
+| libvisio 0.1.8 | dev-www.libreoffice.org/src | MPL-2.0 |
+| libxml2 2.14.6 | download.gnome.org | MIT |
+| ICU 77.1 (converters, charset detection, a subset of its data) | github.com/unicode-org/icu | Unicode-3.0 |
+| Little CMS 2.17 (shared with cairo-module) | github.com/mm2/Little-CMS | MIT |
+| zlib | Emscripten port | Zlib |
+| Boost (headers only) | system / Homebrew | BSL-1.0 |
+
+The bindings (`bindings/revenge.cpp`) are GPL-2.0-or-later. `build.sh` copies the license files
+into `dist/licenses/`.

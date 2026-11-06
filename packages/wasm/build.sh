@@ -324,3 +324,125 @@ cp "$B/vendor/fribidi/COPYING" dist/licenses/fribidi-COPYING
 cp "$B/vendor/libunibreak/LICENCE" dist/licenses/libunibreak-LICENCE
 cp "$B/vendor/dejavu/LICENSE" dist/licenses/dejavu-fonts-LICENSE
 echo "text wasm: $(du -h dist/text-module.wasm | cut -f1) ($(gzip -9c dist/text-module.wasm | wc -c | tr -d ' ') bytes gzip)"
+
+# >>> revenge-module ----------------------------------------------------------------------------
+# CorelDRAW, Visio and WordPerfect Graphics import: librevenge, libcdr, libvisio, libwpg and libwpd
+# with a small ICU and libxml2. Its own module (revenge-module.wasm), loaded on the first import of
+# such a file. Upstream links the system libraries (pkg_check_modules in
+# CMakeScripts/DefineDependsandFlags.cmake). Here the release tarballs are compiled directly from
+# the source lists of their src/lib/Makefile.am (they need no config.h). Boost (headers), zlib
+# (Emscripten port) and lcms2 (built above for the cairo module) are shared.
+fetch_tar https://dev-www.libreoffice.org/src/librevenge-0.0.5.tar.bz2 \
+    5892ca6796f7a2a93d580832e907e849b19d980b40d326a283b18877ab6de0c5 librevenge
+fetch_tar https://dev-www.libreoffice.org/src/libwpd-0.10.3.tar.xz \
+    2465b0b662fdc5d4e3bebcdc9a79027713fb629ca2bff04a3c9251fdec42dd09 libwpd
+fetch_tar https://dev-www.libreoffice.org/src/libwpg-0.3.4.tar.xz \
+    b55fda9440d1e070630eb2487d8b8697cf412c214a27caee9df69cec7c004de3 libwpg
+fetch_tar https://dev-www.libreoffice.org/src/libcdr-0.1.8.tar.xz \
+    ced677c8300b29c91d3004bb1dddf0b99761bf5544991c26c2ee8f427e87193c libcdr
+fetch_tar https://dev-www.libreoffice.org/src/libvisio-0.1.8.tar.xz \
+    b4098ffbf4dcb9e71213fa0acddbd928f27bed30db2d80234813b15d53d0405b libvisio
+fetch_tar https://download.gnome.org/sources/libxml2/2.14/libxml2-2.14.6.tar.xz \
+    7ce458a0affeb83f0b55f1f4f9e0e55735dbfc1a9de124ee86fb4a66b597203a libxml2
+fetch_tar https://github.com/unicode-org/icu/releases/download/release-77-1/icu4c-77_1-src.tgz \
+    588e431f77327c39031ffbb8843c0e3bc122c211374485fa87dc5f3faff24061 icu
+RV=$B/revenge && mkdir -p "$RV"
+
+# ICU: libcdr, libvisio and libxml2 use only the converters (ucnv) and the charset detection (ucsdet).
+# The data has only the converter alias table and the code pages that they open by name
+# (windows-125x, 874, 932, 936, 949, 950, with the base tables of the last three). A host build of ICU gives icupkg and genccode for it.
+ICU=$B/vendor/icu/source
+IH=$B/icu-host
+if [ ! -x "$IH/bin/genccode" ]; then
+    mkdir -p "$IH/lib" "$IH/bin" && (cd "$IH" &&
+        env -u CC -u CXX "$ICU/configure" --disable-shared --enable-static --disable-tests \
+            --disable-samples --disable-extras --disable-icuio --disable-layoutex >/dev/null &&
+        for d in stubdata common i18n tools/toolutil tools/icupkg tools/genccode; do
+            make -j"$JOBS" -C "$d" >/dev/null 2>&1
+        done)
+fi
+ICU_DATA="cnvalias.icu ibm-5346_P100-1998.cnv ibm-5347_P100-1998.cnv ibm-5348_P100-1997.cnv \
+    ibm-5349_P100-1998.cnv ibm-5350_P100-1998.cnv ibm-9447_P100-2002.cnv ibm-9448_X100-2005.cnv \
+    ibm-9449_P100-2002.cnv ibm-5354_P100-1998.cnv windows-874-2000.cnv ibm-943_P15A-2003.cnv \
+    windows-936-2000.cnv ibm-1386_P100-2001.cnv windows-949-2000.cnv ibm-1363_P11B-1998.cnv \
+    windows-950-2000.cnv ibm-1373_P100-2002.cnv"
+if [ ! -f "$RV/icudt77l_dat.c" ]; then
+    rm -rf "$RV/icudata" && mkdir -p "$RV/icudata"
+    echo "$ICU_DATA" | tr -s ' ' '\n' | grep . > "$RV/icudata/list.txt"
+    "$IH/bin/icupkg" -x "$RV/icudata/list.txt" -d "$RV/icudata" "$ICU/data/in/icudt77l.dat"
+    "$IH/bin/icupkg" -tl -a "$RV/icudata/list.txt" -s "$RV/icudata" new "$RV/icudt77l.dat"
+    "$IH/bin/genccode" -e icudt77 -d "$RV" "$RV/icudt77l.dat"
+fi
+ICU_SRCS=""
+for f in $(cat "$ICU/common/sources.txt"); do ICU_SRCS="$ICU_SRCS $ICU/common/$f"; done
+for f in csdetect csmatch csr2022 csrecog csrmbcs csrsbcs csrucode csrutf8 inputext ucsdet ucln_in; do
+    ICU_SRCS="$ICU_SRCS $ICU/i18n/$f.cpp"
+done
+export ICU_FLAGS="-Os -std=c++17 -DU_STATIC_IMPLEMENTATION -DU_COMMON_IMPLEMENTATION -DU_I18N_IMPLEMENTATION \
+    -DU_ENABLE_DYLOAD=0 -DU_HAVE_STRTOD_L=0 -I$ICU/common -I$ICU/i18n -Wno-deprecated-declarations"
+ICU_OBJ=$RV/icu-obj && mkdir -p "$ICU_OBJ"
+iobj() { echo "$ICU_OBJ/$(basename "$(dirname "$1")")_$(basename "$1" .cpp).o"; }
+for s in $ICU_SRCS; do
+    o=$(iobj "$s")
+    [ "$o" -nt "$s" ] || echo "$s $o"
+done | xargs -r -P "$JOBS" -n 2 sh -c 'em++ $ICU_FLAGS -c "$0" -o "$1"'
+[ "$ICU_OBJ/icudt77l_dat.o" -nt "$RV/icudt77l_dat.c" ] || emcc -O2 -I"$ICU/common" -c "$RV/icudt77l_dat.c" -o "$ICU_OBJ/icudt77l_dat.o"
+ICU_OBJS="$ICU_OBJ/icudt77l_dat.o"
+for s in $ICU_SRCS; do ICU_OBJS="$ICU_OBJS $(iobj "$s")"; done
+# shellcheck disable=SC2086
+rm -f "$RV/libicu.a" && emar rcs "$RV/libicu.a" $ICU_OBJS
+
+# libxml2 (libvisio reads VDX and VSDX with its xmlTextReader). The encodings that libxml2 does not
+# know itself (windows-1252, ...) go through the ICU converters. The flags are kept next to the
+# library: other flags give a new build.
+LIBXML2_FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    -DLIBXML2_WITH_ICU=ON -DICU_INCLUDE_DIR=$ICU/common -DICU_UC_LIBRARY_RELEASE=$RV/libicu.a \
+    -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_LZMA=OFF -DLIBXML2_WITH_ZLIB=OFF \
+    -DLIBXML2_WITH_PYTHON=OFF -DLIBXML2_WITH_PROGRAMS=OFF -DLIBXML2_WITH_TESTS=OFF \
+    -DLIBXML2_WITH_THREADS=OFF -DLIBXML2_WITH_HTTP=OFF -DLIBXML2_WITH_MODULES=OFF \
+    -DLIBXML2_WITH_CATALOG=OFF -DLIBXML2_WITH_DEBUG=OFF"
+if [ ! -f "$RV/libxml2/libxml2.a" ] || [ "$(cat "$RV/libxml2/flags" 2>/dev/null)" != "$LIBXML2_FLAGS" ]; then
+    rm -rf "$RV/libxml2" && mkdir -p "$RV/libxml2" && (cd "$RV/libxml2" &&
+        # shellcheck disable=SC2086
+        emcmake cmake "$B/vendor/libxml2" $LIBXML2_FLAGS >/dev/null &&
+        emmake make -j"$JOBS" LibXml2 >/dev/null &&
+        echo "$LIBXML2_FLAGS" > flags)
+fi
+
+# librevenge (with librevenge-stream, without its directory stream), libwpd, libwpg, libcdr and
+# libvisio: the sources of their src/lib/Makefile.am.
+RVL=$B/vendor/librevenge/src/lib
+REVENGE_SRCS=""
+for f in RVNGBinaryData RVNGMemoryStream RVNGProperty RVNGPropertyList RVNGPropertyListVector RVNGString \
+    RVNGStringVector RVNGSVGDrawingGenerator RVNGStreamImplementation RVNGOLEStream RVNGZipStream; do
+    REVENGE_SRCS="$REVENGE_SRCS $RVL/$f.cpp"
+done
+lib_srcs() { # library: the .cpp files of its src/lib/Makefile.am
+    sed -n '/_SOURCES *[+]*= *\\/,/^$/p' "$B/vendor/$1/src/lib/Makefile.am" | grep -oE '[A-Za-z0-9_]+\.cpp' |
+        sed "s|^|$B/vendor/$1/src/lib/|"
+}
+REVENGE_SRCS="$REVENGE_SRCS $(lib_srcs libwpd) $(lib_srcs libwpg) $(lib_srcs libcdr) $(lib_srcs libvisio)"
+export REVENGE_FLAGS="-Os -std=c++17 -fexceptions -sUSE_ZLIB=1 -DBOOST_ERROR_CODE_HEADER_ONLY \
+    -DBOOST_SYSTEM_NO_DEPRECATED -DBOOST_SPIRIT_USE_PHOENIX_V3 -DU_STATIC_IMPLEMENTATION \
+    -DLIBREVENGE_BUILD -DLIBREVENGE_STREAM_BUILD -DLIBWPD_BUILD -DLIBWPG_BUILD -DLIBCDR_BUILD -DLIBVISIO_BUILD \
+    -I$B/vendor/librevenge/inc -I$RVL -I$B/vendor/libwpd/inc -I$B/vendor/libwpg/inc -I$B/vendor/libcdr/inc \
+    -I$B/vendor/libvisio/inc -I$B/vendor/libvisio/src/lib -I$B/vendor/libxml2/include -I$RV/libxml2 \
+    -I$ICU/common -I$ICU/i18n -I$P/include -I$B/boost-include -Wno-deprecated-declarations"
+REVENGE_OBJ=$RV/obj && mkdir -p "$REVENGE_OBJ"
+robj() { local lib=${1#"$B"/vendor/}; echo "$REVENGE_OBJ/${lib%%/*}_$(basename "$1" .cpp).o"; }
+for s in $REVENGE_SRCS; do
+    o=$(robj "$s")
+    [ "$o" -nt "$s" ] || echo "$s $o"
+done | xargs -r -P "$JOBS" -n 2 sh -c 'em++ $REVENGE_FLAGS -c "$0" -o "$1"'
+REVENGE_OBJS=""
+for s in $REVENGE_SRCS; do REVENGE_OBJS="$REVENGE_OBJS $(robj "$s")"; done
+
+# shellcheck disable=SC2086
+em++ $REVENGE_FLAGS -lembind bindings/revenge.cpp $REVENGE_OBJS "$RV/libxml2/libxml2.a" "$RV/libicu.a" \
+    "$P/lib/liblcms2.a" -sMODULARIZE -sEXPORT_ES6 -sALLOW_MEMORY_GROWTH -sENVIRONMENT=web,worker,node \
+    --emit-tsd revenge-module.d.mts -o dist/revenge-module.mjs
+for l in librevenge libwpd libwpg libcdr libvisio; do cp "$B/vendor/$l/COPYING.MPL" "dist/licenses/$l-COPYING.MPL"; done
+cp "$B/vendor/libxml2/Copyright" dist/licenses/libxml2-Copyright
+cp "$B/vendor/icu/LICENSE" dist/licenses/icu-LICENSE
+echo "revenge wasm: $(du -h dist/revenge-module.wasm | cut -f1) ($(gzip -9c dist/revenge-module.wasm | wc -c | tr -d ' ') bytes gzip)"
+# <<< revenge-module ----------------------------------------------------------------------------

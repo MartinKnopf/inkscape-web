@@ -28,7 +28,7 @@ import {
   SVG_NS_URI,
   saveBuf,
 } from '@inkscape-web/core';
-import { db, file_import, type Input, type Output, type SPDesktop, Template } from '@inkscape-web/editor';
+import { db, file_import, Input, type Output, type SPDesktop, Template } from '@inkscape-web/editor';
 import { output_prefs } from '../extension/prefdialog/prefdialog.tsx';
 import { decodeSvgBytes, gzip } from './gzip.ts';
 import { getRecentFiles } from './recent-files.ts';
@@ -137,7 +137,8 @@ async function openPickedFile(file: File, handle: FileHandle | null): Promise<SP
   const input = moduleFor(db.get_input_list(), file.name);
   if (input) {
     // An input extension converts the file to SVG; saving asks for a new (SVG) file.
-    const doc = await input.open(file.name, new Uint8Array(await file.arrayBuffer()));
+    const doc = await openInput(input, file.name, new Uint8Array(await file.arrayBuffer()));
+    if (doc === undefined) return null; // cancelled: no error
     if (!doc) alert(_('Failed to load the requested file %s').replace('%s', file.name));
     else doc.documentName = file.name;
     return doc;
@@ -284,7 +285,7 @@ export async function sp_file_import(desktop: SPDesktop): Promise<void> {
   const input = moduleFor(db.get_input_list(), file.name);
   if (input) {
     // An input extension (PDF, ...) converts the file to a document that is imported as a group.
-    const doc = await input.open(file.name, bytes);
+    const doc = await openInput(input, file.name, bytes);
     if (doc) file_import(desktop.getDocument(), doc, true, desktop);
     return;
   }
@@ -295,6 +296,23 @@ export async function sp_file_import(desktop: SPDesktop): Promise<void> {
     return;
   }
   file_import(desktop.getDocument(), doc, !image, desktop);
+}
+
+/**
+ * Open the data with an input extension: the document, null if it fails, undefined if the user
+ * cancels a dialog of the input (upstream catches Input::open_cancelled and shows no error).
+ */
+async function openInput(
+  input: Input,
+  name: string,
+  data: Uint8Array,
+): Promise<SPDocument | null | undefined> {
+  try {
+    return await input.open(name, data);
+  } catch (e) {
+    if (e instanceof Input.open_cancelled) return undefined;
+    throw e;
+  }
 }
 
 function isAbort(e: unknown): boolean {
