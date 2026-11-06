@@ -11,6 +11,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Live path effects | 56 | 56 | 100 |
 | Internal import/export modules | 35 | 35 | 100 |
 | Python extensions | 157 | 160 | 98 |
+| UI files | 116 | 277 | 42 |
 
 <details><summary>Tools (26/26)</summary>
 
@@ -754,5 +755,287 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [x] `org.inkscape.web.transmit_attribute`
 - [x] `org.inkscape.webdesign.interactive_mockup`
 - [x] `se.lewerin.filter.dimension`
+
+</details>
+
+<details><summary>UI files (116/277)</summary>
+
+- [ ] `builder-utils.cpp`
+- [ ] `cache/svg_preview_cache.cpp`
+- [x] `clipboard.cpp`
+- [ ] `contextmenu.cpp`
+- [ ] `cursor-utils.cpp`
+- [x] `desktop/document-check.cpp`
+- [ ] `desktop/menu-set-tooltips-shift-icons.cpp`
+- [x] `desktop/menubar.cpp`
+- [ ] `dialog-events.cpp`
+- [ ] `dialog-run.cpp`
+- [x] `dialog/about.cpp`
+- [x] `dialog/align-and-distribute.cpp`
+- [x] `dialog/attrdialog.cpp`
+- [ ] `dialog/calligraphic-profile-rename.cpp`
+- [ ] `dialog/choose-file-utils.cpp`
+- [ ] `dialog/choose-file.cpp`
+- [x] `dialog/clonetiler.cpp`
+- [x] `dialog/color-item.cpp`
+- [x] `dialog/command-palette.cpp`
+- [x] `dialog/debug.cpp`
+- [ ] `dialog/dialog-base.cpp`
+- [x] `dialog/dialog-container.cpp`
+- [x] `dialog/dialog-data.cpp`
+- [x] `dialog/dialog-manager.cpp`
+- [ ] `dialog/dialog-multipaned.cpp`
+- [ ] `dialog/dialog-notebook.cpp`
+- [ ] `dialog/dialog-window.cpp`
+- [x] `dialog/document-properties.cpp`
+- [x] `dialog/document-resources.cpp`
+- [ ] `dialog/export-batch.cpp`
+- [x] `dialog/export-single.cpp`
+- [x] `dialog/export.cpp`
+- [x] `dialog/extensions-gallery.cpp`
+- [x] `dialog/fill-and-stroke.cpp`
+- [x] `dialog/filter-effects-dialog.cpp`
+- [ ] `dialog/find.cpp`
+- [x] `dialog/font-collections-manager.cpp`
+- [ ] `dialog/font-substitution.cpp`
+- [x] `dialog/global-palettes.cpp`
+- [ ] `dialog/grid-arrange-tab.cpp`
+- [x] `dialog/guides.cpp`
+- [x] `dialog/icon-preview.cpp`
+- [x] `dialog/inkscape-preferences.cpp`
+- [ ] `dialog/knot-properties.cpp`
+- [x] `dialog/layer-properties.cpp`
+- [x] `dialog/livepatheffect-editor.cpp`
+- [ ] `dialog/lpe-fillet-chamfer-properties.cpp`
+- [ ] `dialog/lpe-powerstroke-properties.cpp`
+- [ ] `dialog/measure-tool-settings.cpp`
+- [x] `dialog/new-from-template.cpp`
+- [x] `dialog/object-attributes.cpp`
+- [x] `dialog/object-properties.cpp`
+- [x] `dialog/objects.cpp`
+- [ ] `dialog/polar-arrange-tab.cpp`
+- [ ] `dialog/print.cpp`
+- [x] `dialog/prototype.cpp`
+- [ ] `dialog/save-image.cpp`
+- [x] `dialog/save-template-dialog.cpp`
+- [x] `dialog/selectorsdialog.cpp`
+- [ ] `dialog/spellcheck.cpp`
+- [ ] `dialog/startup.cpp`
+- [ ] `dialog/styledialog.cpp`
+- [x] `dialog/svg-fonts-dialog.cpp`
+- [x] `dialog/swatches.cpp`
+- [x] `dialog/symbols.cpp`
+- [x] `dialog/text-edit.cpp`
+- [ ] `dialog/tile.cpp`
+- [x] `dialog/tracedialog.cpp`
+- [x] `dialog/transformation.cpp`
+- [x] `dialog/undo-history.cpp`
+- [x] `dialog/xml-tree.cpp`
+- [ ] `drag-and-drop.cpp`
+- [x] `draw-anchor.cpp`
+- [ ] `gridview-utils.cpp`
+- [ ] `icon-loader.cpp`
+- [x] `interface.cpp`
+- [x] `knot/knot-holder-entity.cpp`
+- [x] `knot/knot-holder.cpp`
+- [ ] `knot/knot-ptr.cpp`
+- [x] `knot/knot.cpp`
+- [ ] `modifiers.cpp`
+- [ ] `monitor.cpp`
+- [ ] `pack.cpp`
+- [ ] `pixel-alignment.cpp`
+- [ ] `popup-menu.cpp`
+- [x] `shape-editor-knotholders.cpp`
+- [x] `shape-editor.cpp`
+- [x] `shortcuts.cpp`
+- [ ] `simple-pref-pusher.cpp`
+- [ ] `snapshot-utils.cpp`
+- [ ] `svg-renderer.cpp`
+- [ ] `syntax.cpp`
+- [ ] `themes.cpp`
+- [x] `tool-factory.cpp`
+- [x] `tool/control-point-selection.cpp`
+- [x] `tool/control-point.cpp`
+- [x] `tool/curve-drag-point.cpp`
+- [ ] `tool/modifier-tracker.cpp`
+- [x] `tool/multi-path-manipulator.cpp`
+- [x] `tool/node.cpp`
+- [x] `tool/path-manipulator.cpp`
+- [x] `tool/selectable-control-point.cpp`
+- [ ] `tool/transform-handle-set.cpp`
+- [x] `toolbar/arc-toolbar.cpp`
+- [x] `toolbar/booleans-toolbar.cpp`
+- [x] `toolbar/box3d-toolbar.cpp`
+- [x] `toolbar/calligraphy-toolbar.cpp`
+- [x] `toolbar/command-toolbar.cpp`
+- [x] `toolbar/connector-toolbar.cpp`
+- [x] `toolbar/dropper-toolbar.cpp`
+- [x] `toolbar/eraser-toolbar.cpp`
+- [x] `toolbar/gradient-toolbar.cpp`
+- [x] `toolbar/lpe-toolbar.cpp`
+- [ ] `toolbar/marker-toolbar.cpp`
+- [x] `toolbar/measure-toolbar.cpp`
+- [x] `toolbar/mesh-toolbar.cpp`
+- [x] `toolbar/node-toolbar.cpp`
+- [ ] `toolbar/objectpicker-toolbar.cpp`
+- [x] `toolbar/page-toolbar.cpp`
+- [x] `toolbar/paintbucket-toolbar.cpp`
+- [x] `toolbar/pencil-toolbar.cpp`
+- [x] `toolbar/rect-toolbar.cpp`
+- [ ] `toolbar/select-toolbar.cpp`
+- [x] `toolbar/snap-toolbar.cpp`
+- [x] `toolbar/spiral-toolbar.cpp`
+- [x] `toolbar/spray-toolbar.cpp`
+- [x] `toolbar/star-toolbar.cpp`
+- [x] `toolbar/text-toolbar.cpp`
+- [x] `toolbar/tool-toolbar.cpp`
+- [ ] `toolbar/toolbar.cpp`
+- [x] `toolbar/toolbars.cpp`
+- [x] `toolbar/tweak-toolbar.cpp`
+- [x] `toolbar/zoom-toolbar.cpp`
+- [x] `tools/booleans-builder.cpp`
+- [x] `tools/booleans-subitems.cpp`
+- [x] `tools/dynamic-base.cpp`
+- [x] `tools/freehand-base.cpp`
+- [ ] `tools/shortcuts.cpp`
+- [x] `tools/tool-base.cpp`
+- [x] `tools/tool-data.cpp`
+- [x] `util.cpp`
+- [ ] `view/svg-view-widget.cpp`
+- [ ] `widget-vfuncs-class-init.cpp`
+- [ ] `widget/advanced-tab.cpp`
+- [ ] `widget/alignment-selector.cpp`
+- [ ] `widget/anchor-selector.cpp`
+- [x] `widget/canvas-grid.cpp`
+- [ ] `widget/canvas-notice.cpp`
+- [x] `widget/canvas.cpp`
+- [ ] `widget/canvas/cairographics.cpp`
+- [ ] `widget/canvas/framecheck.cpp`
+- [ ] `widget/canvas/glgraphics.cpp`
+- [ ] `widget/canvas/graphics.cpp`
+- [ ] `widget/canvas/pixelstreamer.cpp`
+- [ ] `widget/canvas/stores.cpp`
+- [ ] `widget/canvas/synchronizer.cpp`
+- [ ] `widget/canvas/texture.cpp`
+- [ ] `widget/canvas/texturecache.cpp`
+- [ ] `widget/canvas/updaters.cpp`
+- [ ] `widget/canvas/util.cpp`
+- [ ] `widget/character-viewer.cpp`
+- [x] `widget/color-entry.cpp`
+- [x] `widget/color-notebook.cpp`
+- [ ] `widget/color-page.cpp`
+- [ ] `widget/color-palette-preview.cpp`
+- [x] `widget/color-palette.cpp`
+- [ ] `widget/color-picker-panel.cpp`
+- [ ] `widget/color-picker.cpp`
+- [ ] `widget/color-plate.cpp`
+- [ ] `widget/color-preview.cpp`
+- [ ] `widget/color-slider.cpp`
+- [ ] `widget/color-wheel-factory.cpp`
+- [ ] `widget/combo-box-entry-tool-item.cpp`
+- [ ] `widget/combo-tool-item.cpp`
+- [ ] `widget/completion-popup.cpp`
+- [ ] `widget/custom-tooltip.cpp`
+- [ ] `widget/dash-selector.cpp`
+- [ ] `widget/desktop-tab-controls.cpp`
+- [ ] `widget/desktop-tab-row.cpp`
+- [x] `widget/desktop-widget.cpp`
+- [ ] `widget/document-templates.cpp`
+- [ ] `widget/drop-down-list.cpp`
+- [ ] `widget/entity-entry.cpp`
+- [ ] `widget/entry.cpp`
+- [ ] `widget/export-lists.cpp`
+- [ ] `widget/export-preview.cpp`
+- [x] `widget/filter-effect-chooser.cpp`
+- [ ] `widget/font-button.cpp`
+- [x] `widget/font-collection-selector.cpp`
+- [x] `widget/font-list.cpp`
+- [ ] `widget/font-selector.cpp`
+- [ ] `widget/font-size-selector.cpp`
+- [x] `widget/font-variants.cpp`
+- [x] `widget/font-variations.cpp`
+- [ ] `widget/frame.cpp`
+- [ ] `widget/generic/bin.cpp`
+- [ ] `widget/generic/css-name-class-init.cpp`
+- [ ] `widget/generic/dual-spin-scale.cpp`
+- [ ] `widget/generic/icon-combobox.cpp`
+- [ ] `widget/generic/number-combo-box.cpp`
+- [ ] `widget/generic/popover-bin.cpp`
+- [ ] `widget/generic/popover-menu.cpp`
+- [ ] `widget/generic/reorderable-stack.cpp`
+- [ ] `widget/generic/scale-bar.cpp`
+- [ ] `widget/generic/simple-grid.cpp`
+- [ ] `widget/generic/snapshot-widget.cpp`
+- [ ] `widget/generic/spin-button.cpp`
+- [ ] `widget/generic/tab-strip.cpp`
+- [ ] `widget/generic/text-combo-box.cpp`
+- [ ] `widget/generic/text-entry.cpp`
+- [x] `widget/gradient-editor.cpp`
+- [ ] `widget/gradient-image.cpp`
+- [ ] `widget/gradient-selector.cpp`
+- [ ] `widget/gradient-vector-selector.cpp`
+- [ ] `widget/gradient-with-stops.cpp`
+- [ ] `widget/gtk-registry.cpp`
+- [ ] `widget/handle-preview.cpp`
+- [ ] `widget/iconrenderer.cpp`
+- [ ] `widget/image-properties.cpp`
+- [ ] `widget/imagetoggler.cpp`
+- [ ] `widget/ink-color-wheel.cpp`
+- [ ] `widget/ink-property-grid.cpp`
+- [x] `widget/ink-ruler.cpp`
+- [ ] `widget/labelled.cpp`
+- [ ] `widget/layer-selector.cpp`
+- [ ] `widget/licensor.cpp`
+- [x] `widget/memory.cpp`
+- [ ] `widget/mesh-editor.cpp`
+- [x] `widget/messages.cpp`
+- [ ] `widget/multi-marker-color-plate.cpp`
+- [ ] `widget/notebook-page.cpp`
+- [x] `widget/object-composite-settings.cpp`
+- [ ] `widget/objects-dialog-cells.cpp`
+- [ ] `widget/oklab-color-wheel.cpp`
+- [ ] `widget/optglarea.cpp`
+- [x] `widget/page-properties.cpp`
+- [ ] `widget/page-selector.cpp`
+- [ ] `widget/page-size-preview.cpp`
+- [ ] `widget/paint-attribute.cpp`
+- [x] `widget/paint-enums.cpp`
+- [ ] `widget/paint-inherited.cpp`
+- [ ] `widget/paint-popover-manager.cpp`
+- [x] `widget/paint-switch.cpp`
+- [ ] `widget/pattern-editor.cpp`
+- [ ] `widget/point.cpp`
+- [ ] `widget/popover-utils.cpp`
+- [x] `widget/preferences-widget.cpp`
+- [ ] `widget/property-utils.cpp`
+- [ ] `widget/random.cpp`
+- [ ] `widget/recolor-art-manager.cpp`
+- [ ] `widget/recolor-art.cpp`
+- [ ] `widget/registered-widget.cpp`
+- [ ] `widget/registry.cpp`
+- [ ] `widget/rendering-options.cpp`
+- [ ] `widget/resizing-separator.cpp`
+- [ ] `widget/rotateable.cpp`
+- [x] `widget/scalar-unit.cpp`
+- [ ] `widget/scalar.cpp`
+- [ ] `widget/scroll-utils.cpp`
+- [ ] `widget/selected-style.cpp`
+- [ ] `widget/shapeicon.cpp`
+- [ ] `widget/spinbutton.cpp`
+- [ ] `widget/stack.cpp`
+- [ ] `widget/status-bar.cpp`
+- [ ] `widget/stroke-options.cpp`
+- [x] `widget/stroke-style.cpp`
+- [ ] `widget/style-subject.cpp`
+- [ ] `widget/style-swatch.cpp`
+- [x] `widget/style/marker-combo-box.cpp`
+- [ ] `widget/style/paint-order.cpp`
+- [ ] `widget/swatch-editor.cpp`
+- [x] `widget/template-list.cpp`
+- [ ] `widget/text.cpp`
+- [ ] `widget/textpath-popover.cpp`
+- [x] `widget/unit-menu.cpp`
+- [ ] `widget/unit-tracker.cpp`
+- [ ] `widget/xml-treeview.cpp`
 
 </details>
