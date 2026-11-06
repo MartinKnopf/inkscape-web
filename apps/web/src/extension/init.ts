@@ -41,8 +41,8 @@ import {
   TemplateSocial,
   TemplateVideo,
   VsdInput,
-  WpgInput,
   Wmf,
+  WpgInput,
 } from '@inkscape-web/editor';
 import { load_template_files } from '../app/templates.ts';
 import { showMessageDialog } from '../ui/dialog/message-dialog.tsx';
