@@ -107,6 +107,34 @@ describe('canvas context menu', () => {
   });
 });
 
+describe('items below the cursor', () => {
+  // A hidden circle (center 100,100, radius 50), and a locked rect in a hidden group.
+  const HIDDEN =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" width="400" height="300">' +
+    '<circle id="c" cx="100" cy="100" r="50" style="display:none"/>' +
+    '<g id="hg" style="display:none"><rect id="r" x="250" y="50" width="40" height="40" sodipodi:insensitive="true"/></g>' +
+    '</svg>';
+
+  /** The labels of the canvas menu at (x, y). */
+  function menuAt(x: number, y: number): string[] {
+    const t = setupDesktop(HIDDEN, 'Select');
+    // Hidden items are not drawn, so the browser finds nothing at the point.
+    mockHitTest();
+    shown = [];
+    rightPress(t.svg, x, y);
+    return labels(shown[0]!.menu.entries);
+  }
+
+  it('a hidden shape is below the cursor in its fill, not in the corner of its bounding box', () => {
+    expect(menuAt(100, 100)).toContain('Unhide Objects Below Cursor');
+    expect(menuAt(55, 55)).not.toContain('Unhide Objects Below Cursor');
+  });
+
+  it('a locked item in a hidden group is below the cursor', () => {
+    expect(menuAt(270, 70)).toContain('Unlock Objects Below Cursor');
+  });
+});
+
 describe('page context menu', () => {
   it('right-click on a page in the pages tool selects the page and shows the page items', () => {
     const t = setupDesktop(
@@ -150,5 +178,12 @@ describe('Layers and Objects context menu', () => {
     expect(items).toContain('_Object Properties...');
     expect(items).toContain('Exit Group');
     expect(items).not.toContain('Layers and Objects...');
+  });
+
+  it('Ctrl+right-click on an item row adds it to the selection', () => {
+    const { dt, item } = setup();
+    dt.getSelection().set(item('hidden'));
+    popupRowContextMenu(dt, item('a'), new Point(5, 5), true);
+    expect(dt.getSelection().items()).toEqual([item('hidden'), item('a')]);
   });
 });

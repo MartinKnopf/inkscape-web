@@ -61,7 +61,10 @@ export function ContextMenuHost() {
           onContextMenu={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => {
             e.preventDefault();
-            (open.focus as HTMLElement | SVGElement | null)?.focus?.({ preventScroll: true });
+            // Give the focus back unless an action (a dialog) or a click has moved it elsewhere.
+            const active = document.activeElement;
+            if (!active || active === document.body)
+              (open.focus as HTMLElement | SVGElement | null)?.focus?.({ preventScroll: true });
           }}
         >
           <MenuKitContext.Provider value={kit}>

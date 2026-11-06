@@ -37,7 +37,9 @@ import {
   type SPNamedView,
   type SPObject,
   type SPPage,
+  SPShape,
   type SPStop,
+  SPWindRule,
   spCssAttrUnsetBlacklist,
   spCssAttrUnsetText,
   spCssAttrUnsetUris,
@@ -47,7 +49,16 @@ import {
   TextParam,
   type Node as XmlNode,
 } from '@inkscape-web/core';
-import { Affine, Point, Rect, Rotate, Scale } from '@inkscape-web/geom';
+import {
+  Affine,
+  PathVector,
+  Point,
+  pathv_nearest_time,
+  pathv_point_at,
+  Rect,
+  Rotate,
+  Scale,
+} from '@inkscape-web/geom';
 import { get_snapping_preferences } from './actions/actions-canvas-snapping.ts';
 import { CanvasFlip } from './canvas-flip.ts';
 import { sp_dt_guide_event, sp_dt_guide_key_event } from './desktop-events.ts';
@@ -740,9 +751,7 @@ export class SPDesktop {
    * the order found (upstream getItemsAtPoints): groups are entered;
    * topmost_only takes the topmost item at each point; without all_layers
    * only items in the current layer count; limit 0 is no limit. Without
-   * active_only, hidden and locked items count too. The browser does not draw
-   * hidden items, so a hidden item is at a point when its visual bounding box
-   * contains the point (upstream: its shape).
+   * active_only, hidden and locked items count too (see #hiddenItemsAt()).
    */
   getItemsAtPoints(
     points: readonly Point[],
@@ -769,17 +778,23 @@ export class SPDesktop {
     return result;
   }
 
-  /** The hidden items of the flat item list (groups entered) whose visual bounding box contains p (document coordinates). */
+  /**
+   * The items of the flat item list (groups entered) that the browser does not draw, because they
+   * or a group above them are hidden, and that are at p (document coordinates): a shape when p
+   * is in its fill or on its stroke, another item when p is in its visual bounding box
+   * (upstream: sticky picking of the drawing).
+   */
   #hiddenItemsAt(p: Point): SPItem[] {
     const result: SPItem[] = [];
-    const visit = (o: SPObject): void => {
+    const visit = (o: SPObject, hidden: boolean): void => {
       for (const child of o.children) {
         if (!(child instanceof SPItem)) continue;
-        if (child instanceof SPGroup) visit(child);
-        else if (child.isHidden() && child.documentVisualBounds()?.contains(p)) result.push(child);
+        const child_hidden = hidden || child.isHidden();
+        if (child instanceof SPGroup) visit(child, child_hidden);
+        else if (child_hidden && hiddenItemContains(child, p)) result.push(child);
       }
     };
-    visit(this.doc.getRoot());
+    visit(this.doc.getRoot(), false);
     return result;
   }
 
@@ -1240,4 +1255,25 @@ export function sp_namedview_document_from_window(desktop: SPDesktop): void {
     }
     view.setAttribute('inkscape:current-layer', desktop.layerManager().currentLayer()?.getId() ?? null);
   });
+}
+
+/** Whether the item is at p (document coordinates), see SPDesktop.#hiddenItemsAt(). */
+function hiddenItemContains(item: SPItem, p: Point): boolean {
+  if (!item.documentVisualBounds()?.contains(p)) return false;
+  if (!(item instanceof SPShape)) return true;
+  const curve = item.curve();
+  if (!curve) return false;
+  const i2doc = item.i2docAffine();
+  const local = p.transformed(i2doc.inverse());
+  const style = item.style;
+  if (!style.fill.isNone()) {
+    const wind = PathVector.winding(curve, local);
+    if (style.fill_rule.computed === SPWindRule.SP_WIND_RULE_EVENODD ? wind % 2 !== 0 : wind !== 0)
+      return true;
+  }
+  // On the stroke: nearer to the outline than half the stroke width (at least 1 px).
+  const t = pathv_nearest_time(curve, local);
+  if (!t) return false;
+  const half = style.stroke.isNone() ? 0 : (style.stroke_width.computed * i2doc.descrim()) / 2;
+  return pathv_point_at(curve, t).transformed(i2doc).sub(p).length() <= Math.max(half, 1);
 }

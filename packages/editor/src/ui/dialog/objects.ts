@@ -116,9 +116,10 @@ export function selectRow(desktop: SPDesktop, item: SPItem, additive: boolean): 
 /**
  * Show the context menu of a row at the client position p (upstream: the right button in
  * ObjectsPanel::on_click). A right-clicked layer becomes the current layer; another item that is
- * not selected becomes the selection. The menu has no "Layers and Objects..." item.
+ * not selected is selected as by a click (additive: with Ctrl or Shift). The menu has no
+ * "Layers and Objects..." item.
  */
-export function popupRowContextMenu(desktop: SPDesktop, item: SPItem, p: Point): void {
+export function popupRowContextMenu(desktop: SPDesktop, item: SPItem, p: Point, additive = false): void {
   const selection = desktop.getSelection();
   const layer = item instanceof SPGroup && item.isLayer() ? item : null;
   // If right-clicking on a layer, make it current for context menu actions to work correctly.
@@ -126,7 +127,7 @@ export function popupRowContextMenu(desktop: SPDesktop, item: SPItem, p: Point):
     desktop.layerManager().setCurrentLayer(item, true);
   }
   if (!selection.includes(item) && !layer) {
-    selection.set(item);
+    selectRow(desktop, item, additive);
   }
   popup_context_menu(ContextMenu(desktop, item, [item], true), p);
 }

@@ -52,7 +52,12 @@ export function ObjectsDialog() {
               onClick={(e) => selectRow(desktop, row.item, e.ctrlKey || e.metaKey || e.shiftKey)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                popupRowContextMenu(desktop, row.item, new Point(e.clientX, e.clientY));
+                popupRowContextMenu(
+                  desktop,
+                  row.item,
+                  new Point(e.clientX, e.clientY),
+                  e.ctrlKey || e.metaKey || e.shiftKey,
+                );
               }}
               onKeyDown={(e) => e.key === 'Enter' && selectRow(desktop, row.item, false)}
             >

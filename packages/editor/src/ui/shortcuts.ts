@@ -315,15 +315,20 @@ function isTextInput(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && !!target.closest('input, textarea, select, [contenteditable]');
 }
 
+/** Whether the key press is in an open menu, which takes the keyboard (GTK popover menus do). */
+function isInMenu(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest('[role=menu]');
+}
+
 /**
- * Run the actions of key presses in the window. Keys typed in text fields
+ * Run the actions of key presses in the window. Keys typed in text fields or open menus
  * and keys the active tool has handled (default prevented) are ignored.
  * Handled keys are default prevented, which replaces browser keys (save
  * page, open file). Returns a function that removes the handler.
  */
 export function attachActionShortcuts(app = InkscapeApplication.instance()): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || isTextInput(event.target)) return;
+    if (event.defaultPrevented || isTextInput(event.target) || isInMenu(event.target)) return;
     if (Shortcuts.getInstance().invoke_action(event, app)) event.preventDefault();
   };
   window.addEventListener('keydown', onKeyDown);
