@@ -35,6 +35,7 @@ import {
   type SPGuide,
   SPItem,
   type SPNamedView,
+  type SPObject,
   type SPPage,
   type SPStop,
   spCssAttrUnsetBlacklist,
@@ -738,14 +739,25 @@ export class SPDesktop {
    * The items at the points (world coordinates, as upstream), each once, in
    * the order found (upstream getItemsAtPoints): groups are entered;
    * topmost_only takes the topmost item at each point; without all_layers
-   * only items in the current layer count; limit 0 is no limit.
+   * only items in the current layer count; limit 0 is no limit. Without
+   * active_only, hidden and locked items count too. The browser does not draw
+   * hidden items, so a hidden item is at a point when its visual bounding box
+   * contains the point (upstream: its shape).
    */
-  getItemsAtPoints(points: readonly Point[], all_layers = true, topmost_only = true, limit = 0): SPItem[] {
+  getItemsAtPoints(
+    points: readonly Point[],
+    all_layers = true,
+    topmost_only = true,
+    limit = 0,
+    active_only = true,
+  ): SPItem[] {
     const result: SPItem[] = [];
     const current_layer = this.#layerManager.currentLayer();
     const window_origin = this.canvas.get_area_world().min();
     for (const point of points) {
-      const items = this.#pickCandidates(point.sub(window_origin), true);
+      const items = this.#pickCandidates(point.sub(window_origin), true, active_only);
+      if (!active_only)
+        items.push(...this.#hiddenItemsAt(point.transformed(this.w2d()).transformed(this.dt2doc())));
       for (const item of topmost_only ? items.slice(0, 1) : items) {
         if (result.includes(item)) continue;
         if (!all_layers && this.#layerManager.layerForObject(item) !== current_layer) continue;
@@ -757,14 +769,28 @@ export class SPDesktop {
     return result;
   }
 
+  /** The hidden items of the flat item list (groups entered) whose visual bounding box contains p (document coordinates). */
+  #hiddenItemsAt(p: Point): SPItem[] {
+    const result: SPItem[] = [];
+    const visit = (o: SPObject): void => {
+      for (const child of o.children) {
+        if (!(child instanceof SPItem)) continue;
+        if (child instanceof SPGroup) visit(child);
+        else if (child.isHidden() && child.documentVisualBounds()?.contains(p)) result.push(child);
+      }
+    };
+    visit(this.doc.getRoot());
+    return result;
+  }
+
   /** The topmost non-layer group at window point p (upstream getGroupAtPoint). */
   getGroupAtPoint(p: Point): SPItem | null {
     for (const item of this.#pickCandidates(p, false)) if (item instanceof SPGroup) return item;
     return null;
   }
 
-  /** The pickable items at window point p, topmost first (upstream: the flat item list, picked in z-order). */
-  #pickCandidates(p: Point, into_groups: boolean): SPItem[] {
+  /** The pickable items at window point p, topmost first (upstream: the flat item list, picked in z-order). Without active_only, locked items count too. */
+  #pickCandidates(p: Point, into_groups: boolean, active_only = true): SPItem[] {
     const svg = this.canvas.svg;
     const r = svg.getBoundingClientRect();
     const result: SPItem[] = [];
@@ -775,7 +801,7 @@ export class SPDesktop {
       while (di && !di.item()) di = SvgDrawingItem.itemFromElement(di.element.parentElement);
       const hit = di?.item();
       const item = hit ? this.#flatListItem(hit, into_groups) : null;
-      if (item && !result.includes(item) && item.isVisibleAndUnlocked()) result.push(item);
+      if (item && !result.includes(item) && (!active_only || item.isVisibleAndUnlocked())) result.push(item);
     }
     return result;
   }

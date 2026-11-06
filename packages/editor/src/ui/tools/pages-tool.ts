@@ -242,6 +242,11 @@ export class PagesTool extends ToolBase {
     switch (event.type) {
       case 'pointerdown': {
         const e = event as PointerEvent;
+        if (e.button === 2) {
+          this.menu_popup(e, page_manager.getSelected());
+          ret = true;
+          break;
+        }
         if (e.button !== 0) break;
         this.mouse_is_pressed = true;
         this.drag_origin_w = this._windowPoint(e);
@@ -465,6 +470,16 @@ export class PagesTool extends ToolBase {
   clearDragShapes(): void {
     for (const shape of this.#drag_shapes) shape.unlink();
     this.#drag_shapes = [];
+  }
+
+  /** The context menu of the page under a button press, else of the selected page (upstream PagesTool::menu_popup()). */
+  override menu_popup(event: PointerEvent | KeyboardEvent, _obj: SPObject | null = null): void {
+    let page = this._desktop.getDocument().getPageManager().getSelected();
+    if (!(event instanceof KeyboardEvent)) {
+      this.drag_origin_dt = this._desktopPoint(this._windowPoint(event));
+      page = this.pageUnder(this.drag_origin_dt);
+    }
+    super.menu_popup(event, page);
   }
 
   /** Find a page under the cursor point. */

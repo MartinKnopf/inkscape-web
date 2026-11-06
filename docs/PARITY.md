@@ -11,7 +11,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 | Live path effects | 56 | 56 | 100 |
 | Internal import/export modules | 35 | 35 | 100 |
 | Python extensions | 157 | 160 | 98 |
-| UI files | 116 | 277 | 42 |
+| UI files | 118 | 277 | 43 |
 
 <details><summary>Tools (26/26)</summary>
 
@@ -758,12 +758,12 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 
 </details>
 
-<details><summary>UI files (116/277)</summary>
+<details><summary>UI files (118/277)</summary>
 
 - [ ] `builder-utils.cpp`
 - [ ] `cache/svg_preview_cache.cpp`
 - [x] `clipboard.cpp`
-- [ ] `contextmenu.cpp`
+- [x] `contextmenu.cpp`
 - [ ] `cursor-utils.cpp`
 - [x] `desktop/document-check.cpp`
 - [ ] `desktop/menu-set-tooltips-shift-icons.cpp`
@@ -844,7 +844,7 @@ Upstream commit: `1612af317cf6e01d0b84e81d0b12c399f86bfb49`.
 - [ ] `monitor.cpp`
 - [ ] `pack.cpp`
 - [ ] `pixel-alignment.cpp`
-- [ ] `popup-menu.cpp`
+- [x] `popup-menu.cpp`
 - [x] `shape-editor-knotholders.cpp`
 - [x] `shape-editor.cpp`
 - [x] `shortcuts.cpp`

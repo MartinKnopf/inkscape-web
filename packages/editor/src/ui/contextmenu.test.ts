@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Upstream: src/ui/contextmenu.cpp, src/ui/tools/tool-base.cpp, src/ui/tools/pages-tool.cpp
+// @vitest-environment happy-dom
+import type { SPGroup } from '@inkscape-web/core';
+import { Point } from '@inkscape-web/geom';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type ContextMenuModel, setContextMenuPresenter } from './contextmenu.ts';
+import type { MenuEntry } from './desktop/menubar.ts';
+import { popupRowContextMenu } from './dialog/objects.ts';
+import { key, mockHitTest, setupDesktop, unmockHitTest } from './tools/tool-test-utils.ts';
+
+const SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300">' +
+  '<g id="layer1" inkscape:groupmode="layer" inkscape:label="Layer 1">' +
+  '<g id="g"><rect id="a" x="10" y="10" width="40" height="40"/></g>' +
+  '<rect id="hidden" x="100" y="100" width="40" height="40" style="display:none"/>' +
+  '<rect id="locked" x="100" y="100" width="20" height="20" sodipodi:insensitive="true" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"/>' +
+  '</g></svg>';
+
+let shown: { menu: ContextMenuModel; at: Point }[] = [];
+let off = () => {};
+beforeEach(() => {
+  shown = [];
+  off = setContextMenuPresenter((menu, at) => shown.push({ menu, at }));
+});
+afterEach(() => {
+  off();
+  unmockHitTest();
+});
+
+/** The labels of the items, in menu order; a submenu as "label > child labels". */
+function labels(entries: readonly MenuEntry[]): string[] {
+  return entries.flatMap((e) =>
+    e.kind === 'item'
+      ? [e.label]
+      : e.kind === 'section'
+        ? labels(e.children)
+        : [`${e.label} > ${labels(e.children).join(', ')}`],
+  );
+}
+
+function setup(tool = 'Select') {
+  const t = setupDesktop(SVG, tool);
+  mockHitTest(t.doc, t.dt);
+  return t;
+}
+
+const rightPress = (svg: Element, x: number, y: number) =>
+  svg.dispatchEvent(
+    new PointerEvent('pointerdown', { bubbles: true, button: 2, buttons: 2, clientX: x, clientY: y }),
+  );
+
+describe('canvas context menu', () => {
+  it('right-click on the empty canvas: Paste and Document Properties, at the pointer', () => {
+    const { svg } = setup();
+    rightPress(svg, 300, 250);
+    expect(shown).toHaveLength(1);
+    const items = labels(shown[0]!.menu.entries);
+    expect(items[0]).toBe('_Paste');
+    expect(items).toContain('Document Properties...');
+    expect(items).not.toContain('Cu_t');
+    expect(shown[0]!.at).toEqual(new Point(300, 250));
+  });
+
+  it('right-click on a group selects it and offers the group items', () => {
+    const { dt, svg, item } = setup();
+    rightPress(svg, 20, 20);
+    expect(dt.getSelection().items()).toEqual([item('g')]);
+    const items = labels(shown[0]!.menu.entries);
+    expect(items.slice(0, 3)).toEqual(['Cu_t', '_Copy', '_Paste']);
+    expect(items).toContain('_Ungroup');
+    expect(items).toContain('Enter Group #g');
+    expect(items).toContain('Group to Layer');
+    expect(items).toContain('_Fill and Stroke...');
+    expect(items).not.toContain('Exit Group');
+    expect(items).not.toContain('Unhide Objects Below Cursor');
+  });
+
+  it('unhides and unlocks the items below the cursor, each in one undo step', () => {
+    const { svg, item, undoSteps } = setup();
+    rightPress(svg, 110, 110);
+    const { entries, ctx } = shown[0]!.menu;
+    expect(labels(entries)).toEqual(
+      expect.arrayContaining(['Unhide Objects Below Cursor', 'Unlock Objects Below Cursor']),
+    );
+    ctx.get('ctx.unhide-objects-below-cursor')!();
+    expect(item('hidden').isHidden()).toBe(false);
+    ctx.get('ctx.unlock-objects-below-cursor')!();
+    expect(item('locked').isLocked()).toBe(false);
+    expect(undoSteps().slice(-2)).toEqual(['Unhid objects', 'Unlocked objects']);
+  });
+
+  it('the Menu key and Shift+F10 show the menu of the first selected item', () => {
+    const { dt, svg, item } = setup();
+    dt.getSelection().set(item('g'));
+    key(svg, 'ContextMenu');
+    key(svg, 'F10', { shiftKey: true });
+    key(svg, 'F10');
+    expect(shown).toHaveLength(2);
+    for (const s of shown) expect(labels(s.menu.entries)).toContain('Enter Group #g');
+  });
+
+  it('tools that use the right button do not show it', () => {
+    const { svg } = setup('Zoom');
+    rightPress(svg, 20, 20);
+    expect(shown).toHaveLength(0);
+  });
+});
+
+describe('page context menu', () => {
+  it('right-click on a page in the pages tool selects the page and shows the page items', () => {
+    const t = setupDesktop(
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="400" height="300">' +
+        '<sodipodi:namedview xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd">' +
+        '<inkscape:page id="p1" x="0" y="0" width="100" height="100"/>' +
+        '<inkscape:page id="p2" x="200" y="0" width="100" height="100"/>' +
+        '</sodipodi:namedview></svg>',
+      'Pages',
+    );
+    mockHitTest(t.doc, t.dt);
+    rightPress(t.dt.getCanvas().svg, 250, 50);
+    expect(t.doc.getPageManager().getSelected()?.getId()).toBe('p2');
+    expect(labels(shown[0]!.menu.entries)).toEqual([
+      '_New Page',
+      'Duplicate Page',
+      '_Delete Page',
+      'Move Page _Backward',
+      'Move Page _Forward',
+    ]);
+  });
+});
+
+describe('Layers and Objects context menu', () => {
+  it('a layer row makes the layer current and shows the layer items, without "Layers and Objects..."', () => {
+    const { dt, item } = setup();
+    const layer = item('layer1') as SPGroup;
+    popupRowContextMenu(dt, layer, new Point(5, 5));
+    expect(dt.layerManager().currentLayer()).toBe(layer);
+    const items = labels(shown[0]!.menu.entries);
+    expect(items[0]).toBe('_Add Layer...');
+    expect(items).toContain('_Unlock All Layers');
+    expect(items).not.toContain('Layers and Objects...');
+  });
+
+  it('an item row selects the item; its menu has no "Layers and Objects..."', () => {
+    const { dt, item } = setup();
+    popupRowContextMenu(dt, item('a'), new Point(5, 5));
+    expect(dt.getSelection().items()).toEqual([item('a')]);
+    const items = labels(shown[0]!.menu.entries);
+    expect(items).toContain('_Object Properties...');
+    expect(items).toContain('Exit Group');
+    expect(items).not.toContain('Layers and Objects...');
+  });
+});

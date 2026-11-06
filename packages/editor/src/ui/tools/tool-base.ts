@@ -26,6 +26,7 @@ import { get_active_tool, set_active_tool } from '../../actions/actions-tools.ts
 import type { SPDesktop } from '../../desktop.ts';
 import { GrDrag } from '../../gradient-drag.ts';
 import { SelCue } from '../../selcue.ts';
+import { ContextMenu, popup_context_menu } from '../contextmenu.ts';
 
 /** Browser wheel deltas per wheel click: Chromium reports 100 px, Firefox 3 lines. */
 const PIXELS_PER_WHEEL_CLICK = 100;
@@ -75,6 +76,8 @@ const EVENT_TYPES = [
  * horizontally, Ctrl: zoom at the pointer) and panning with the middle
  * button. Tools override root_handler() and call it for unhandled events.
  * A Space key press without panning toggles between the tool and the selector.
+ * An unhandled right button press, the Menu key and Shift+F10 open the context menu
+ * (menu_popup()); the browser's own menu never opens on the canvas.
  * TODO: item_handler, space panning, right-button panning, Ctrl+middle
  * zoom and rotate, middle-click zoom, canvas rotation with Ctrl+Shift+wheel,
  * modifiers from share/keys (Modifiers::Modifier), cursors, message context.
@@ -108,6 +111,7 @@ export class ToolBase {
     for (const type of EVENT_TYPES) {
       this._element.addEventListener(type, this.#onEvent, type === 'wheel' ? { passive: false } : undefined);
     }
+    this._element.addEventListener('contextmenu', this.#onContextMenu);
     // Pass changes of the tool's preferences to set() (upstream ToolPrefObserver).
     const prefix = `${prefsPath}/`;
     this.#disconnectPrefs = Preferences.get().changedSignal.connect((path) => {
@@ -117,6 +121,7 @@ export class ToolBase {
 
   destroy(): void {
     for (const type of EVENT_TYPES) this._element.removeEventListener(type, this.#onEvent);
+    this._element.removeEventListener('contextmenu', this.#onContextMenu);
     this.#disconnectPrefs();
     this.enableSelectionCue(false);
     this.enableGrDrag(false);
@@ -218,6 +223,9 @@ export class ToolBase {
     this.root_handler(event);
   };
 
+  /** The canvas shows the Inkscape context menu (menu_popup()), not the browser's menu. */
+  readonly #onContextMenu = (event: Event): void => event.preventDefault();
+
   /** Handle a canvas event. Returns true if the event was handled. */
   root_handler(event: Event): boolean {
     switch (event.type) {
@@ -231,6 +239,15 @@ export class ToolBase {
       case 'pointerup':
       case 'pointercancel':
         return this.#onPointerUp(event as PointerEvent);
+      case 'keydown': {
+        const e = event as KeyboardEvent;
+        if (e.key === 'ContextMenu' || (e.key === 'F10' && mod_shift_only(e))) {
+          e.preventDefault();
+          this.menu_popup(e);
+          return true;
+        }
+        return false;
+      }
       case 'keyup':
         if ((event as KeyboardEvent).key === ' ') {
           // Space was pressed, but not panned. TODO: space panning.
@@ -334,7 +351,46 @@ export class ToolBase {
     }
   }
 
+  /**
+   * Show the context menu for obj (upstream ToolBase::menu_popup()). Without obj: the topmost
+   * item at a button press, or the first selected item at a key press.
+   */
+  menu_popup(event: PointerEvent | KeyboardEvent, obj: SPObject | null = null): void {
+    const canvas = this._desktop.getCanvas();
+    // The pointer position (window coordinates); for a key press the last one, as upstream.
+    const pos =
+      event instanceof KeyboardEvent
+        ? (canvas.get_last_mouse() ?? canvas.get_dimensions().div(2))
+        : this._windowPoint(event);
+    if (!obj) {
+      if (event instanceof KeyboardEvent) {
+        if (!this._desktop.getSelection().isEmpty()) obj = this._desktop.getSelection().items()[0] ?? null;
+      } else {
+        // Using the same function call used on left click in sp_select_context_item_handler() to get top of z-order
+        obj = this._desktop.getItemAtPoint(pos, false);
+      }
+    }
+    // Get a list of items under the cursor, used for unhiding and unlocking.
+    const items_under_cursor = this._desktop.getItemsAtPoints(
+      [canvas.canvas_to_world(pos)],
+      true,
+      false,
+      0,
+      false,
+    );
+    const menu = ContextMenu(this._desktop, obj, items_under_cursor);
+    // The browser must not move the focus (the default action of the press): the menu takes it.
+    event.preventDefault();
+    const r = this._element.getBoundingClientRect();
+    popup_context_menu(menu, new Point(r.left + pos.x, r.top + pos.y));
+  }
+
   #onPointerDown(event: PointerEvent): boolean {
+    // Right button: the context menu, unless button 1 is down too (upstream are_buttons_1_and_3_on()).
+    if (event.button === 2 && !(event.buttons & 1)) {
+      this.menu_popup(event);
+      return true;
+    }
     if (event.button !== 1) return false; // middle button
     event.preventDefault(); // no autoscroll
     this._element.setPointerCapture(event.pointerId);

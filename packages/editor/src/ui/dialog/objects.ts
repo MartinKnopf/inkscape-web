@@ -8,7 +8,9 @@
  * Copyright (C) 2020 Martin Owens
  */
 import { C_, DocumentUndo, SPGroup, SPItem, type SPObject } from '@inkscape-web/core';
+import type { Point } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
+import { ContextMenu, popup_context_menu } from '../contextmenu.ts';
 
 /** A visible row of the layers and objects tree. */
 export interface ObjectRow {
@@ -109,4 +111,22 @@ export function selectRow(desktop: SPDesktop, item: SPItem, additive: boolean): 
   } else {
     selection.set(item);
   }
+}
+
+/**
+ * Show the context menu of a row at the client position p (upstream: the right button in
+ * ObjectsPanel::on_click). A right-clicked layer becomes the current layer; another item that is
+ * not selected becomes the selection. The menu has no "Layers and Objects..." item.
+ */
+export function popupRowContextMenu(desktop: SPDesktop, item: SPItem, p: Point): void {
+  const selection = desktop.getSelection();
+  const layer = item instanceof SPGroup && item.isLayer() ? item : null;
+  // If right-clicking on a layer, make it current for context menu actions to work correctly.
+  if (layer && !selection.includes(layer)) {
+    desktop.layerManager().setCurrentLayer(item, true);
+  }
+  if (!selection.includes(item) && !layer) {
+    selection.set(item);
+  }
+  popup_context_menu(ContextMenu(desktop, item, [item], true), p);
 }

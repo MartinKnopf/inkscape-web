@@ -351,12 +351,10 @@ export class SprayTool extends ToolBase {
     this.object_set = new ObjectSet(desktop);
     this.object_set.addList(desktop.getSelection().objects());
     this._element.addEventListener('pointerleave', this.#onLeave);
-    this._element.addEventListener('contextmenu', this.#onContextMenu);
   }
 
   override destroy(): void {
     this._element.removeEventListener('pointerleave', this.#onLeave);
-    this._element.removeEventListener('contextmenu', this.#onContextMenu);
     this.dilate_area.unlink();
     this.shapes_area.unlink();
     super.destroy();
@@ -365,11 +363,6 @@ export class SprayTool extends ToolBase {
   readonly #onLeave = (): void => {
     this.dilate_area.set_visible(false);
     this.shapes_area.set_visible(false);
-  };
-
-  /** The right button picks another item to spray with a click; no context menu. */
-  readonly #onContextMenu = (event: Event): void => {
-    if (this._desktop.getTool() === this) event.preventDefault();
   };
 
   override set(name: string): void {
