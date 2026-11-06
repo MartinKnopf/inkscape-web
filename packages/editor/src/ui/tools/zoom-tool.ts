@@ -43,19 +43,14 @@ export class ZoomTool extends ToolBase {
   /** The rubberband was canceled with Escape, so the button release does not zoom. */
   escaped = false;
 
-  readonly #onContextMenu = (e: Event): void => e.preventDefault();
-
   constructor(desktop: SPDesktop) {
     super(desktop, '/tools/zoom');
     const prefs = Preferences.get();
     if (prefs.getBool('/tools/zoom/selcue')) this.enableSelectionCue();
     if (prefs.getBool('/tools/zoom/gradientdrag')) this.enableGrDrag();
-    // The right button zooms out, so it must not open the browser's menu.
-    this._element.addEventListener('contextmenu', this.#onContextMenu);
   }
 
   override destroy(): void {
-    this._element.removeEventListener('contextmenu', this.#onContextMenu);
     Rubberband.get(this._desktop).stop();
     this.ungrabCanvasEvents();
     super.destroy();

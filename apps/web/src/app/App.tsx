@@ -9,6 +9,7 @@ import 'dockview-react/dist/styles/dockview.css';
 import { PdfImportDialogHost } from '../extension/internal/pdfinput/pdf-input.tsx';
 import { RvngImportDialogHost } from '../extension/internal/rvng-import-dialog.tsx';
 import { PrefDialogHost } from '../extension/prefdialog/prefdialog.tsx';
+import { ContextMenuHost } from '../ui/contextmenu.tsx';
 import { MenuBar } from '../ui/desktop/menubar.tsx';
 import { AboutDialogHost } from '../ui/dialog/about.tsx';
 import { CommandPaletteHost } from '../ui/dialog/command-palette.tsx';
@@ -122,6 +123,7 @@ export function App() {
       {bars.statusbar && <StatusBar />}
       <AboutDialogHost />
       <CommandPaletteHost />
+      <ContextMenuHost />
       <GuidelineDialogHost />
       <PrefDialogHost />
       <PdfImportDialogHost />

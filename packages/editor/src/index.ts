@@ -128,6 +128,7 @@ export * from './snapped-line.ts';
 export * from './snapped-point.ts';
 export * from './snapper.ts';
 export * from './ui/clipboard.ts';
+export * from './ui/contextmenu.ts';
 export * from './ui/desktop/menubar.ts';
 export * from './ui/dialog/attrdialog.ts';
 export * from './ui/dialog/clonetiler.ts';

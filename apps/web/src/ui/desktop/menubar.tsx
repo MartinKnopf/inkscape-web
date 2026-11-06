@@ -18,7 +18,7 @@ import {
   Shortcuts,
 } from '@inkscape-web/editor';
 import * as Menubar from '@radix-ui/react-menubar';
-import { Fragment, type ReactNode, useSyncExternalStore } from 'react';
+import { createContext, Fragment, type ReactNode, useContext, useSyncExternalStore } from 'react';
 import { useRecentFiles } from '../../app/recent-files.ts';
 import { load_extensions } from '../../extension/init.ts';
 
@@ -53,7 +53,7 @@ export async function loadMenu(): Promise<void> {
 
 /** A number that changes when actions or shortcuts change, to render menus again. */
 let version = 0;
-function useActionsVersion(): number {
+export function useActionsVersion(): number {
   return useSyncExternalStore(
     (cb) => {
       const bump = () => {
@@ -86,8 +86,38 @@ const entryKey = (e: MenuEntry): string =>
       ? `sub|${e.id}|${e.label}`
       : `sec|${e.id ?? e.children.map(entryKey).join()}`;
 
+/**
+ * The Radix primitives that draw the entries, and what an item does: the menu bar uses Menubar,
+ * the context menu uses DropdownMenu, which have the same parts.
+ */
+interface MenuKit {
+  Item: typeof Menubar.Item;
+  Separator: typeof Menubar.Separator;
+  Sub: typeof Menubar.Sub;
+  SubTrigger: typeof Menubar.SubTrigger;
+  SubContent: typeof Menubar.SubContent;
+  Portal: typeof Menubar.Portal;
+  isEnabled: (action: string) => boolean;
+  activate: (action: string) => void;
+}
+
+const menubarKit: MenuKit = {
+  Item: Menubar.Item,
+  Separator: Menubar.Separator,
+  Sub: Menubar.Sub,
+  SubTrigger: Menubar.SubTrigger,
+  SubContent: Menubar.SubContent,
+  Portal: Menubar.Portal,
+  isEnabled: (action) => InkscapeApplication.instance().actions.is_enabled(action),
+  activate: (action) => InkscapeApplication.instance().activate_action(action),
+};
+
+/** The kit of the entries below; the menu bar's by default. */
+export const MenuKitContext = createContext<MenuKit>(menubarKit);
+
 /** The entries of a menu: sections are separated from their neighbours like GTK does. */
-function MenuEntries({ entries }: { entries: readonly MenuEntry[] }) {
+export function MenuEntries({ entries }: { entries: readonly MenuEntry[] }) {
+  const kit = useContext(MenuKitContext);
   const out: ReactNode[] = [];
   let separate = false;
   for (const entry of entries) {
@@ -95,7 +125,7 @@ function MenuEntries({ entries }: { entries: readonly MenuEntry[] }) {
     const key = entryKey(entry);
     const section = entry.kind === 'section';
     if (out.length && (section || separate))
-      out.push(<Menubar.Separator key={`sep|${key}`} className="menu-separator" />);
+      out.push(<kit.Separator key={`sep|${key}`} className="menu-separator" />);
     separate = section;
     out.push(<Entry key={key} entry={entry} />);
   }
@@ -114,24 +144,26 @@ function useRecentEntries(): MenuEntry[] {
 }
 
 function SubmenuEntry({ entry }: { entry: Extract<MenuEntry, { kind: 'submenu' }> }) {
+  const kit = useContext(MenuKitContext);
   const recent = useRecentEntries();
   const children = entry.id === 'recent-files' ? recent : entry.children;
   return (
-    <Menubar.Sub>
-      <Menubar.SubTrigger className="menu-item" disabled={children.every(isEmpty)}>
+    <kit.Sub>
+      <kit.SubTrigger className="menu-item" disabled={children.every(isEmpty)}>
         <span>{label(entry.label)}</span>
         <span className="menu-shortcut">›</span>
-      </Menubar.SubTrigger>
-      <Menubar.Portal>
-        <Menubar.SubContent className="menu-popup" loop>
+      </kit.SubTrigger>
+      <kit.Portal>
+        <kit.SubContent className="menu-popup" loop>
           <MenuEntries entries={children} />
-        </Menubar.SubContent>
-      </Menubar.Portal>
-    </Menubar.Sub>
+        </kit.SubContent>
+      </kit.Portal>
+    </kit.Sub>
   );
 }
 
 function Entry({ entry }: { entry: MenuEntry }) {
+  const kit = useContext(MenuKitContext);
   const app = InkscapeApplication.instance();
   switch (entry.kind) {
     case 'section':
@@ -142,19 +174,19 @@ function Entry({ entry }: { entry: MenuEntry }) {
       // Boolean actions show their state as a check mark (upstream: GTK check menu items).
       const state = app.actions.lookup_action(entry.action)?.get_state();
       return (
-        <Menubar.Item
+        <kit.Item
           className="menu-item"
-          disabled={!app.actions.is_enabled(entry.action)}
+          disabled={!kit.isEnabled(entry.action)}
           data-action={entry.action}
           data-state-checked={state}
-          onSelect={() => app.activate_action(entry.action)}
+          onSelect={() => kit.activate(entry.action)}
         >
           <span>
             {state !== undefined && <span className="menu-check">{state ? '✓' : ''}</span>}
             {label(entry.label)}
           </span>
           <span className="menu-shortcut">{Shortcuts.getInstance().get_shortcut_label(entry.action)}</span>
-        </Menubar.Item>
+        </kit.Item>
       );
     }
   }

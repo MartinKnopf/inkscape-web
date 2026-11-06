@@ -11,7 +11,7 @@
 // - "loaded" items: the item is in a list that the category computes (Python extensions: the
 //   extension system loads the .inx and can run its script, see extensionIsLoaded()).
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import { checkUpstream, ourSources, repoRoot, sync, upstreamReferences, upstreamRoot } from './upstream.ts';
 
 interface Category {
@@ -21,6 +21,8 @@ interface Category {
   items: string[];
   /** The items that count as ported, for 'loaded'. */
   loaded?: Set<string>;
+  /** The text of an item in docs/PARITY.md; default: the file name ('header') or the key. */
+  label?: (item: string) => string;
 }
 
 const src = (p: string) => readFileSync(join(upstreamRoot, p), 'utf8');
@@ -28,6 +30,12 @@ const ls = (dir: string, re: RegExp) =>
   readdirSync(join(upstreamRoot, dir))
     .filter((f) => re.test(f))
     .map((f) => `${dir}/${f}`)
+    .sort();
+/** All files below `dir` whose name matches `re`, recursive. */
+const lsRecursive = (dir: string, re: RegExp) =>
+  (readdirSync(join(upstreamRoot, dir), { recursive: true, encoding: 'utf8' }) as string[])
+    .filter((f) => re.test(f))
+    .map((f) => `${dir}/${f.split(sep).join('/')}`)
     .sort();
 const unique = (a: string[]) => [...new Set(a)].sort();
 
@@ -79,6 +87,14 @@ function categories(): Category[] {
       items: unique(extensions.map((e) => e.id)),
       loaded: new Set(extensions.filter((e) => e.loaded).map((e) => e.id)),
     },
+    {
+      // The rest of the user interface: widgets, toolbars, context menus, dialog helpers. Some
+      // of these files are GTK plumbing that the web app does not need.
+      name: 'UI files',
+      match: 'header',
+      items: lsRecursive('src/ui', /\.cpp$/).filter((f) => !/^src\/ui\/tools\/[^/]+-tool\.cpp$/.test(f)),
+      label: (i) => i.slice('src/ui/'.length),
+    },
   ];
 }
 
@@ -112,7 +128,10 @@ if (process.argv.includes('--write')) {
     (r) =>
       `<details><summary>${r.c.name} (${r.done}/${r.c.items.length})</summary>\n\n` +
       r.c.items
-        .map((i) => `- [${isPorted(r.c, i) ? 'x' : ' '}] \`${r.c.match === 'header' ? basename(i) : i}\``)
+        .map(
+          (i) =>
+            `- [${isPorted(r.c, i) ? 'x' : ' '}] \`${r.c.label?.(i) ?? (r.c.match === 'header' ? basename(i) : i)}\``,
+        )
         .join('\n') +
       '\n\n</details>',
   );
