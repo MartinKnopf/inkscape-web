@@ -9,25 +9,75 @@
  * Copyright (C) 2020 Tavmjong Bah
  */
 import { C_, convertUnit, DocumentUndo, Preferences, SnapTargetType, SPGuide } from '@inkscape-web/core';
-import { Point } from '@inkscape-web/geom';
+import { Point, Scale } from '@inkscape-web/geom';
 import type { SPDesktop } from '../../desktop.ts';
 import { CanvasItemGuideLine } from '../../display/control/canvas-item-guideline.ts';
 import { Canvas } from './canvas.ts';
 import { RULER_SIZE, Ruler } from './ink-ruler.ts';
 
+/** The thickness of a scroll bar in px. */
+const SCROLLBAR_SIZE = 15;
+
 /**
- * The canvas with its rulers (upstream CanvasGrid, without the scrollbars):
- * a corner, the horizontal ruler on top, the vertical ruler on the left and
- * the canvas. The rulers show the display unit, the page and the pointer
- * position; dragging from a ruler creates a guide.
- * TODO: scrollbars (win.canvas-scroll-bars only keeps the preference), the sticky zoom and lock
- * buttons, the ruler context menu.
+ * A scroll bar over the range [lower, upper] with the value at the left or top edge of the visible
+ * page (upstream Gtk::Scrollbar with a Gtk::Adjustment). The browser draws it: a scrolling element
+ * with a spacer of the size of the range.
+ */
+class Scrollbar {
+  readonly element: HTMLDivElement;
+  readonly #spacer: HTMLDivElement;
+  readonly #horizontal: boolean;
+  #lower = 0;
+
+  constructor(doc: Document, horizontal: boolean, onChange: (value: number) => void) {
+    this.#horizontal = horizontal;
+    this.element = doc.createElement('div');
+    this.element.className = horizontal ? 'canvas-scrollbar-horz' : 'canvas-scrollbar-vert';
+    Object.assign(this.element.style, {
+      overflowX: horizontal ? 'scroll' : 'hidden',
+      overflowY: horizontal ? 'hidden' : 'scroll',
+      minWidth: '0',
+      minHeight: '0',
+    });
+    this.#spacer = doc.createElement('div');
+    this.element.append(this.#spacer);
+    this.element.addEventListener('scroll', () => onChange(this.value));
+  }
+
+  /** The value of the adjustment: the start of the visible page. */
+  get value(): number {
+    return this.#lower + (this.#horizontal ? this.element.scrollLeft : this.element.scrollTop);
+  }
+
+  /** Set the range, the page size is the size of the element. Scrolls to value. */
+  setAdjustment(lower: number, upper: number, value: number): void {
+    this.#lower = Math.floor(lower);
+    const size = `${Math.ceil(upper) - this.#lower}px`;
+    if (this.#horizontal) Object.assign(this.#spacer.style, { width: size, height: '1px' });
+    else Object.assign(this.#spacer.style, { height: size, width: '1px' });
+    const offset = value - this.#lower;
+    if (this.#horizontal) this.element.scrollLeft = offset;
+    else this.element.scrollTop = offset;
+  }
+}
+
+/**
+ * The canvas with its rulers and scroll bars (upstream CanvasGrid): a corner, the horizontal ruler
+ * on top, the vertical ruler on the left, the canvas and the scroll bars at the bottom and the
+ * right. The rulers show the display unit, the page and the pointer position; dragging from a
+ * ruler creates a guide. The scroll bars cover the document area and the visible area.
+ * TODO: the sticky zoom and lock buttons, the ruler context menu.
  */
 export class CanvasGrid {
   readonly element: HTMLDivElement;
   readonly canvas: Canvas;
   readonly #hruler: Ruler;
   readonly #vruler: Ruler;
+  readonly #hscrollbar: Scrollbar;
+  readonly #vscrollbar: Scrollbar;
+  #show_rulers = true;
+  #show_scrollbars = true;
+  #updating = false;
   #desktop: SPDesktop | null = null;
   #disconnect: (() => void)[] = [];
 
@@ -44,8 +94,6 @@ export class CanvasGrid {
     this.element.className = 'canvas-grid';
     Object.assign(this.element.style, {
       display: 'grid',
-      gridTemplateColumns: `${RULER_SIZE}px 1fr`,
-      gridTemplateRows: `${RULER_SIZE}px 1fr`,
       width: '100%',
       height: '100%',
     });
@@ -58,17 +106,26 @@ export class CanvasGrid {
     };
     const corner = cell('ruler-corner');
     corner.style.background = '#f4f4f4';
+    corner.style.gridArea = '1 / 1';
     const htop = cell('ruler-horz');
+    htop.style.gridArea = '1 / 2';
     const vleft = cell('ruler-vert');
+    vleft.style.gridArea = '2 / 1';
     const canvas_host = cell('canvas-host');
     // Stays in the second row and column when the rulers are hidden.
     canvas_host.style.gridArea = '2 / 2';
+    this.#hscrollbar = new Scrollbar(doc, true, () => this.#adjustmentChanged());
+    this.#vscrollbar = new Scrollbar(doc, false, () => this.#adjustmentChanged());
+    this.#hscrollbar.element.style.gridArea = '3 / 2';
+    this.#vscrollbar.element.style.gridArea = '2 / 3';
+    this.element.append(this.#hscrollbar.element, this.#vscrollbar.element);
     this.#hruler = new Ruler(doc, true);
     this.#vruler = new Ruler(doc, false);
     htop.append(this.#hruler.element);
     vleft.append(this.#vruler.element);
     host.append(this.element);
     this.canvas = new Canvas(canvas_host);
+    this.#layout();
 
     for (const [ruler, horiz] of [
       [this.#hruler, true],
@@ -84,15 +141,80 @@ export class CanvasGrid {
 
   /** Show or hide the rulers and the corner (upstream CanvasGrid::ShowRulers, win.canvas-rulers). */
   ShowRulers(visible: boolean): void {
-    const size = visible ? `${RULER_SIZE}px` : '0px';
-    this.element.style.gridTemplateColumns = `${size} 1fr`;
-    this.element.style.gridTemplateRows = `${size} 1fr`;
+    if (this.#show_rulers === visible) return;
+    this.#show_rulers = visible;
+    this.#layout();
+    if (visible) this.updateRulers();
+  }
+
+  /** Show or hide the scroll bars (upstream CanvasGrid::ShowScrollbars, win.canvas-scroll-bars). */
+  ShowScrollbars(visible: boolean): void {
+    if (this.#show_scrollbars === visible) return;
+    this.#show_scrollbars = visible;
+    this.#layout();
+    if (visible) this.updateScrollbars();
+  }
+
+  /** Set the sizes of the grid tracks and the visibility of the rulers and scroll bars. */
+  #layout(): void {
+    const ruler = this.#show_rulers ? `${RULER_SIZE}px` : '0px';
+    const bar = this.#show_scrollbars ? `${SCROLLBAR_SIZE}px` : '0px';
+    this.element.style.gridTemplateColumns = `${ruler} 1fr ${bar}`;
+    this.element.style.gridTemplateRows = `${ruler} 1fr ${bar}`;
     for (const cell of this.element.querySelectorAll<HTMLElement>(
       '.ruler-corner, .ruler-horz, .ruler-vert',
     )) {
-      cell.style.display = visible ? '' : 'none';
+      cell.style.display = this.#show_rulers ? '' : 'none';
     }
-    if (visible) this.updateRulers();
+    this.#hscrollbar.element.style.display = this.#show_scrollbars ? '' : 'none';
+    this.#vscrollbar.element.style.display = this.#show_scrollbars ? '' : 'none';
+  }
+
+  /** The scroll bar values are the new top left corner of the visible area (upstream _adjustmentChanged). */
+  #adjustmentChanged(): void {
+    const desktop = this.#desktop;
+    if (this.#updating || !desktop) return;
+    const pos = new Point(this.#hscrollbar.value, this.#vscrollbar.value);
+    // The scroll event that follows our own update has the position that the canvas already has.
+    if (pos.equals(this.canvas.get_pos())) return;
+    this.#updating = true;
+    desktop.scroll_absolute(pos);
+    this.#updating = false;
+  }
+
+  /**
+   * Set the ranges of the scroll bars (upstream updateScrollbars): the pages and the objects with a
+   * margin (about the size of the document) around them, always including the visible area.
+   */
+  updateScrollbars(): void {
+    const desktop = this.#desktop;
+    if (this.#updating || !desktop || !this.#show_scrollbars) return;
+    this.#updating = true;
+    const doc = desktop.getDocument();
+    const zoom = desktop.current_zoom();
+    const dims = doc.getDimensions();
+    const dt = doc.doc2dt();
+    // The desktop region we always show unconditionally.
+    let deskarea = doc.preferredBounds().transformed(dt).expandBy(dims.x, dims.y);
+    for (const page of doc.getPageManager().getPages()) deskarea = deskarea.unionWith(page.getDesktopRect());
+    const root = doc.getRoot();
+    const bounds =
+      Preferences.get().getInt('/tools/bounding_box', 0) === 0
+        ? root.desktopVisualBounds()
+        : root.desktopGeometricBounds();
+    if (bounds) deskarea = deskarea.unionWith(bounds);
+    // Account for desktop rotation, offset, etc - but ignore zoom
+    deskarea = deskarea.transformed(desktop.d2w().multiply(Scale(1 / zoom, 1 / zoom)));
+    // Canvas region we always show unconditionally; the visible area is always scrollable.
+    const y_dir = desktop.yaxisdir();
+    const viewbox = this.canvas.get_area_world();
+    const carea = deskarea
+      .transformed(Scale(zoom, zoom * y_dir))
+      .expandBy(64)
+      .unionWith(viewbox);
+    this.#hscrollbar.setAdjustment(carea.left(), carea.right(), viewbox.left());
+    this.#vscrollbar.setAdjustment(carea.top(), carea.bottom(), viewbox.top());
+    this.#updating = false;
   }
 
   destroy(): void {
@@ -107,7 +229,10 @@ export class CanvasGrid {
     this.#disconnect = [];
     this.#desktop = desktop;
     if (!desktop) return;
-    const update = () => this.updateRulers();
+    const update = () => {
+      this.updateRulers();
+      this.updateScrollbars();
+    };
     const svg = this.canvas.svg;
     const onMove = (e: PointerEvent) => {
       const w = this.canvas.windowPoint(e);

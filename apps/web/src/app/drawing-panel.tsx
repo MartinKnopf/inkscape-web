@@ -11,7 +11,7 @@ import { useLayout } from './layout.ts';
 export function DrawingPanel({ api }: IDockviewPanelProps) {
   const ref = useRef<HTMLDivElement>(null);
   const grid_ref = useRef<CanvasGrid | null>(null);
-  const rulers = useLayout().bars.rulers;
+  const { rulers, scrollbars } = useLayout().bars;
   useEffect(() => {
     const host = ref.current;
     const win = getDocumentWindow(api.id);
@@ -30,6 +30,7 @@ export function DrawingPanel({ api }: IDockviewPanelProps) {
     };
   }, [api.id]);
   useEffect(() => grid_ref.current?.ShowRulers(rulers), [rulers]);
+  useEffect(() => grid_ref.current?.ShowScrollbars(scrollbars), [scrollbars]);
   return <div className="drawing" ref={ref} />;
 }
 

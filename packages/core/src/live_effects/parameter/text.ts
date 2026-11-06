@@ -8,6 +8,7 @@
  * Copyright (C) jucablues 2007 <jucablues@users.sourceforge.net>
  */
 import { angle_between, type Path, Point } from '@inkscape-web/geom';
+import { Signal } from '../../util/signal.ts';
 import type { Effect } from '../effect.ts';
 import { ParamType } from '../effect-enum.ts';
 import { arcLengthSamples } from '../pwd2.ts';
@@ -27,6 +28,12 @@ export interface CanvasText {
  * kept as canvasText(); drawing it is up to the editor.
  */
 export class TextParam extends Parameter {
+  /**
+   * Emitted when the text on the canvas of any text param changes (its text, position, anchor or
+   * visibility). The editor redraws the texts on it.
+   */
+  static readonly canvasTextChanged = new Signal<[]>();
+
   protected value: string;
   protected defvalue: string;
   protected anchor_x = 0;
@@ -49,6 +56,7 @@ export class TextParam extends Parameter {
   /** Do not show the text on the canvas. */
   param_hide_canvas_text(): void {
     this.canvas_text_hidden = true;
+    TextParam.canvasTextChanged.emit();
   }
   /** The text on the canvas, or null when it is hidden. */
   canvasText(): CanvasText | null {
@@ -57,6 +65,7 @@ export class TextParam extends Parameter {
   }
   setPos(pos: Point): void {
     this.pos = pos;
+    TextParam.canvasTextChanged.emit();
   }
   /**
    * Put the text at the fraction t of the length of path, `length` away from it on its left
@@ -70,12 +79,13 @@ export class TextParam extends Parameter {
     const dir = sample.unit;
     const n = dir.rot90().neg();
     const angle = angle_between(dir, new Point(1, 0));
-    this.pos = sample.point.add(n.mul(length));
+    this.setPos(sample.point.add(n.mul(length)));
     this.setAnchor(Math.sin(angle), -Math.cos(angle));
   }
   setAnchor(x_value: number, y_value: number): void {
     this.anchor_x = x_value;
     this.anchor_y = y_value;
+    TextParam.canvasTextChanged.emit();
   }
   get_value(): string {
     return this.value;
@@ -96,6 +106,7 @@ export class TextParam extends Parameter {
   param_setValue(newvalue: string): void {
     if (this.value !== newvalue) this.param_effect.refresh_widgets = true;
     this.value = newvalue;
+    TextParam.canvasTextChanged.emit();
   }
   paramType(): ParamType {
     return ParamType.TEXT;

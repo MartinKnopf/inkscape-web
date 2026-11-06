@@ -36,23 +36,45 @@ const PAINTED = ':is(path, rect, circle, ellipse, line, polyline, polygon, text,
  * The style sheet of the render modes: the mode is the attribute data-render-mode of the root
  * element of the drawing. Outline shows the paths of the objects as 1 px lines in black, without
  * fill, filters and opacity; the overlay mode does that over a translucent drawing; no filters only
- * drops the filters. TODO: the thin lines mode (CSS cannot set a least stroke width).
+ * drops the filters. The hairlines mode marks the thin strokes with data-hairline (see
+ * SvgDrawing.updateHairlines) and draws those as 1 px lines (CSS cannot set a least stroke width).
  */
 const RENDER_MODE_CSS =
   `[data-render-mode="outline"] ${PAINTED}{fill:none!important;stroke:#000!important;stroke-width:1px!important;stroke-opacity:1!important;stroke-dasharray:none!important;vector-effect:non-scaling-stroke;filter:none!important;mask:none!important;opacity:1!important;marker:none!important}` +
   `[data-render-mode="outline"] image{opacity:.3!important}` +
   `[data-render-mode="overlay"] ${PAINTED}{fill-opacity:.4!important;stroke:#000!important;stroke-width:1px!important;stroke-dasharray:none!important;vector-effect:non-scaling-stroke}` +
-  `[data-render-mode="nofilters"] *{filter:none!important}`;
+  `[data-render-mode="nofilters"] *{filter:none!important}` +
+  `[data-render-mode="hairlines"] [data-hairline]{stroke-width:var(--hairline-width)!important}`;
 
 const RENDER_MODE_ATTRIBUTE: Record<RenderMode, string | null> = {
   [RenderMode.NORMAL]: null,
   [RenderMode.OUTLINE]: 'outline',
   [RenderMode.NO_FILTERS]: 'nofilters',
-  [RenderMode.VISIBLE_HAIRLINES]: null,
+  [RenderMode.VISIBLE_HAIRLINES]: 'hairlines',
   [RenderMode.OUTLINE_OVERLAY]: 'overlay',
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * A computed stroke width in user units. The browser keeps a percentage as it is; it is a part of
+ * the diagonal of the viewport of the nearest svg element, sqrt((w^2 + h^2) / 2).
+ */
+function resolveWidth(value: string, el: SVGGraphicsElement): number {
+  const width = Number.parseFloat(value);
+  if (!value.trim().endsWith('%')) return width;
+  const svg = el.ownerSVGElement;
+  const box = svg?.viewBox?.baseVal;
+  const w = box?.width || svg?.clientWidth || 0;
+  const h = box?.height || svg?.clientHeight || 0;
+  return (width / 100) * Math.sqrt((w * w + h * h) / 2);
+}
+
+/** The screen size of one user unit of the element, from its transform to the screen. */
+function screenScale(el: SVGGraphicsElement): number {
+  const m = el.getScreenCTM?.();
+  return m ? Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) : 1;
+}
 
 /** The region of the svg:mask elements, in user space: large enough to not cut the mask. */
 const MASK_REGION = { maskUnits: 'userSpaceOnUse', x: '-1e5', y: '-1e5', width: '2e5', height: '2e5' };
@@ -135,7 +157,42 @@ export class SvgDrawing implements Drawing {
     }
     if (value) this.root.element.setAttribute('data-render-mode', value);
     else this.root.element.removeAttribute('data-render-mode');
+    this.updateHairlines();
   }
+
+  /**
+   * In the hairlines mode, mark the shapes whose stroke is thinner than 1 screen pixel and give
+   * them the width that makes it 1 px (upstream DrawingShape::_renderStroke with
+   * RENDER_VISIBLE_HAIRLINES). Only the width changes; dashes and the rest keep scaling. Call it
+   * after the zoom or the shapes change. Outside that mode it clears the marks.
+   *
+   * The width is the resolved one of the browser (inherited, with units, in user units). For a
+   * non-scaling stroke that width is in screen px already; else it scales with the element.
+   */
+  updateHairlines(): void {
+    const hairlines = this.#renderMode === RenderMode.VISIBLE_HAIRLINES;
+    if (!hairlines && !this.#hairlinesMarked) return;
+    this.#hairlinesMarked = hairlines;
+    const elements = [...this.root.element.querySelectorAll<SVGGraphicsElement>(PAINTED)];
+    // Clear first: the marks change the resolved width.
+    for (const el of elements) {
+      el.removeAttribute('data-hairline');
+      el.style.removeProperty('--hairline-width');
+    }
+    if (!hairlines) return;
+    const view = this.#doc.defaultView ?? globalThis;
+    for (const el of elements) {
+      const style = view.getComputedStyle(el);
+      const width = resolveWidth(style.strokeWidth, el);
+      if (!(width > 0)) continue;
+      const non_scaling = style.vectorEffect === 'non-scaling-stroke';
+      const scale = non_scaling ? 1 : screenScale(el);
+      if (width * scale >= 1) continue;
+      el.setAttribute('data-hairline', '');
+      el.style.setProperty('--hairline-width', String(1 / scale));
+    }
+  }
+  #hairlinesMarked = false;
 
   /** The <defs> with the paint servers, filters, clip paths and masks. */
   get defs(): SVGDefsElement {

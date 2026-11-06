@@ -43,6 +43,7 @@ import {
   spReprCssAttrNew,
   spReprCssMerge,
   spReprCssSet,
+  TextParam,
   type Node as XmlNode,
 } from '@inkscape-web/core';
 import { Affine, Point, Rect, Rotate, Scale } from '@inkscape-web/geom';
@@ -56,6 +57,7 @@ import { CanvasPage } from './display/control/canvas-page.ts';
 import { SnapIndicator } from './display/control/snap-indicator.ts';
 import { RenderMode, SvgDrawing } from './display/drawing.ts';
 import { SvgDrawingItem } from './display/drawing-item.ts';
+import { LPECanvasTexts } from './display/lpe-canvas-text.ts';
 import { LayerManager } from './layer-manager.ts';
 import { SnapManager } from './snap.ts';
 import { createTool } from './ui/tool-factory.ts';
@@ -466,13 +468,25 @@ export class SPDesktop {
     this.#updateLayersFromDocument();
     this.#updatePage();
     this.#showNamedView(doc.getNamedView());
-    const disconnectModified = doc.modifiedSignal.connect(() => this.#updatePage());
+    const lpe_texts = new LPECanvasTexts(this, doc);
+    lpe_texts.update();
+    const disconnectModified = doc.modifiedSignal.connect(() => {
+      this.#updatePage();
+      lpe_texts.update();
+      if (this.#drawing.getRenderMode() === RenderMode.VISIBLE_HAIRLINES) this.#drawing.updateHairlines();
+    });
+    // The effects change their text while the document updates, and the undo steps end with a commit.
+    const disconnectCommit = doc.commitSignal.connect(() => lpe_texts.update());
+    const disconnectText = TextParam.canvasTextChanged.connect(() => lpe_texts.update());
     const disconnectNamedView = doc.getNamedView().changedSignal.connect(() => this.#updatePage());
     const disconnectPages = doc.getPageManager().connectPagesChanged(() => this.#updatePage());
     const disconnectStart = doc.reconstructionStartSignal.connect(() => this.reconstruction_start());
     const disconnectFinish = doc.reconstructionFinishSignal.connect(() => this.reconstruction_finish());
     this.#disconnectModified = () => {
+      lpe_texts.destroy();
       disconnectModified();
+      disconnectCommit();
+      disconnectText();
       disconnectNamedView();
       disconnectPages();
       disconnectStart();
@@ -891,7 +905,14 @@ export class SPDesktop {
   /** Render the drawing in the mode (upstream setRenderMode). */
   setRenderMode(mode: RenderMode): void {
     this.#drawing.setRenderMode(mode);
+    // The thin strokes depend on the zoom.
+    this.#disconnectHairlines?.();
+    this.#disconnectHairlines =
+      mode === RenderMode.VISIBLE_HAIRLINES
+        ? this.canvas.connectAffine(() => this.#drawing.updateHairlines())
+        : null;
   }
+  #disconnectHairlines: (() => void) | null = null;
   getRenderMode(): RenderMode {
     return this.#drawing.getRenderMode();
   }

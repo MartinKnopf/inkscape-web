@@ -48,6 +48,21 @@ body,
   background: #e8e8e8;
 }
 
+/* The scroll bars of the canvas (CanvasGrid) always take their space; styled, they are not overlay bars. */
+.canvas-scrollbar-horz::-webkit-scrollbar,
+.canvas-scrollbar-vert::-webkit-scrollbar {
+  width: 15px;
+  height: 15px;
+  background: #f4f4f4;
+}
+
+.canvas-scrollbar-horz::-webkit-scrollbar-thumb,
+.canvas-scrollbar-vert::-webkit-scrollbar-thumb {
+  background: #b0b0b0;
+  border: 3px solid #f4f4f4;
+  border-radius: 8px;
+}
+
 .menu-popup {
   z-index: 10;
   min-width: 200px;

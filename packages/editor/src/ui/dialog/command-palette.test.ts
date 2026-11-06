@@ -88,6 +88,23 @@ describe('palette', () => {
     const found = p.suggestions.find((o) => o.full_name === 'win.canvas-rulers');
     expect(found?.name).toBe('Rulers');
     expect(found?.group).toBe('Canvas Display');
+    // The best match comes first, before the entries that only contain the letters.
+    expect(p.suggestions[0]?.full_name).toBe('win.canvas-rulers');
+  });
+
+  it('ranks an exact name before the "(No preferences)" extension entries, as upstream does', () => {
+    const rulers = {
+      name: 'Rulers',
+      untranslated_name: 'Rulers',
+      description: 'Show or hide the canvas rulers',
+    };
+    const extension = {
+      name: 'Approximate Curves by Straight Lines (No preferences)',
+      untranslated_name: 'Approximate Curves by Straight Lines (No preferences)',
+      description: 'Approximate Curves by Straight Lines',
+    };
+    expect(compare_operations(rulers, extension, 'rulers')).toBe(-1);
+    expect(compare_operations(extension, rulers, 'rulers')).toBe(1);
   });
 
   it('runs an action without parameter and closes', () => {
